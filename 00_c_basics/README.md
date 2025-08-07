@@ -15,7 +15,7 @@ Aunque tiene más de 50 años, el lenguaje C sigue siendo **el estándar de fact
 
  
 
-C se usa en todos tipo de dispositivos: Microcontroladores de lavadoras, routers, teclados, drones, controladores de motores, etc.
+C se usa en todos tipo de dispositivos: Microcontroladores de lavarropas, routers, teclados, drones, controladores de motores, satelites, etc.
 
 ---
 
@@ -156,7 +156,7 @@ Y luego se sube al microcontrolador con una herramienta como OpenOCD, STLink, et
 
 ---
 
-## 8. Clases:
+# Clases:
 
 Para profundizar en C, se recomienda leer los siguientes apuntes:
 
