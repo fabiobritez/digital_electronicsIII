@@ -60,9 +60,7 @@ int main() {
     printf("Hello world!\n");
     return 0;
 }
-```
-
-### 🔎 ¿Qué vemos acá?
+``` 
 
 * `#include <stdio.h>`: **directiva de preprocesador** que indica al compilador incluir código de otra parte (en este caso, para usar `printf`)
 * `main()`: es la función donde **empieza la ejecución**
@@ -76,7 +74,7 @@ Este es un programa **mínimo** válido en C.
 
 La compilación de un programa en C tiene varias **etapas automáticas**:
 
-### 🔧 Etapas del proceso de construcción
+### Etapas del proceso de construcción
 
 ```
 main.c ──▶ [Preprocesador] ─▶ main.i
@@ -85,13 +83,14 @@ main.c ──▶ [Preprocesador] ─▶ main.i
         ──▶ [Linker]         ─▶ main.elf / main.exe
 ```
 
-### 🔍 ¿Qué hace cada etapa?
+### ¿Qué hace cada etapa?
 
 1. **Preprocesador (`#`)**
 
    * Sustituye macros, incluye archivos (`#include`, `#define`)
    * Elimina comentarios
    * Resultado: código expandido (`.i`)
+     
 Más detalles en [2-preprocesador.md](./2-preprocesador.md)
 2. **Compilador**
 
@@ -160,7 +159,7 @@ Y luego se sube al microcontrolador con una herramienta como OpenOCD, STLink, et
 
 Para profundizar en C, se recomienda leer los siguientes apuntes:
 
-* [0-declaraciones.md](./0-declaraciones.md)
-* [1-operadores.md](./1-operadores.md)
-* [2-preprocesador.md](./2-preprocesador.md) 
+* [0 - Declaraciones](./0-declaraciones.md)
+* [1 - Operadores](./1-operadores.md)
+* [2 - Preprocesador - Directivas](./2-preprocesador.md) 
 * ...
