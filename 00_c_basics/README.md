@@ -1,4 +1,16 @@
- 
+# Clases
+
+Para profundizar en C, se recomienda seguir este orden:
+
+* [Introducción a C](#introducción-a-c-para-sistemas-embebidos)
+* [0 - Declaraciones](./0-declaraciones.md)
+* [1 - Operadores](./1-operadores.md)
+* [2 - Preprocesador - Directivas](./2-preprocesador.md)
+* [3 - Control de Flujo](./3-control-flujo.md)
+* [4 - Punteros](./4-punteros.md)
+* [5 - Punteros Avanzados](./5-punteros-avanzado.md)
+* [6 - Asignación Dinámica](./6-dynamic-allocation.md)
+
 
 #   Introducción a C para Sistemas Embebidos
 
@@ -91,7 +103,9 @@ main.c ──▶ [Preprocesador] ─▶ main.i
    * Elimina comentarios
    * Resultado: código expandido (`.i`)
      
-Más detalles en [2-preprocesador.md](./2-preprocesador.md)
+Más detalles en [Directivas de preprocesador](./2-preprocesador.md)
+
+
 2. **Compilador**
 
    * Traduce C a **ensamblador**
@@ -136,7 +150,7 @@ config.h      → parámetros generales (#define)
 
 ---
 
-## 7. Compilación simple en Linux
+## 7. Compilación simple en Linux y en un entorno embebido
 
 Para compilar un programa C en terminal:
 
@@ -145,7 +159,7 @@ gcc -o programa main.c
 ./programa
 ```
 
-Si usás un entorno embebido (como STM32, LPC, AVR, etc.), se usa un **toolchain cruzado**, como:
+En un entorno embebido (como STM32, LPC, AVR, etc.), se usa un **toolchain cruzado**, por ejemplo:
 
 ```bash
 arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -o main.elf main.c
@@ -155,11 +169,3 @@ Y luego se sube al microcontrolador con una herramienta como OpenOCD, STLink, et
 
 ---
 
-# Clases:
-
-Para profundizar en C, se recomienda leer los siguientes apuntes:
-
-* [0 - Declaraciones](./0-declaraciones.md)
-* [1 - Operadores](./1-operadores.md)
-* [2 - Preprocesador - Directivas](./2-preprocesador.md) 
-* ...

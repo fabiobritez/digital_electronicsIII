@@ -7,10 +7,10 @@ Indican qué variables vamos a usar, qué tipo tienen y (opcionalmente) su valor
 Tienen el siguiente formato:
  
 ```c
-[especificador de almacenamiento] [calificador] [modificador]  [tipo] [nombre] [literal - valor inicial];
+[especificador] [calificador] [modificador]  [tipo] [nombre] = [valor inicial];
 ```
 
-> *Nota:* No todos los elementos aparecen siempre. En una declaración, son obligatorios solo el **tipo base** y el **nombre** de la variable.
+> *Nota:* No todos los elementos aparecen siempre. En una declaración, son obligatorios solo el **tipo** y el **nombre** de la variable.
 
 Ejemplo simple:
 
@@ -81,7 +81,7 @@ Si no se declara ningún especificador:
 
 ---
 
-### 3. **Calificadores de tipo**
+### 3. **Calificador de tipo**
 
 Afectan cómo el compilador **trata el contenido de la variable**.
 
@@ -92,6 +92,33 @@ Afectan cómo el compilador **trata el contenido de la variable**.
 | `restrict`  | La única forma de acceder a ese dato es mediante un puntero (C99) | `void f(int * restrict a);`  |
 
 > En sistemas embebidos, `volatile` es **crítico** para registros de periféricos.
+
+* **Cual es la diferencia entre especificar `volatile` y no?**
+Basicamente, le decimos al compilador que no optimice la lectura/escritura de esta variable, porque puede cambiar sin que el código que ve la modifique.
+
+Supongamos que declaramos una variable que es modificada por una interrupción de hardware, no especificamos `volatile`.
+
+```c
+#include <stdint.h>
+
+uint8_t flag = 0;  // Esta la cambia una ISR
+
+void ISR_timer(void) {
+    flag = 1;      // Se llama cuando pasa un tiempo
+}
+
+int main(void) {
+    while (1) {
+        if (flag == 1) {
+            // Aquí llega cuando flag == 1
+        }
+    }
+    return 0;
+}
+```
+El compilador, al ver que flag nunca cambia dentro de `main`, puede guardar el valor en un registro de CPU y no volver a leerlo de memoria.
+Si el hardware cambia flag a 1, el programa nunca se entera porque está mirando una copia desactualizada. Resultado: Nunca ingresa al `if`.
+
 
 ---
 
@@ -137,10 +164,11 @@ long double resultado; // double extendido
 
 ### 6. **Inicialización (opcional)**
 
-Puedes o no darle un valor al declarar:
+Se puede o no dar un valor de un literal, otra variable o una expresión:
 
 ```c
 int led_pin = 13;
+int led2_pin = led_pin + 1;
 ```
 
 ---
@@ -186,13 +214,13 @@ sizeof(double) <= sizeof(long double)
 ```
 ---
 
-## Headers útiles
+###  Headers útiles
 
 - `<limits.h>` → define los límites de tipos enteros (`INT_MAX`, etc.).
 - `<float.h>` → define propiedades de tipos flotantes (`FLT_MAX`, etc.).
 
 
-## Solución moderna: tipos con tamaño fijo (`stdint.h`)
+### Solución: tipos con tamaño fijo (`stdint.h`)
 
 Para evitar ambigüedades sobre cuántos bits tiene un `int`, `short`, etc., C ofrece una forma **explícita y portable** de declarar tipos enteros con tamaño exacto a través del header:
 
@@ -211,7 +239,7 @@ Esto define tipos estándar como:
 | `int32_t`    | 32 bits       | Con signo     |
 | `uint32_t`   | 32 bits       | Sin signo     |
 
-### Ejemplo:
+Ejemplo:
 
 ```c
 #include <stdint.h>
