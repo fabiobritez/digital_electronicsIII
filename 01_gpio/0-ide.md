@@ -69,13 +69,13 @@ Este espacio de trabajo es el directorio principal en el que se almacenarán y o
 
 Al dar click en lanzar, se nos abrirá la ventana principal de la IDE.
 
-![alt text](./img/ide.png)
+<img src="./img/ide.png" width="80%">
 
 
 3. Ir a `File > New > Create a new C/C++ project`.
 4. En **SDK Wizard**, seleccionar la placa: *LPC1769*.
 
-![alt text](./img/ide-1.png)
+<img src="./img/ide-1.png" width="80%">
 
 5. Elegir `C project`, asignar nombre y ubicación.
 6. Importar CMSIS:
@@ -105,8 +105,7 @@ Build Finished. 0 errors, 0 warnings.
 
 ## 6. Buenas prácticas
 
-* Usar nombres cortos y sin espacios en proyectos.
-* Mantener un workspace por familia de placas. 
+* Usar nombres cortos y sin espacios en proyectos. 
 * Usar control de versiones (Git).
  
 
