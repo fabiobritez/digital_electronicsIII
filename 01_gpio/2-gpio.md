@@ -227,7 +227,7 @@ Encender los 3 leds RGB de la placa LPC1769.
 #define BLUE_LED_PIN     26
 
 void delay(void) {
-    for (volatile int i = 0; i < 1000000; i++); // Pequeña demora
+    for (int i = 0; i < 1000000; i++); // Pequeña demora
 }
 
 int main(void) {
