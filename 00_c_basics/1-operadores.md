@@ -30,10 +30,7 @@ Devuelven un valor de verdad (1 o 0), si se cumple la condición.
 | !        | No lógico | `!x` |
 
 ## Operadores de asignación
-
-
 ## Operadores de incremento y decremento
-
 Hay dos tipos de operadores de incremento y decremento:
 
 - Pre-incremento: `++x`
@@ -49,7 +46,6 @@ int x = 10;
 int y = x++; // y = 10, x = 11
 int z = ++x; // z = 12, x = 12
 ``` 
-
 
 ## Operadores de bit
  
