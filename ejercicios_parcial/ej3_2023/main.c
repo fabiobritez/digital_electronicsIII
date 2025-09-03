@@ -42,7 +42,6 @@
      config_GPIO();
      
      // Configurar SysTick para interrumpir cada 1ms
-     // SystemCoreClock = 100MHz típicamente en LPC1769
      SysTick_Config(SystemCoreClock / 1000);
      
      while (1) 
