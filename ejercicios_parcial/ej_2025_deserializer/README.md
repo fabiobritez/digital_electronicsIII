@@ -48,7 +48,7 @@ Salida bits impares (P0.1):
 | Patrón | Valor Hexadecimal | Acción                                                                              |
 | ------ | ----------------- | ----------------------------------------------------------------------------------- |
 | ZERO   | 0xF628            | Ambas salidas se fuerzan a cero (modo persistente hasta recibir un patrón distinto) |
-| REPEAT | 0x28F6            | Se repite indefinidamente el **último patrón válido** detectado                     |
+| REPEAT | 0x28F6            | Se repite el **último patrón válido** detectado, hasta una entrada distinta                   |
 
 ## Análisis de la Solución
 
