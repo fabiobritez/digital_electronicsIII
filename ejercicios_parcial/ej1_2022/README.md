@@ -61,7 +61,7 @@ data[0] = new_data;
 - **Simplicidad conceptual**: Más intuitivo para principiantes
 
 **Desventajas:**
-- **O(n) complejidad temporal**: Debe mover 15 elementos cada vez
+- **Complejidad temporal**: Debe mover 15 elementos cada vez. Si son más datos, crece.
 - **Ineficiente**: 15 operaciones de lectura/escritura por cada dato nuevo
 - **Mayor consumo de energía**: Más accesos a memoria = más consumo
 
