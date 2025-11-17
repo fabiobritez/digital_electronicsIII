@@ -382,6 +382,173 @@ enum escapes { BELL = '\a', BACKSPACE = '\b', TAB = '\t' , NEWLINE = '\n', RETUR
 
 
 
+## Arreglos (Arrays)
+
+Un arreglo es una **colección de elementos del mismo tipo** almacenados en posiciones **contiguas de memoria**.
+
+### Declaración
+
+```c
+tipo nombre[tamaño];
+```
+
+Ejemplo:
+
+```c
+int numeros[5];           // arreglo de 5 enteros
+float temperaturas[10];   // arreglo de 10 floats
+char mensaje[100];        // arreglo de 100 caracteres
+```
+
+---
+
+### Inicialización
+
+```c
+// Inicialización completa
+int arr[5] = {1, 2, 3, 4, 5};
+
+// Inicialización parcial (resto se inicializa en 0)
+int arr[5] = {1, 2};  // {1, 2, 0, 0, 0}
+
+// Tamaño inferido
+int arr[] = {1, 2, 3, 4, 5};  // tamaño automático = 5
+
+// Todos en cero
+int arr[5] = {0};  // {0, 0, 0, 0, 0}
+```
+
+---
+
+### Acceso a elementos
+
+Los índices **empiezan en 0**:
+
+```c
+int numeros[3] = {10, 20, 30};
+
+int primero = numeros[0];   // 10
+int segundo = numeros[1];   // 20
+int tercero = numeros[2];   // 30
+
+numeros[0] = 100;  // modificar elemento
+```
+
+> ⚠️ **IMPORTANTE**: C **no verifica límites**. Acceder a `numeros[10]` cuando solo hay 3 elementos es **comportamiento indefinido** (puede corromper memoria o causar crashes).
+
+---
+
+### Tamaño de un arreglo
+
+```c
+int arr[10];
+size_t tamaño_bytes = sizeof(arr);      // 40 bytes (10 * 4)
+size_t cantidad = sizeof(arr) / sizeof(arr[0]);  // 10 elementos
+```
+
+> Este truco solo funciona cuando el arreglo está en el mismo scope. Si pasas el arreglo a una función, `sizeof` devolverá el tamaño del puntero, no del arreglo.
+
+---
+
+### Arreglos multidimensionales
+
+```c
+// Matriz 3x3
+int matriz[3][3] = {
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9}
+};
+
+int valor = matriz[1][2];  // 6 (fila 1, columna 2)
+
+// Inicialización lineal (equivalente)
+int matriz[3][3] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+```
+
+---
+
+### Arreglos de caracteres (cadenas)
+
+```c
+char nombre[20] = "Hola";  // {'H', 'o', 'l', 'a', '\0', 0, 0, ...}
+
+// Forma explícita
+char saludo[] = {'H', 'o', 'l', 'a', '\0'};
+
+// Tamaño automático con string literal
+char mensaje[] = "Hola mundo";  // tamaño = 11 (incluye '\0')
+```
+
+> Las cadenas **siempre** terminan con `'\0'` (carácter nulo).
+
+---
+
+### Relación con punteros
+
+Como se verá en las secciones de punteros, **el nombre de un arreglo se comporta como un puntero constante** a su primer elemento:
+
+```c
+int arr[5] = {1, 2, 3, 4, 5};
+int *ptr = arr;  // equivalente a &arr[0]
+
+// Estas expresiones son equivalentes:
+arr[2]  ==  *(arr + 2)  ==  ptr[2]  ==  *(ptr + 2)
+```
+
+---
+
+### Uso en sistemas embebidos
+
+```c
+// Buffer para UART
+uint8_t rx_buffer[256];
+
+// Tabla de lookup para conversión
+const uint16_t adc_to_temp[256] = { /* ... */ };
+
+// Array de registros
+volatile uint32_t gpio_ports[4] = {
+    0x40020000,
+    0x40020400,
+    0x40020800,
+    0x40020C00
+};
+```
+
+---
+
+### Limitaciones importantes
+
+1. **Tamaño fijo**: una vez declarado, no se puede cambiar el tamaño
+2. **No se puede asignar directamente**: `arr1 = arr2;` es **inválido**
+3. **No se puede retornar desde función**: retornar un arreglo local es **comportamiento indefinido**
+4. **Sin verificación de límites**: accesos fuera de rango no generan error
+
+---
+
+### Pasar arreglos a funciones
+
+Cuando pasas un arreglo a una función, en realidad se pasa un **puntero**:
+
+```c
+void procesar(int arr[], int tamaño) {
+    for (int i = 0; i < tamaño; i++) {
+        printf("%d ", arr[i]);
+    }
+}
+
+int main() {
+    int datos[5] = {1, 2, 3, 4, 5};
+    procesar(datos, 5);
+    return 0;
+}
+```
+
+> Por eso es necesario pasar el tamaño como parámetro separado.
+
+---
+
 ## Conversión de tipos
 
 - Se puede convertir un tipo a otro usando **operadores de conversión** o **funciones de conversión**. Se puede hacer de forma implícita (automática) o explícita(manual).

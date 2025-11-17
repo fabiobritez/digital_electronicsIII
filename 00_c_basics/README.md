@@ -2,14 +2,25 @@
 
 Para profundizar en C, se recomienda seguir este orden:
 
+**Fundamentos básicos:**
 * [Introducción a C](#introducción-a-c-para-sistemas-embebidos)
-* [0 - Declaraciones](./0-declaraciones.md)
-* [1 - Operadores](./1-operadores.md)
-* [2 - Preprocesador - Directivas](./2-preprocesador.md)
-* [3 - Control de Flujo](./3-control-flujo.md)
-* [4 - Punteros](./4-punteros.md)
-* [5 - Punteros Avanzados](./5-punteros-avanzado.md)
-* [6 - Asignación Dinámica](./6-dynamic-allocation.md)
+* [0 - Declaraciones, Tipos y Constantes](./0-declaraciones.md) - Variables, tipos de datos, arreglos, constantes
+* [1 - Operadores](./1-operadores.md) - Aritméticos, lógicos, bitwise, asignación
+* [3 - Control de Flujo](./3-control-flujo.md) - if/else, switch, loops, break/continue
+
+**Modularización:**
+* [7 - Funciones](./7-funciones.md) - Declaración, definición, parámetros, retorno, recursión
+
+**Tipos de datos avanzados:**
+* [3 - Tipos No Primitivos](./3-tipos-no-primitivos.md) - Estructuras, uniones, enumeraciones
+
+**Manejo de memoria:**
+* [4 - Punteros](./4-punteros.md) - Conceptos básicos, aritmética de punteros
+* [5 - Punteros Avanzados](./5-punteros-avanzado.md) - Punteros y arreglos, estructuras, cadenas
+* [6 - Asignación Dinámica](./6-dynamic-allocation.md) - malloc/free y por qué evitarlos en embebidos
+
+**Compilación:**
+* [2 - Preprocesador](./2-preprocesador.md) - Directivas #include, #define, #ifdef, #pragma
 
 
 #   Introducción a C para Sistemas Embebidos
