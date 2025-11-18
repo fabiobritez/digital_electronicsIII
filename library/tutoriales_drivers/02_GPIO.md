@@ -177,6 +177,10 @@ if (estado & (1<<10)) {
 
 ### 5. Interrupciones GPIO
 
+> ⚠️ **IMPORTANTE**: Las interrupciones GPIO solo están disponibles en:
+> - **PORT 0**: Pines P0.0 a P0.30
+> - **PORT 2**: Pines P2.0 a P2.13
+
 ```c
 // Habilitar interrupción
 void GPIO_IntCmd(uint8_t portNum, uint32_t bitValue, uint8_t edgeState);
@@ -188,9 +192,12 @@ FunctionalState GPIO_GetIntStatus(uint8_t portNum, uint32_t pinNum, uint8_t edge
 void GPIO_ClearInt(uint8_t portNum, uint32_t bitValue);
 ```
 
-**Estados de flanco (edgeState):**
-- `0`: Flanco descendente (falling edge)
-- `1`: Flanco ascendente (rising edge)
+**Parámetros:**
+- `portNum`: **Solo 0 o 2** (otros puertos no soportan interrupciones)
+- `pinNum`: 0-30 para PORT0, 0-13 para PORT2
+- `edgeState`: Tipo de flanco que genera la interrupción:
+  - `0`: **Rising edge** (flanco ascendente, de 0 a 1)
+  - `1`: **Falling edge** (flanco descendente, de 1 a 0)
 
 ---
 
@@ -461,8 +468,8 @@ void init_button_interrupt(void) {
     // Entrada
     GPIO_SetDir(BUTTON_PORT, BUTTON_PIN, 0);
 
-    // Habilitar interrupción por flanco descendente
-    GPIO_IntCmd(BUTTON_PORT, BUTTON_PIN, 0);  // 0 = falling edge
+    // Habilitar interrupción por flanco descendente (botón presionado)
+    GPIO_IntCmd(BUTTON_PORT, BUTTON_PIN, 1);  // 1 = falling edge
 
     // Limpiar bandera
     GPIO_ClearInt(BUTTON_PORT, BUTTON_PIN);
@@ -473,8 +480,8 @@ void init_button_interrupt(void) {
 
 // Handler de interrupción
 void EINT3_IRQHandler(void) {
-    // Verificar si fue el botón
-    if (GPIO_GetIntStatus(BUTTON_PORT, 10, 0)) {
+    // Verificar si fue el botón (flanco descendente)
+    if (GPIO_GetIntStatus(BUTTON_PORT, 10, 1)) {  // 1 = falling edge
         button_pressed = 1;
 
         // Limpiar bandera
@@ -497,13 +504,16 @@ int main(void) {
 
 ### Vectores de interrupción GPIO
 
-| Puerto | Vector de interrupción |
-|--------|------------------------|
-| PORT0 | `EINT3_IRQn` |
-| PORT2 | `EINT3_IRQn` |
-| Otros | `EINT3_IRQn` |
+| Puerto | Pines con interrupción | Vector IRQ |
+|--------|------------------------|------------|
+| PORT 0 | P0.0 - P0.30 | `EINT3_IRQn` |
+| PORT 2 | P2.0 - P2.13 | `EINT3_IRQn` |
+| PORT 1, 3, 4 | **No soportan interrupciones** | N/A |
 
-> Todos los puertos GPIO comparten el mismo vector `EINT3`, por lo que debes verificar qué pin generó la interrupción.
+> **Importante**:
+> - Solo PORT0 y PORT2 soportan interrupciones GPIO
+> - Ambos puertos comparten el mismo vector `EINT3_IRQn`
+> - Debes verificar en el handler qué puerto y pin generaron la interrupción
 
 ---
 
