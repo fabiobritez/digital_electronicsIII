@@ -227,19 +227,21 @@ void configurar_pines_uart0(void) {
 
 ### Ejemplo 3: Configurar pines para ADC
 
-El ADC del LPC1769 tiene canales en diferentes pines. Por ejemplo:
-- **AD0.0**: P0.23 (Función 1)
-- **AD0.1**: P0.24 (Función 1)
+El ADC del LPC1769 tiene 8 canales (AD0.0 a AD0.7) en diferentes pines. Ejemplos según el manual del usuario:
 - **AD0.2**: P0.25 (Función 1)
+- **AD0.3**: P0.26 (Función 1)
+
+> **Importante**: Consulta la **Tabla 8.5** del manual del usuario LPC17xx para ver el mapeo completo de todos los canales ADC.
 
 ```c
 #include "lpc17xx_pinsel.h"
 
-void configurar_pin_adc(uint8_t canal) {
+void configurar_pin_adc_ch2(void) {
     PINSEL_CFG_Type pin_cfg;
 
+    // Configurar P0.25 como AD0.2
     pin_cfg.Portnum = PINSEL_PORT_0;
-    pin_cfg.Pinnum = PINSEL_PIN_23 + canal;     // P0.23, P0.24, P0.25...
+    pin_cfg.Pinnum = PINSEL_PIN_25;
     pin_cfg.Funcnum = PINSEL_FUNC_1;            // Función ADC
     pin_cfg.Pinmode = PINSEL_PINMODE_TRISTATE;  // Sin resistencia para señal analógica
     pin_cfg.OpenDrain = PINSEL_PINMODE_NORMAL;
@@ -247,10 +249,23 @@ void configurar_pin_adc(uint8_t canal) {
     PINSEL_ConfigPin(&pin_cfg);
 }
 
+void configurar_pin_adc_ch3(void) {
+    PINSEL_CFG_Type pin_cfg;
+
+    // Configurar P0.26 como AD0.3
+    pin_cfg.Portnum = PINSEL_PORT_0;
+    pin_cfg.Pinnum = PINSEL_PIN_26;
+    pin_cfg.Funcnum = PINSEL_FUNC_1;            // Función ADC
+    pin_cfg.Pinmode = PINSEL_PINMODE_TRISTATE;
+    pin_cfg.OpenDrain = PINSEL_PINMODE_NORMAL;
+
+    PINSEL_ConfigPin(&pin_cfg);
+}
+
 // Uso
 int main(void) {
-    configurar_pin_adc(0);  // Configurar AD0.0 (P0.23)
-    configurar_pin_adc(1);  // Configurar AD0.1 (P0.24)
+    configurar_pin_adc_ch2();  // Configurar AD0.2 (P0.25)
+    configurar_pin_adc_ch3();  // Configurar AD0.3 (P0.26)
 
     // Ahora se puede inicializar y usar el ADC
     // ...
@@ -495,9 +510,11 @@ Implementa la función de configuración.
 
 ---
 
-### Ejercicio 3: Configurar 4 canales ADC
+### Ejercicio 3: Configurar canal ADC
 
-Configura AD0.0, AD0.1, AD0.2 y AD0.3 (P0.23-P0.26) usando un bucle.
+Investiga en el manual del usuario el pin correspondiente a AD0.5 y configúralo correctamente.
+
+**Pista**: Busca en la tabla de funciones de pines (Pin Function Table) del manual.
 
 ---
 
