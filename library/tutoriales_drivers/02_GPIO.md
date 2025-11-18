@@ -30,12 +30,18 @@ GPIO permite controlar individualmente los pines del microcontrolador como entra
 
 ### Características del GPIO en LPC1769
 
-- **5 puertos** (PORT0, PORT1, PORT2, PORT3, PORT4)
-- Hasta **32 pines por puerto** (no todos están disponibles físicamente)
+- **5 puertos** definidos (PORT0-PORT4), pero con disponibilidad limitada:
+  - **PORT 0**: P0.0 a P0.30 (31 pines)
+  - **PORT 1**: P1.0 a P1.31 (32 pines)
+  - **PORT 2**: P2.0 a P2.13 (14 pines)
+  - **PORT 3**: P3.25 a P3.26 (solo 2 pines)
+  - **PORT 4**: P4.28 a P4.29 (solo 2 pines)
 - **Operaciones atómicas** con registros SET y CLR
-- **Interrupciones** por flanco (rising/falling edge)
+- **Interrupciones** por flanco solo en PORT0 y PORT2
 - **Acceso rápido** mediante Fast GPIO (FIO)
 - **Máscara programable** para proteger pines
+
+> ⚠️ **Importante**: No todos los pines están disponibles en todos los puertos. Consulta la Tabla 8.3 del manual del usuario.
 
 ---
 

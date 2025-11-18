@@ -75,24 +75,25 @@ El pin **P0.0** puede configurarse como:
 
 ### 2. Puertos y pines
 
-El LPC1769 tiene **5 puertos** (PORT 0-4), cada uno con hasta 32 pines:
+El LPC1769 tiene **5 puertos** (PORT 0-4) definidos en hardware, pero **no todos los pines están disponibles físicamente**:
+
+| Puerto | Pines disponibles en LPC1769 |
+|--------|------------------------------|
+| **PORT 0** | P0.0 a P0.30 (31 pines) |
+| **PORT 1** | P1.0 a P1.31 (32 pines) |
+| **PORT 2** | P2.0 a P2.13 (14 pines) |
+| **PORT 3** | P3.25 a P3.26 (solo 2 pines) |
+| **PORT 4** | P4.28 a P4.29 (solo 2 pines) |
 
 ```c
 #define PINSEL_PORT_0     0    // PORT 0
 #define PINSEL_PORT_1     1    // PORT 1
 #define PINSEL_PORT_2     2    // PORT 2
-#define PINSEL_PORT_3     3    // PORT 3
-#define PINSEL_PORT_4     4    // PORT 4
+#define PINSEL_PORT_3     3    // PORT 3 (solo 2 pines)
+#define PINSEL_PORT_4     4    // PORT 4 (solo 2 pines)
 ```
 
-Cada pin se numera de 0 a 31:
-
-```c
-#define PINSEL_PIN_0      0
-#define PINSEL_PIN_1      1
-// ...
-#define PINSEL_PIN_31     31
-```
+> ⚠️ **Importante**: Consulta siempre la **Tabla 8.3** del manual del usuario LPC17xx para ver qué pines están físicamente disponibles en el package del LPC1769.
 
 ---
 
