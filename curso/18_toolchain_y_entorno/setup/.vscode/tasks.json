@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build (mygpio)",
+      "type": "shell",
+      "command": "./build.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/curso/02_arma_tu_propia_libreria/src/build"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "detail": "Compila y linkea mygpio con el toolchain local (sin make)."
+    },
+    {
+      "label": "flash (pyOCD)",
+      "type": "shell",
+      "command": "pyocd flash -t lpc1768 mygpio.bin",
+      "options": {
+        "cwd": "${workspaceFolder}/curso/02_arma_tu_propia_libreria/src/build"
+      },
+      "dependsOn": "build (mygpio)",
+      "problemMatcher": [],
+      "detail": "Graba el .bin en la placa por SWD usando pyOCD."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "LPC1769",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/library/CMSISv2p00_LPC17xx/inc",
+        "${workspaceFolder}/library/CMSISv2p00_LPC17xx/Drivers/inc"
+      ],
+      "defines": [
+        "__USE_CMSIS",
+        "CORE_M3"
+      ],
+      "compilerPath": "${workspaceFolder}/tools/toolchain/bin/arm-none-eabi-gcc",
+      "compilerArgs": [
+        "-mcpu=cortex-m3",
+        "-mthumb"
+      ],
+      "cStandard": "gnu11",
+      "intelliSenseMode": "linux-gcc-arm"
+    }
+  ]
+}
