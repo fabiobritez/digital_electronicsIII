@@ -67,6 +67,35 @@ Desglosado:
 > interfaz: el flujo es el mismo. Por eso OpenOCD sirve para casi cualquier combinación de sonda +
 > chip.
 
+### Opción 3: LinkServer (el que ya tenés, si instalaste MCUXpresso)
+
+MCUXpresso instala **LinkServer**, el grabador nativo de NXP, como un paquete **separado del IDE**.
+O sea que lo podés usar desde la terminal sin abrir Eclipse:
+
+```bash
+LS=/usr/local/LinkServer_1.6.133          # ajustá la version
+
+$LS/LinkServer probes                     # ver las sondas conectadas
+$LS/LinkServer flash LPC1769 load app.axf # grabar (.axf, .elf, .hex, .s19 o .bin con --addr)
+$LS/LinkServer flash LPC1769 verify app.axf
+$LS/LinkServer gdbserver LPC1769          # servidor gdb, igual que OpenOCD
+```
+
+Soporta LPC-Link, LPC-Link2, MCU-Link y cualquier sonda CMSIS-DAP. Es la opción más directa si ya
+tenés MCUXpresso: no hay nada que instalar. En la
+[página 05](./05-como-compila-y-graba-mcuxpresso.md) se explica cómo funciona por dentro.
+
+### Opción 4: J-Link
+
+Si tenés una sonda SEGGER (o MCUXpresso te instaló el paquete J-Link):
+
+```bash
+JLinkExe -device LPC1769 -if SWD -speed 4000
+J-Link> loadfile app.hex
+J-Link> r        # reset
+J-Link> g        # go
+```
+
 ---
 
 ## Camino B: bootloader serial (ISP), sin sonda
@@ -126,8 +155,8 @@ se conecta:
 # Terminal 1: OpenOCD como servidor gdb (queda escuchando en el puerto 3333)
 openocd -f interface/cmsis-dap.cfg -f target/lpc17xx.cfg
 
-# Terminal 2: gdb del toolchain, conectándose
-arm-none-eabi-gdb mygpio.elf
+# Terminal 2: gdb, conectándose
+gdb-multiarch mygpio.elf        # o arm-none-eabi-gdb, si tu toolchain lo trae
 (gdb) target remote :3333      # conectar a OpenOCD
 (gdb) load                     # grabar el firmware
 (gdb) break main               # poner un breakpoint
@@ -162,4 +191,5 @@ Ya no dependés de ningún IDE: entendés y controlás cada paso, de tu `.c` has
 ---
 
 **Anterior:** [02 - Setup en VSCode](./02-setup-vscode.md) ·
+**Siguiente:** [04 - Adentro del toolchain](./04-adentro-del-toolchain.md) ·
 **Volver al** [índice del curso](../README.md)

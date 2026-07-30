@@ -42,7 +42,7 @@ repo, con el prefijo `arm-none-eabi-`):
 | `nm` | lista los **símbolos** (funciones y variables) de un `.o`/`.elf` |
 | `size` | dice cuánto ocupan `.text`/`.data`/`.bss` (módulo 16) |
 | `readelf` | inspecciona la estructura interna del `.elf` |
-| `gdb` | el **depurador** (lo usás para breakpoints y ver registros, página 03) |
+| `gdb` | el **depurador** (breakpoints y ver registros, página 03). No viene en el paquete del repo: se instala con `sudo apt install gdb-multiarch` |
 
 A esto se suma una pieza que no es un programa sino una **biblioteca**:
 
@@ -88,7 +88,9 @@ cualquier carpeta: **no requiere instalación ni permisos de administrador**. En
 adentro; es exactamente la misma herramienta.
 
 Con esto ya sabés qué es "el compilador" y qué hace cada pieza. En la
-[próxima página](./02-setup-vscode.md) lo conectamos a VSCode para tener un entorno completo.
+[próxima página](./02-setup-vscode.md) lo conectamos a VSCode para tener un entorno completo. Si
+querés ver **qué es cada archivo** de esa carpeta, y no solo los programas principales, está la
+[página 04](./04-adentro-del-toolchain.md).
 
 ---
 

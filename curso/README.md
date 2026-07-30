@@ -47,7 +47,7 @@ trabaja a nivel de registros; **después**, con los drivers incluidos en el repo
 |---|--------|--------------|
 | 16 | [Build, linker y startup](./16_build_linker_startup/) | Qué hace MCUXpresso por vos: secciones, linker script, código de arranque (se puede leer junto al módulo 1) |
 | 17 | [Arquitectura de firmware](./17_arquitectura_de_firmware/) | Superloop no bloqueante, máquinas de estado, intro a RTOS: estructurar un programa real |
-| 18 | [Toolchain y entorno propio](./18_toolchain_y_entorno/) | Qué es el compilador, setup en VSCode, y quemar/depurar la placa sin MCUXpresso (OpenOCD/pyOCD/ISP) |
+| 18 | [Toolchain y entorno propio](./18_toolchain_y_entorno/) | Qué es el compilador y qué hay adentro, setup en VSCode, quemar/depurar sin MCUXpresso (OpenOCD/pyOCD/LinkServer/ISP), y cómo compila y graba MCUXpresso por dentro |
 | 20 | [Hardware y placa](./20_hardware_y_placa/) | Leer el esquemático, electrónica mínima (3.3 V, corriente), e instrumentos de medición |
 
 ### Periféricos adicionales (plus, de consulta)

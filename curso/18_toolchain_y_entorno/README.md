@@ -17,12 +17,22 @@ vas a conocer acá.
    Editor + extensiones + IntelliSense + tarea de compilación, con archivos de configuración listos
    para copiar.
 3. [03 - Quemar la placa (sin MCUXpresso)](./03-quemar-la-placa.md)
-   Dos caminos para grabar el firmware: con una sonda de depuración (SWD: OpenOCD / pyOCD) y por el
-   bootloader serial (ISP: lpc21isp / FlashMagic). Más debug con gdb.
+   Dos caminos para grabar el firmware: con una sonda de depuración (SWD: OpenOCD / pyOCD /
+   LinkServer / J-Link) y por el bootloader serial (ISP: lpc21isp / FlashMagic). Más debug con gdb.
+4. [04 - Adentro de la carpeta del toolchain](./04-adentro-del-toolchain.md)
+   Qué es cada archivo de un toolchain GCC: `bin`, `libexec`, el sysroot, el multilib, `libgcc`,
+   los `.specs`, y qué agregó NXP encima (Redlib). Cómo hace gcc para encontrar cada pieza.
+5. [05 - Cómo compila y graba MCUXpresso](./05-como-compila-y-graba-mcuxpresso.md)
+   El build administrado de Eclipse, los Makefiles generados, los linker scripts generados con
+   plantillas FreeMarker, y toda la cadena de grabado: gdb, `crt_emu_cm_redlink`, `redlinkserv` y
+   los drivers de Flash `.cfx`.
 
 ## Archivos listos para usar
 En [`setup/`](./setup/) hay una plantilla de proyecto con `.vscode/` configurado (build + debug),
 pensada para usar con la estructura de este repo.
+
+Para instalar el toolchain: `bash tools/install_toolchain.sh`. Si ya tenés MCUXpresso instalado,
+`bash tools/install_toolchain.sh --mcuxpresso` enlaza el suyo sin descargar nada.
 
 ## Antes de esto
 Módulos [16 (build, linker, startup)](../16_build_linker_startup/) y

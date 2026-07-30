@@ -34,14 +34,18 @@ Si es tu primera vez acá:
 | [`manual/`](./manual/) | UM10360 (User Manual del LPC17xx) dividido por capítulo, con [índice](./manual/INDEX.md) que mapea cada periférico a su capítulo y registros clave |
 | [`library/`](./library/) | CMSIS v2.00 para LPC17xx: drivers de periféricos y más de 100 ejemplos oficiales de NXP |
 | `UM10360.pdf` | El manual completo, por si preferís tenerlo entero |
-| `tools/` | Scripts de mantenimiento del repo (split del manual, toolchain local) |
+| [`tools/`](./tools/) | Scripts del repo: instalación del toolchain ARM y split del manual. Ver [`tools/README.md`](./tools/README.md) |
 
 ## Hardware y software
 
 - **Micro:** LPC1769, ARM Cortex-M3 hasta 120 MHz (la placa de la cátedra corre a 100 MHz),
   512 KB de flash, 64 KB de RAM.
 - **IDE:** MCUXpresso (gratuito). También podés armarte un entorno propio con VSCode y
-  gcc-arm: está explicado en el [módulo 18](./curso/18_toolchain_y_entorno/).
+  gcc-arm: está explicado en el [módulo 18](./curso/18_toolchain_y_entorno/), que además detalla
+  [qué es cada pieza del toolchain](./curso/18_toolchain_y_entorno/04-adentro-del-toolchain.md) y
+  [cómo compila y graba MCUXpresso por dentro](./curso/18_toolchain_y_entorno/05-como-compila-y-graba-mcuxpresso.md).
+- **Toolchain:** `bash tools/install_toolchain.sh` deja `arm-none-eabi-gcc` en `tools/toolchain/`
+  sin tocar el sistema ni pedir `sudo`.
 - **Librería:** CMSIS v2.00 para LPC17xx, incluida en [`library/`](./library/).
 
 ## Documentación de referencia

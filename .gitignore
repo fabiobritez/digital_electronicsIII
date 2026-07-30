@@ -62,3 +62,6 @@ tools/toolchain/
 tools/pdftools/
 __pycache__/
 *.pyc
+
+# Paquete generado por tools/pack_toolchain.sh
+dist/
