@@ -36,9 +36,10 @@ fi
 
 GCCVER=$("$T/bin/arm-none-eabi-gcc" -dumpversion)                       # 13.2.1
 MULTI=$("$T/bin/arm-none-eabi-gcc" -mcpu=cortex-m3 -mthumb -print-multi-directory)  # thumb/v7-m/nofp
-OUT="$(cd "$(dirname "$0")/.." && pwd)/dist"
+OUT="$(cd "$(dirname "$0")" && pwd)/toolchain-pkg"
 S="$OUT/stage"
 TARBALL="$OUT/arm-none-eabi-cortex-m3-linux-x64.tar.xz"
+mkdir -p "$OUT"
 
 echo "MCUXpresso : $MCUX"
 echo "gcc        : $GCCVER"
@@ -91,11 +92,17 @@ echo "      prueba de humo OK ($("$S/bin/arm-none-eabi-size" "$TMP/t.elf" | tail
 
 tar -cJf "$TARBALL" -C "$S" .
 rm -rf "$S"
-sha256sum "$TARBALL" | tee "$TARBALL.sha256"
+( cd "$OUT" && sha256sum "$(basename "$TARBALL")" > "$(basename "$TARBALL").sha256" )
+NEWSHA=$(cut -d' ' -f1 "$TARBALL.sha256")
 echo
 echo "Listo: $TARBALL  ($(du -h "$TARBALL" | cut -f1))"
+echo "SHA256: $NEWSHA"
 echo
-echo "Para publicarlo (necesita 'gh auth login'):"
-echo "  gh release create toolchain-13.2.rel1 \"$TARBALL\" \\"
-echo "     --title 'Toolchain arm-none-eabi 13.2.Rel1 (Cortex-M3)' \\"
-echo "     --notes 'Arm GNU Toolchain 13.2.Rel1 recortado a Cortex-M3. Ver tools/install_toolchain.sh'"
+echo "El .tar.xz esta versionado en el repo, asi que hay que commitearlo:"
+echo "  git add tools/toolchain-pkg/ && git commit -m 'Regenera el paquete del toolchain'"
+echo
+if ! grep -q "$NEWSHA" "$(dirname "$0")/install_toolchain.sh"; then
+  echo "IMPORTANTE: el .tar.xz no es reproducible byte a byte, asi que el SHA cambio."
+  echo "Actualiza la constante en tools/install_toolchain.sh:"
+  echo "  SHA256=\"$NEWSHA\""
+fi

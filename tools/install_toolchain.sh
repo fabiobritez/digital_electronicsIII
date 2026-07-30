@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deja el toolchain ARM listo en tools/toolchain (no toca el sistema, no requiere sudo).
 #
-#   bash tools/install_toolchain.sh              # baja el paquete del repo (~35 MB)
+#   bash tools/install_toolchain.sh              # usa el paquete versionado en el repo (sin red)
 #   bash tools/install_toolchain.sh --mcuxpresso # enlaza el que ya trae MCUXpresso (0 descarga)
 #   bash tools/install_toolchain.sh --xpack      # baja el toolchain xPack de upstream (~130 MB)
 #   bash tools/install_toolchain.sh --force      # reinstala aunque ya exista
@@ -54,18 +54,28 @@ case "$MODE" in
     ;;
 
   release)
-    URL="${TOOLCHAIN_URL:-https://github.com/$REPO/releases/download/$TAG/$ASSET}"
+    LOCAL="$(cd "$(dirname "$0")" && pwd)/toolchain-pkg/$ASSET"
     TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-    echo "Descargando $ASSET (~35 MB)..."
-    if ! curl -fL --progress-bar "$URL" -o "$TMP/$ASSET"; then
-      echo "No pude bajar el paquete del repo ($URL)." >&2
-      echo "Reintentando con el toolchain xPack de upstream..." >&2
-      exec "$0" --xpack --force
+
+    if [ -f "$LOCAL" ] && [ -z "${TOOLCHAIN_URL:-}" ]; then
+      # El paquete viene versionado en el repo: no hace falta red.
+      PKG="$LOCAL"
+      echo "Usando el paquete del repo: tools/toolchain-pkg/$ASSET"
+    else
+      URL="${TOOLCHAIN_URL:-https://github.com/$REPO/releases/download/$TAG/$ASSET}"
+      PKG="$TMP/$ASSET"
+      echo "Descargando $ASSET (~35 MB)..."
+      if ! curl -fL --progress-bar "$URL" -o "$PKG"; then
+        echo "No pude bajar el paquete ($URL)." >&2
+        echo "Reintentando con el toolchain xPack de upstream..." >&2
+        exec "$0" --xpack --force
+      fi
     fi
+
     echo "Verificando checksum..."
-    echo "$SHA256  $TMP/$ASSET" | sha256sum -c - >/dev/null || { echo "SHA256 no coincide, abortando." >&2; exit 1; }
+    echo "$SHA256  $PKG" | sha256sum -c - >/dev/null || { echo "SHA256 no coincide, abortando." >&2; exit 1; }
     mkdir -p "$DIR"
-    tar -xJf "$TMP/$ASSET" -C "$DIR"
+    tar -xJf "$PKG" -C "$DIR"
     ;;
 
   xpack)

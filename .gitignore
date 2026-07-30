@@ -63,5 +63,5 @@ tools/pdftools/
 __pycache__/
 *.pyc
 
-# Paquete generado por tools/pack_toolchain.sh
-dist/
+# Staging temporal de tools/pack_toolchain.sh (el .tar.xz final si se versiona)
+tools/toolchain-pkg/stage/

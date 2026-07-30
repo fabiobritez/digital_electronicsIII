@@ -325,6 +325,9 @@ Eso da unos 170 MB, 35 MB comprimido. Es literalmente lo que hace `tools/pack_to
 además corre una prueba de compilación real antes de empaquetar. Y si querés agregar C++, sumás
 `cc1plus`, `g++` y `libstdc++.a`.
 
+El resultado está versionado en este repo, en `tools/toolchain-pkg/`, así que un `git clone` y un
+`bash tools/install_toolchain.sh` alcanzan para empezar a compilar sin bajar nada más.
+
 Para depurar hace falta `gdb`, pero **no** conviene sacarlo de MCUXpresso: la build de NXP está
 linkeada contra `libncursesw.so.5` y `libtinfo.so.5`, que ya no existen en Ubuntu moderno, y no
 arranca. Usá `sudo apt install gdb-multiarch`, o el toolchain de xPack
