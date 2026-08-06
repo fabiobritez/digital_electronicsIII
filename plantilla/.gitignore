@@ -1,0 +1,19 @@
+# Todo lo que genera el build. Se reconstruye con "make", no va al repositorio.
+build/
+
+# Lo genera "make compile_commands.json". Depende de las rutas absolutas de
+# cada maquina, asi que no tiene sentido compartirlo.
+compile_commands.json
+.cache/
+
+# Archivos sueltos de compilacion, por si alguien compila a mano fuera de build/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# El .svd de los perifericos, si lo bajaste (pesa varios MB)
+tools/*.svd

@@ -1,0 +1,19 @@
+// Extensiones que VSCode va a ofrecer instalar al abrir esta carpeta.
+// Son tres, y ninguna es un IDE: cada una hace una cosa.
+{
+  "recommendations": [
+    // Autocompletado y navegacion de codigo C.
+    "ms-vscode.cpptools",
+
+    // Depuracion de micros ARM: breakpoints, ver registros del core y de los
+    // perifericos, memoria. Es la que usa launch.json.
+    "marus25.cortex-debug",
+
+    // Resaltado de sintaxis para los archivos .ld del linker.
+    "zixuanwang.linkerscript"
+  ],
+
+  // La extension de Makefile de Microsoft intenta manejar el build por su
+  // cuenta y se pelea con las tareas de tasks.json. Mejor sin ella.
+  "unwantedRecommendations": ["ms-vscode.makefile-tools"]
+}

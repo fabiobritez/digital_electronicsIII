@@ -1,0 +1,110 @@
+# =============================================================================
+# 99-lpc-probes.rules - Permisos de USB para los debug probes (Linux)
+# =============================================================================
+#
+# EL PROBLEMA QUE RESUELVE
+# ------------------------
+# En Linux, un dispositivo USB recien enchufado pertenece a root. Un programa
+# de usuario como openocd o pyocd no lo puede abrir, y el error que ves es
+# alguno de estos:
+#
+#     Error: unable to find a matching CMSIS-DAP device
+#     Error: libusb_open() failed with LIBUSB_ERROR_ACCESS
+#     No available debug probes are connected
+#
+# La reaccion natural es correr "sudo openocd", y funciona. Pero es la
+# solucion equivocada: despues F5 en VSCode no anda (VSCode no corre como
+# root), y terminas con archivos de root en tu proyecto.
+#
+# La forma correcta es decirle a udev que ese dispositivo es de uso normal.
+# Eso es este archivo.
+#
+# INSTALACION
+# -----------
+#     sudo cp tools/99-lpc-probes.rules /etc/udev/rules.d/
+#     sudo udevadm control --reload-rules
+#     sudo udevadm trigger
+#
+# Despues DESENCHUFA Y VOLVE A ENCHUFAR la placa: las reglas se aplican al
+# conectar, no a lo que ya estaba conectado.
+#
+# Para verificar que funciono:
+#     openocd -f openocd/lpc1769.cfg -c "init; exit"     (sin sudo)
+#
+# Nota: en Ubuntu no hace falta estar en el grupo plugdev; TAG+="uaccess" ya
+# le da acceso al usuario que tiene la sesion grafica activa. El grupo se deja
+# por compatibilidad con otras distribuciones.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Cualquier probe CMSIS-DAP, por el nombre que reporta
+# -----------------------------------------------------------------------------
+# Esta es la regla que cubre la placa del curso (LPCXpresso LPC1769 OM13085).
+# Su probe es un LPC11U35 con firmware CMSIS-DAP, y se identifica poniendo
+# "CMSIS-DAP" en la cadena de producto USB.
+#
+# Va por nombre y no por numero de modelo a proposito: asi vale para todas las
+# probes CMSIS-DAP, incluidos los de otras placas y los clones baratos.
+ATTRS{product}=="*CMSIS-DAP*", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# CMSIS-DAP v1 se comunica por HID. Esta segunda regla le da acceso al
+# dispositivo hidraw correspondiente, que es lo que abre pyocd.
+SUBSYSTEM=="hidraw", ATTRS{product}=="*CMSIS-DAP*", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+
+# -----------------------------------------------------------------------------
+# Probes concretos, por numero de fabricante y producto
+# -----------------------------------------------------------------------------
+# Por si alguna no declara bien su nombre. Para averiguar los de la tuya:
+#
+#     lsusb
+#
+# y busca la linea de tu probe: "Bus 001 Device 007: ID 1fc9:0143 NXP ..."
+# Los dos numeros de "ID" son idVendor:idProduct.
+
+# NXP LPC-Link2
+SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0090", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# NXP MCU-Link
+SUBSYSTEM=="usb", ATTR{idVendor}=="1fc9", ATTR{idProduct}=="0143", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# NXP LPC-Link original (el de las LPCXpresso viejas, chip LPC3154).
+# Solo lo maneja LinkServer: no es CMSIS-DAP. Ver la guia de probes.
+SUBSYSTEM=="usb", ATTR{idVendor}=="0471", ATTR{idProduct}=="df55", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# ARM DAPLink / mbed
+SUBSYSTEM=="usb", ATTR{idVendor}=="0d28", ATTR{idProduct}=="0204", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# SEGGER J-Link (todos los modelos)
+SUBSYSTEM=="usb", ATTR{idVendor}=="1366", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+# ST-Link v2 y v3
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="3748", MODE="660", GROUP="plugdev", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="374b", MODE="660", GROUP="plugdev", TAG+="uaccess"
+
+
+# -----------------------------------------------------------------------------
+# Adaptadores USB-serial (para grabar por ISP y para ver la UART)
+# -----------------------------------------------------------------------------
+# En Ubuntu, /dev/ttyUSB0 y /dev/ttyACM0 pertenecen al grupo "dialout". En vez
+# de cambiar los permisos, lo normal es agregarse a ese grupo:
+#
+#     sudo usermod -aG dialout $USER
+#
+# y despues cerrar sesion y volver a entrar (no alcanza con abrir otra
+# terminal: los grupos se leen al iniciar sesion).
+#
+# Un detalle que hace perder tiempo: ModemManager, que viene instalado por
+# defecto, se conecta solo a cualquier puerto serie nuevo para ver si es un
+# modem. Mientras lo hace, tu grabacion por ISP falla. Estas reglas le dicen
+# que no toque los adaptadores mas comunes.
+
+# FTDI
+SUBSYSTEM=="usb", ATTR{idVendor}=="0403", ENV{ID_MM_DEVICE_IGNORE}="1"
+# Silicon Labs CP210x
+SUBSYSTEM=="usb", ATTR{idVendor}=="10c4", ENV{ID_MM_DEVICE_IGNORE}="1"
+# CH340 / CH341
+SUBSYSTEM=="usb", ATTR{idVendor}=="1a86", ENV{ID_MM_DEVICE_IGNORE}="1"
+# Prolific PL2303
+SUBSYSTEM=="usb", ATTR{idVendor}=="067b", ENV{ID_MM_DEVICE_IGNORE}="1"

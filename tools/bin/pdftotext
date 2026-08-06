@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# pdftotext compatible (subset) sobre pdfminer.six, sin root.
+# Instalado localmente porque la VPS no tiene poppler-utils ni sudo.
+#
+# Uso:
+#   pdftotext archivo.pdf                -> escribe archivo.txt
+#   pdftotext archivo.pdf salida.txt     -> escribe salida.txt
+#   pdftotext archivo.pdf -              -> escribe a stdout
+#   pdftotext -f 5 -l 12 archivo.pdf -   -> solo páginas 5..12 a stdout
+#   pdftotext -layout archivo.pdf -      -> -layout se acepta y se ignora (pdfminer ya respeta layout)
+#
+# Opciones soportadas: -f N (primera pág), -l N (última pág), -layout (no-op), -raw (no-op).
+# Cualquier otra opción desconocida se ignora con un aviso a stderr.
+set -euo pipefail
+
+# Rutas absolutas del venv (el wrapper se invoca también vía symlink en ~/.local/bin).
+PY="/srv/agents/digital_electronicsIII/tools/pdftools/bin/python"
+PDF2TXT="/srv/agents/digital_electronicsIII/tools/pdftools/bin/pdf2txt.py"
+
+first=""; last=""; input=""; output=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -f) first="$2"; shift 2 ;;
+    -l) last="$2"; shift 2 ;;
+    -layout|-raw|-q|-nopgbrk) shift ;;            # aceptadas y sin efecto extra
+    -)                                            # un guión solo = stdout (posicional)
+      if [[ -z "$input" ]]; then input="-"; else output="-"; fi
+      shift ;;
+    -*) echo "pdftotext(wrapper): opción ignorada: $1" >&2; shift ;;
+    *)
+      if [[ -z "$input" ]]; then input="$1"
+      elif [[ -z "$output" ]]; then output="$1"
+      fi
+      shift ;;
+  esac
+done
+
+if [[ -z "$input" ]]; then
+  echo "uso: pdftotext [-f N] [-l N] archivo.pdf [salida.txt|-]" >&2
+  exit 2
+fi
+
+# Rango de páginas para pdfminer (-p acepta lista separada por comas, base 1).
+pages_arg=()
+if [[ -n "$first" || -n "$last" ]]; then
+  f="${first:-1}"; l="${last:-$f}"
+  list="$(seq -s, "$f" "$l")"
+  pages_arg=(-p "$list")
+fi
+
+# Salida: por defecto <base>.txt; "-" = stdout.
+if [[ -z "$output" ]]; then
+  output="${input%.*}.txt"
+fi
+
+if [[ "$output" == "-" ]]; then
+  exec "$PY" "$PDF2TXT" "${pages_arg[@]}" "$input"
+else
+  "$PY" "$PDF2TXT" "${pages_arg[@]}" -o "$output" "$input"
+  echo "$output"
+fi

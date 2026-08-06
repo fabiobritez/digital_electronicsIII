@@ -1,0 +1,58 @@
+# Configuracion de clangd, el servidor de lenguaje para C.
+#
+# Con este archivo mas compile_commands.json (que genera "make
+# compile_commands.json"), tenes autocompletado, ir-a-definicion, renombrar y
+# diagnosticos en cualquier editor serio: neovim, vim con coc/lsp, helix,
+# emacs, Sublime, Zed, Kate y tambien VSCode si preferis clangd a la extension
+# de Microsoft.
+#
+# La gracia es que el editor deja de ser una decision del curso: cada uno usa
+# el suyo y todos ven exactamente lo mismo, porque la informacion sale del
+# Makefile.
+
+CompileFlags:
+  # clangd analiza el codigo con clang, no con gcc. Hay opciones de gcc que
+  # clang no conoce y que harian que tire errores falsos. Se descartan: no
+  # cambian el significado del codigo, solo como se genera el binario.
+  Remove:
+    - -mcpu=*
+    - -mthumb
+    - -specs=*
+    - --specs=*
+    - -fno-common
+    - -ffunction-sections
+    - -fdata-sections
+    - -Wdouble-promotion
+    - -gdwarf-*
+
+  # Se le dice a clang que el objetivo es ARM Cortex-M, para que los tamanos
+  # de los tipos y las macros de arquitectura sean los correctos.
+  Add:
+    - --target=arm-none-eabi
+    - -mcpu=cortex-m3
+
+  # Permite que clangd le pregunte al compilador cruzado cuales son sus
+  # headers internos (stdint.h, stddef.h...). Sin esto no los encuentra y
+  # subraya en rojo cosas que compilan perfecto.
+  CompilationDatabase: .
+
+Diagnostics:
+  # El codigo de CMSIS es de 2010 y esta lleno de cosas que hoy no se hacen.
+  # No tiene sentido ver cientos de avisos sobre codigo que no escribiste.
+  Suppress:
+    - unused-parameter
+
+  ClangTidy:
+    Add:
+      - bugprone-*
+      - readability-inconsistent-declaration-parameter-name
+    Remove:
+      # En embebidos, los numeros "magicos" son direcciones y mascaras de bits
+      # del datasheet. Marcarlos como problema no aporta nada.
+      - readability-magic-numbers
+      - bugprone-easily-swappable-parameters
+
+# Indexa el proyecto en segundo plano al abrirlo, para que ir-a-definicion y
+# buscar-referencias funcionen en todo el arbol y no solo en el archivo abierto.
+Index:
+  Background: Build

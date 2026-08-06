@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug (OpenOCD + LPC-Link/CMSIS-DAP)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/curso/02_arma_tu_propia_libreria/src/build/mygpio.elf",
+      "device": "LPC1769",
+      "configFiles": [
+        "interface/cmsis-dap.cfg",
+        "target/lpc17xx.cfg"
+      ],
+      "gdbPath": "${workspaceFolder}/tools/toolchain/bin/arm-none-eabi-gdb",
+      "runToEntryPoint": "main"
+    },
+    {
+      "name": "Debug (pyOCD)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "pyocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/curso/02_arma_tu_propia_libreria/src/build/mygpio.elf",
+      "targetId": "lpc1768",
+      "gdbPath": "${workspaceFolder}/tools/toolchain/bin/arm-none-eabi-gdb",
+      "runToEntryPoint": "main"
+    }
+  ]
+}

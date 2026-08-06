@@ -1,0 +1,41 @@
+// Configuracion de IntelliSense (la extension C/C++ de Microsoft).
+//
+// IMPORTANTE: esto es SOLO para el autocompletado y el subrayado del editor.
+// No interviene en la compilacion, que la hace el Makefile. Por eso pasa el
+// clasico "VSCode me lo marca en rojo pero compila perfecto": cuando eso
+// ocurre, el que esta mal configurado es este archivo, no tu codigo.
+//
+// Si preferis clangd (y con el, el mismo autocompletado en vim o neovim),
+// no necesitas nada de esto: alcanza con "make compile_commands.json".
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "LPC1769",
+
+      // Donde buscar los headers. Tienen que coincidir con los -I del Makefile.
+      "includePath": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/inc",
+        "${workspaceFolder}/../library/CMSISv2p00_LPC17xx/inc",
+        "${workspaceFolder}/../library/CMSISv2p00_LPC17xx/Drivers/inc"
+      ],
+
+      // Las mismas macros que define el Makefile con -D.
+      "defines": ["__USE_CMSIS", "CORE_M3"],
+
+      // Que IntelliSense use el compilador de verdad para deducir los tipos
+      // y las macros internas (__arm__, tamano de int, etc.).
+      "compilerPath": "${workspaceFolder}/../tools/toolchain/bin/arm-none-eabi-gcc",
+      "compilerArgs": ["-mcpu=cortex-m3", "-mthumb"],
+
+      "cStandard": "gnu11",
+      "intelliSenseMode": "linux-gcc-arm",
+
+      // Si existe compile_commands.json, IntelliSense lo prefiere y las
+      // opciones de arriba pasan a ser el respaldo. Es lo mas fiel, porque
+      // sale del Makefile real.
+      "compileCommands": "${workspaceFolder}/compile_commands.json"
+    }
+  ]
+}

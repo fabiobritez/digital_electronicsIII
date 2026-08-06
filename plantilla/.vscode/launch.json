@@ -1,0 +1,78 @@
+// Depuracion en la placa desde VSCode (tecla F5).
+//
+// Necesita la extension Cortex-Debug (marus25.cortex-debug).
+//
+// Cuando apretas F5, Cortex-Debug hace exactamente lo mismo que "make debug":
+//   1. corre la tarea "build"
+//   2. lanza el servidor gdb (openocd o pyocd)
+//   3. arranca gdb, lo conecta al servidor, graba el firmware
+//   4. frena en main y te devuelve el control
+//
+// No hay ninguna pieza extra: es la misma cadena de la terminal, con botones.
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug con OpenOCD",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware.elf",
+
+      // El mismo archivo que usa "make flash". Una sola fuente de verdad.
+      "configFiles": ["openocd/lpc1769.cfg"],
+
+      "device": "LPC1769",
+      "runToEntryPoint": "main",
+      "preLaunchTask": "build",
+
+      // En Ubuntu el gdb para ARM se instala con:  sudo apt install gdb-multiarch
+      // Si tu toolchain trae arm-none-eabi-gdb, poné ese nombre en su lugar.
+      "gdbPath": "gdb-multiarch",
+
+      // Descomentar para ver los registros de los perifericos por nombre
+      // (PINSEL1, FIO0DIR, T0MR0...) en el panel del debugger, en vez de
+      // tener que acordarte las direcciones. Como conseguir el .svd esta
+      // explicado en el README de la plantilla.
+      // "svdFile": "${workspaceFolder}/tools/LPC176x5x.svd",
+
+      "showDevDebugOutput": "none"
+    },
+    {
+      "name": "Debug con pyOCD",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "pyocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware.elf",
+      "targetId": "lpc1768",
+      "runToEntryPoint": "main",
+      "preLaunchTask": "build",
+      "gdbPath": "gdb-multiarch"
+    },
+    {
+      "name": "Debug con LinkServer (NXP)",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "external",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware.elf",
+      // Levantar antes, en otra terminal:  LinkServer gdbserver LPC1769
+      "gdbTarget": "localhost:3333",
+      "runToEntryPoint": "main",
+      "gdbPath": "gdb-multiarch"
+    },
+    {
+      "name": "Conectarse a algo que ya esta corriendo",
+      "type": "cortex-debug",
+      "request": "attach",
+      "servertype": "openocd",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/firmware.elf",
+      "configFiles": ["openocd/lpc1769.cfg"],
+      "device": "LPC1769",
+      "gdbPath": "gdb-multiarch"
+    }
+  ]
+}

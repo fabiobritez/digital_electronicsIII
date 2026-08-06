@@ -1,0 +1,70 @@
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# debug information files
+*.dwo
+*.elf
+*.bin
+*.o
+
+# Toolchain y entornos locales.
+# Sin la barra final a proposito: con --mcuxpresso, install_toolchain.sh deja un
+# ENLACE a la instalacion del IDE en vez de un directorio, y el patron con barra
+# solo matchea directorios. Sin ella cubre los dos casos.
+tools/toolchain
+tools/pdftools/
+__pycache__/
+*.pyc
+
+# Staging temporal de tools/pack_toolchain.sh (el .tar.xz final si se versiona)
+tools/toolchain-pkg/stage/

@@ -1,0 +1,66 @@
+// Tareas de VSCode. Cada una es literalmente un comando de terminal: VSCode no
+// compila nada por su cuenta, solo llama al Makefile. Por eso todo esto sigue
+// funcionando igual si un dia abris el proyecto con vim.
+//
+// Ctrl+Shift+B corre la tarea marcada como build por defecto.
+// Ctrl+Shift+P -> "Run Task" para elegir cualquier otra.
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "make",
+      "group": { "kind": "build", "isDefault": true },
+      // $gcc es lo que convierte los errores del compilador en marcadores
+      // clicables: hace click y VSCode te lleva a la linea. Sin esto, los
+      // errores son texto suelto en la terminal.
+      "problemMatcher": ["$gcc"],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "build (con CMSIS)",
+      "type": "shell",
+      "command": "make USE_CMSIS=1",
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "clean",
+      "type": "shell",
+      "command": "make clean",
+      "problemMatcher": []
+    },
+    {
+      "label": "flash",
+      "type": "shell",
+      "command": "make flash",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "erase",
+      "type": "shell",
+      "command": "make erase",
+      "problemMatcher": []
+    },
+    {
+      "label": "size",
+      "type": "shell",
+      "command": "make size",
+      "problemMatcher": []
+    },
+    {
+      "label": "info (que herramientas hay)",
+      "type": "shell",
+      "command": "make info",
+      "problemMatcher": []
+    },
+    {
+      "label": "regenerar compile_commands.json",
+      "type": "shell",
+      "command": "make compile_commands.json",
+      "problemMatcher": []
+    }
+  ]
+}
