@@ -21,6 +21,7 @@ cada dato en la memoria del micro.
 > podés saltear esto y leer el módulo igual: ninguna de esas comprobaciones es obligatoria.
 
 **Fundamentos (sin punteros):**
+
 1. [01 - Declaraciones, tipos y constantes](./01-declaraciones-y-tipos.md): variables,
    `static`/`const`/`volatile`, tipos y su tamaño real en el M3, literales y constantes
 2. [02 - Arreglos, conversiones y promociones](./02-arreglos-conversiones-y-promociones.md): arreglos,
@@ -31,12 +32,14 @@ cada dato en la memoria del micro.
    ponerle nombre a las constantes; la mitad del tema que no necesita punteros
 
 **Modularización:**
+
 6. [06 - Funciones](./06-funciones.md): declaración, definición, parámetros, retorno, recursión
 7. [07 - El preprocesador](./07-preprocesador.md): `#include`, `#define`, `#ifdef`, `#pragma`, y
    **cómo se reparte el código entre archivos `.h` y `.c`**, que es lo que necesitás en cuanto tenés
    más de un archivo
 
 **Punteros y memoria (el salto conceptual):**
+
 8. [08 - Punteros](./08-punteros.md): conceptos, aritmética de punteros, `NULL`, const-correctness
 9. [09 - Punteros avanzados](./09-punteros-avanzado.md): arreglos y *decay*, cadenas, y **punteros a
    función / callbacks** (tablas de dispatch, máquinas de estado)
@@ -46,6 +49,7 @@ cada dato en la memoria del micro.
 11. [11 - Asignación dinámica](./11-asignacion-dinamica.md): `malloc`/`free` y por qué se evitan en embebidos
 
 **C para hardware:**
+
 12. [12 - `volatile`, `const` y tipos propios](./12-volatile-y-tipos-para-hardware.md): el puente al
     hardware. Qué garantiza `volatile` **y qué no**, `const volatile` para registros de solo lectura,
     `uintptr_t` y cómo crear tipos propios con `typedef` y el sufijo `_t`
@@ -61,6 +65,7 @@ cada dato en la memoria del micro.
     hacer que `printf` salga por el cable serie para depurar, el costo de `printf`/`%f`, buffering y alternativas
 
 **Arquitectura de firmware (el cierre: del lenguaje al programa entero):**
+
 17. [17 - El superloop y el código no bloqueante](./17-superloop-y-codigo-no-bloqueante.md): el patrón
     base de todo firmware, por qué `delay()` es el enemigo, la comparación de tiempos que sobrevive al
     desbordamiento del contador, y una tabla de tareas con punteros a función
