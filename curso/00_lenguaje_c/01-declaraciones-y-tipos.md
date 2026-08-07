@@ -18,18 +18,6 @@ Ejemplo simple:
 int x = 10; // tipo int, nombre x, valor inicial 10
 ```
 
-Las secciones que siguen recorren esas seis partes, pero **no en el orden en que se escriben**: arrancamos por el tipo, que es lo único obligatorio junto con el nombre, y de ahí vamos hacia afuera. Este es el mapa:
-
-
-| Parte de la línea | Sección                                                     |
-| ----------------- | ----------------------------------------------------------- |
-| `[tipo]`          | [1. Tipos de datos](#1-tipos-de-datos)                      |
-| `[especificador]` | [2. Especificador de almacenamiento](#2-especificador-de-almacenamiento) |
-| `[calificador]`   | [3. Calificador de tipo](#3-calificador-de-tipo)            |
-| `[modificador]`   | [4. Modificadores del tipo](#4-modificadores-del-tipo)      |
-| `[nombre]`        | [5. Nombre de variables](#5-nombre-de-variables)            |
-| `= [valor inicial]` | [6. Inicialización](#6-inicialización-opcional)           |
-
 ### 1. **Tipos de datos**
 
 
