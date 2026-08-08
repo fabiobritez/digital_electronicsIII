@@ -452,7 +452,23 @@ endif
 # Guia completa: ../curso/12_debug/03-consola-por-el-debugger-rtt.md
 
 RTT_PORT   ?= 9090
-RTT_BUSQ   ?= 0x10000000 0x8000     # donde buscar el bloque: RAM del LPC1769
+
+# Donde buscar el bloque de control: la RAM entera del LPC1769.
+RTT_BUSQ   ?= 0x10000000 0x8000
+
+# Las dos perillas que deciden el caudal. Con los valores por defecto de
+# OpenOCD (polleo de 100 ms) se sacan ~5.5 KB/s, menos que una UART a 115200.
+# Con estos se llega a ~15.7 KB/s, que es el techo que impone la sonda.
+#
+#     make rtt RTT_POLL=100 RTT_SPEED=1000    los valores por defecto de OpenOCD
+#     make rtt RTT_SPEED=500                  si hay errores de comunicacion
+#
+# Medido y explicado en ../curso/ejemplos/uart/printf_rtt/README.md
+#
+# (Y ojo con la advertencia del principio de este archivo: nada de comentarios
+#  al final de estas lineas, o los espacios se van adentro del valor.)
+RTT_SPEED  ?= 4000
+RTT_POLL   ?= 10
 
 .PHONY: rtt
 rtt: $(ELF)
@@ -461,11 +477,13 @@ ifneq ($(FLASHER),openocd)
 	@exit 1
 else
 	@mkdir -p $(BUILD_DIR)
-	@echo "  RTT     servidor en el puerto $(RTT_PORT); Ctrl-C para salir"
+	@echo "  RTT     puerto $(RTT_PORT), SWD $(RTT_SPEED) kHz, polleo $(RTT_POLL) ms; Ctrl-C para salir"
 	@echo ""
 	$(Q)openocd -f $(OPENOCD_CFG) \
+	      -c "adapter speed $(RTT_SPEED)" \
 	      -c "init" -c "reset run" \
 	      -c 'rtt setup $(RTT_BUSQ) "SEGGER RTT"' \
+	      -c "rtt polling_interval $(RTT_POLL)" \
 	      -c "rtt start" \
 	      -c "rtt server start $(RTT_PORT) 0" > $(BUILD_DIR)/rtt.log 2>&1 & \
 	  SRV=$$!; \
@@ -494,8 +512,10 @@ endif
 rttserver: $(ELF)
 	@echo "  RTT     servidor en $(RTT_PORT), gdbserver en $(GDB_PORT)"
 	openocd -f $(OPENOCD_CFG) \
+	  -c "adapter speed $(RTT_SPEED)" \
 	  -c "init" -c "reset run" \
 	  -c 'rtt setup $(RTT_BUSQ) "SEGGER RTT"' \
+	  -c "rtt polling_interval $(RTT_POLL)" \
 	  -c "rtt start" \
 	  -c "rtt server start $(RTT_PORT) 0"
 

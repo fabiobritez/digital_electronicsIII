@@ -162,6 +162,85 @@ cable.
   red de seguridad opcional (`-DRTT_SEGURO_ISR=1`), pero protege *la cola*, no `printf`, que sigue
   sin ser reentrante.
 
+## Rendimiento medido
+
+Hay un banco de pruebas completo: [`bench.c`](./bench.c) del lado del micro y
+[`medir_rtt.py`](./medir_rtt.py) del lado de la PC. Los comandos están en
+[`../MEDICIONES.md`](../MEDICIONES.md) §9.
+
+### Costo de CPU: la cola es prácticamente gratis
+
+| largo | `_write` directo (solo la cola) | `printf` completo |
+|---:|---:|---:|
+| 8 B | 200 ciclos (2.0 µs) | 1052 ciclos |
+| 32 B | 218 ciclos (2.2 µs) | 2078 ciclos |
+| 128 B | 295 ciclos (3.0 µs) | 6226 ciclos |
+| 256 B | 410 ciclos (4.1 µs) | 12164 ciclos |
+
+Fijate la primera columna: **encolar 256 bytes cuesta 410 ciclos, apenas el doble que encolar 8.**
+Es un `memcpy` y dos índices. La cola no es el costo.
+
+Y entonces aparece el resultado que da vuelta todo lo del capítulo 16:
+
+| | |
+|---|---:|
+| `printf("texto fijo
+")` | 1642 ciclos (16 µs) |
+| `printf("...%lu...%lu
+", a, b)` | 3957 ciclos (39 µs) |
+| `printf("...%08lX...%s
+", x, s)` | 4067 ciclos (40 µs) |
+
+**Con RTT, el cuello de botella pasó a ser `printf`.** Por UART, formatear era el 2% del costo y el
+98% era el cable. Sacado el cable, lo único que queda es la libc. Si necesitás el mínimo absoluto,
+ahí sí vale la pena `_write()` directo o rutinas propias — al revés de lo que convenía con la UART.
+
+### Caudal: depende de cómo configures el host, y por defecto es malo
+
+Caudal sostenido sin perder un byte, midiendo desde la PC:
+
+| SWD | polleo | caudal | comparado con UART |
+|---|---|---:|---|
+| 1000 kHz | **100 ms (por defecto)** | **5493 B/s** | *peor* que 115200 |
+| 1000 kHz | 50 ms | 11461 B/s | ≈ 115200 |
+| 1000 kHz | 10 ms | 11461 B/s | ≈ 115200 |
+| 500 kHz | 10 ms | 8402 B/s | |
+| 2000 kHz | 10 ms | 11936 B/s | |
+| **4000 kHz** | **10 ms** | **15659 B/s** | ≈ 156000 baudios |
+| 8000 kHz y más | 10 ms | 15659 B/s | no mejora |
+
+Tres cosas que salen de ahí:
+
+1. **Con la configuración por defecto, RTT tiene menos caudal que la UART a 115200.** Si alguien te
+   dice que RTT "es más rápido", preguntale con qué intervalo de polleo.
+2. **El polleo es el primer cuello.** Bajarlo de 100 a 50 ms duplica el caudal. De 50 para abajo no
+   se gana nada más.
+3. **Ahí pasa a mandar la velocidad del SWD**, hasta 4 MHz. Más arriba no mejora: el techo final
+   son ~15.7 KB/s y lo pone **la sonda**, no el chip.
+
+Para sacarle el jugo:
+
+La plantilla ya usa los valores buenos por defecto (`RTT_SPEED=4000`, `RTT_POLL=10`), así que
+`make rtt` sale afinado. Para volver al comportamiento por defecto de OpenOCD y ver la diferencia:
+
+```bash
+make rtt RTT_POLL=100 RTT_SPEED=1000
+```
+
+### Latencia
+
+Ida y vuelta completa (PC → cola de bajada → micro → cola de subida → PC), con el polleo por
+defecto de 100 ms: **mediana 185 ms**. Son aproximadamente dos intervalos de polleo, que es
+exactamente lo esperable. Bajando el polleo, baja proporcionalmente.
+
+No sirve para medir tiempos desde la PC. Para eso está el contador de ciclos del micro.
+
+### La cola absorbe ráfagas, no ensancha el caño
+
+Imprimiendo 2000 líneas de golpe sin autolimitarse: **se descarta el 98%**. No es un defecto, es la
+definición del problema: 92000 bytes no entran en una cola de 1024. Sirve para aguantar un pico
+momentáneo, no para sostener un caudal mayor al del enlace.
+
 ## Lo que cuesta
 
 | | |

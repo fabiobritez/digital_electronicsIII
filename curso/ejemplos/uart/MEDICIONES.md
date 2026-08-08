@@ -321,6 +321,75 @@ sin reconfigurar nada.
 
 ---
 
+## 9. Medir el rendimiento de RTT
+
+Hay un banco de pruebas completo: [`printf_rtt/bench.c`](./printf_rtt/bench.c) del lado del micro y
+[`printf_rtt/medir_rtt.py`](./printf_rtt/medir_rtt.py) del lado de la PC.
+
+```bash
+cd plantilla
+cp ../curso/ejemplos/uart/printf_rtt/rtt.h    src/
+cp ../curso/ejemplos/uart/printf_rtt/rtt.c    src/
+cp ../curso/ejemplos/uart/printf_rtt/bench.c  src/main.c
+make USE_CMSIS=1 flash
+```
+
+**Informe completo automático** (levanta OpenOCD, mide y cierra todo):
+
+```bash
+python3 ../curso/ejemplos/uart/printf_rtt/medir_rtt.py
+```
+
+**A mano, interactivo:**
+
+```bash
+make rtt
+```
+
+y ahí tecleás: `1` costo de CPU, `2` caudal sostenido, `3` ráfaga a fondo, `0` quieto.
+
+**Barrido de las dos perillas del host** (tarda unos minutos, levanta y baja OpenOCD para cada
+combinación):
+
+```bash
+python3 ../curso/ejemplos/uart/printf_rtt/medir_rtt.py --barrido
+```
+
+### Qué mira cada prueba
+
+- **Costo de CPU**: mide `_write()` directo (solo la cola) contra `printf` completo, para varios
+  largos. Es lo que separa el costo de la cola del costo de la libc.
+- **Caudal sostenido**: el micro **se autolimita** esperando lugar en la cola antes de cada línea,
+  así produce exactamente al ritmo al que el host consume. El número que sale es el caudal real del
+  enlace. Además se verifica la continuidad de los números de secuencia, así que si se perdiera algo
+  se vería.
+- **Ráfaga**: sin autolimitarse. Muestra que la cola absorbe picos pero no ensancha el caño.
+- **Latencia**: ida y vuelta PC → micro → PC, que son dos intervalos de polleo.
+
+### Las dos perillas
+
+```bash
+make rtt RTT_POLL=100 RTT_SPEED=1000    # los valores por defecto de OpenOCD
+make rtt                                # los afinados (10 ms, 4 MHz)
+```
+
+O a mano:
+
+```bash
+openocd -f openocd/lpc1769.cfg \
+  -c "adapter speed 4000" \
+  -c "init" -c "reset run" \
+  -c 'rtt setup 0x10000000 0x8000 "SEGGER RTT"' \
+  -c "rtt polling_interval 10" \
+  -c "rtt start" -c "rtt server start 9090 0"
+```
+
+Los resultados medidos están en [`printf_rtt/README.md`](./printf_rtt/README.md). El resumen: con
+los valores por defecto RTT rinde **menos** que una UART a 115200; afinado llega a ~15.7 KB/s, y ese
+techo lo pone la sonda.
+
+---
+
 ## Ver también
 
 - [Capítulo 16 §6](../../00_lenguaje_c/16-redirigir-printf-a-uart.md) — la tabla completa de costos
