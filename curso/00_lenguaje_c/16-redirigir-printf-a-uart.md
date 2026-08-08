@@ -508,16 +508,24 @@ que pasa **en la placa del curso**:
 
 ### ¿Cuál usar?
 
-| | Necesita debugger | Gasta pines | CPU por línea de 48 car. |
-|---|---|---|---|
-| UART por polling | no | 1 (TXD) | 4091 µs |
-| UART por DMA | no | 1 (TXD) | 36 µs |
-| RTT | **sí** | 0 | 17 µs |
-| SWO | **sí, y que la soporte** | 0 (usa TDO) | — (no probado acá) |
+| | Necesita debugger | Gasta pines | CPU por línea de 48 car. | Caudal sostenido |
+|---|---|---|---|---|
+| UART por polling | no | 1 (TXD) | 4091 µs | el del baudrate |
+| UART por DMA | no | 1 (TXD) | 36 µs | **92 KB/s a 921600** |
+| RTT | **sí** | 0 | **17 µs** | 15.7 KB/s (con esta sonda) |
+| SWO | **sí, y que la soporte** | 0 (usa TDO) | — (no probado acá) | — |
 
-En el laboratorio, con el debugger enchufado, **RTT es lo más cómodo y lo más barato**. Para un
-equipo que va a funcionar solo, la **UART sigue siendo la opción universal**: anda con un conversor
-USB-serie de pocos pesos y sin debugger. Por eso el curso arranca por ahí.
+**Fijate que no gana el mismo en las dos últimas columnas, y eso no es un error.** Miden cosas
+distintas: RTT le sale casi gratis al micro porque solo escribe en RAM, pero los bytes llegan a la
+PC recién cuando el debugger va a buscarlos. La UART, en cambio, tiene un transmisor de hardware que
+saca bits solo a un ritmo fijo, y ese ritmo lo subís vos.
+
+> **RTT es la mejor consola; la UART es el mejor caño.** RTT gana cuando lo que te importa es **no
+> molestar** al programa; la UART gana cuando lo que te importa es **sacar datos**.
+
+En el laboratorio, con el debugger enchufado, RTT es lo más cómodo. Para un equipo que va a
+funcionar solo, o para volcar volumen, la UART sigue siendo la opción. Están comparadas en detalle
+en [módulo 12, capítulo 3 §8](../12_debug/03-consola-por-el-debugger-rtt.md).
 
 ---
 

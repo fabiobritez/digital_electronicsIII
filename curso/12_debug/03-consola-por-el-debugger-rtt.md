@@ -25,6 +25,11 @@ Y no es solo velocidad: **no gastás la UART**. En un trabajo práctico donde la
 (RS-485, un módulo GPS, un módem), no podés usarla además como consola de depuración. Con RTT no
 tenés que elegir.
 
+> **Ojo con esa tabla: mide un solo eje.** RTT gana en *costo de CPU*, que es lo que importa para no
+> perturbar al programa. Pero en **caudal** pierde contra una UART a 921600, y por bastante. No son
+> intercambiables: cada uno es mejor para algo distinto, y está desarrollado en la
+> [sección 8](#8-entonces-conviene-rtt-o-la-uart). Si vas a elegir uno, leé eso primero.
+
 ## 2. Cómo funciona
 
 ```
@@ -277,7 +282,112 @@ rivales.
 
 ---
 
-## 8. Cuando algo no anda
+## 8. ¿Entonces conviene RTT o la UART?
+
+Es la pregunta que aparece apenas ves las dos tablas de números, porque parecen contradecirse:
+
+| | CPU por línea de 48 caracteres |
+|---|---:|
+| UART por polling | 4091 µs |
+| UART por DMA | 36 µs |
+| **RTT** | **17 µs** ← gana RTT |
+
+| | Caudal sostenido |
+|---|---:|
+| RTT afinado | 15 660 B/s |
+| **UART a 921600** | **92 160 B/s** ← gana la UART |
+
+No se contradicen: **están midiendo dos cosas distintas**, y la confusión es culpa de haber
+presentado RTT como "la mejor" a secas cuando en realidad gana en un eje y pierde en otro.
+
+### La diferencia de fondo: uno tiene motor, el otro no
+
+Esto es lo que hay que entender, y todo lo demás sale de acá.
+
+**La UART tiene un transmisor de hardware.** Vos la configurás una vez y a partir de ahí el
+periférico saca bits solo, a un ritmo fijo dado por un reloj, sin que nadie se lo pida. Le cargás un
+byte y se va. El caudal es una **garantía de hardware**: a 921600 baudios salen 92 160 bytes por
+segundo, siempre, pase lo que pase en la PC.
+
+**RTT no transmite nada.** Ahí no hay ningún periférico. El micro escribe en un arreglo en RAM y
+listo — hasta ahí llegó su trabajo. Los bytes llegan a la PC **porque la PC va a buscarlos**:
+OpenOCD, cada tanto, manda transacciones de lectura de memoria por el cable SWD y se trae lo que
+haya. Si OpenOCD no pregunta, no llega nada.
+
+> **La UART es una cinta transportadora andando sola a velocidad constante.**
+> **RTT es alguien que pasa cada tanto con un balde.**
+
+Por eso RTT le sale casi gratis al micro (escribir en RAM es un `memcpy`) y por eso su caudal
+depende de con qué frecuencia y con qué balde pasa el host — no de un reloj.
+
+### Por qué el caudal de RTT se planta en 15.7 KB/s
+
+Ese techo **no lo pone el LPC1769 ni el cable SWD**. La prueba: subir el reloj del SWD de 4 a 15 MHz
+no cambió el resultado ni un byte. Si el cuello fuera el SWD, habría mejorado.
+
+Lo pone **la sonda**. La CMSIS-DAP de a bordo habla con la PC por **USB HID**, que en un puerto
+full-speed mueve como mucho 64 bytes por milisegundo, y encima cada lectura de memoria necesita ida
+y vuelta (pedido y respuesta). Los ~15.7 KB/s medidos son del orden de lo que da esa cuenta.
+
+**Esto es importante para no sacar la conclusión equivocada: RTT no es lento *por ser RTT*.** Es
+lento *con esta sonda*. Con una sonda que hable USB bulk a alta velocidad —un J-Link, o una
+CMSIS-DAP v2— el techo es muchísimo más alto. Nuestro número es el de esta placa, no el de la
+técnica.
+
+### La comparación completa
+
+| | UART por polling | UART por DMA | RTT |
+|---|---|---|---|
+| **CPU por línea (48 car.)** | 4091 µs | 36 µs | **17 µs** |
+| **Caudal** | el del baudrate | **92 KB/s a 921600** | 15.7 KB/s (esta sonda) |
+| **Latencia** | inmediata y **determinista** | inmediata | 185 ms ida y vuelta (polleo de 100 ms) |
+| **Pines** | 1 (TXD) | 1 (TXD) | **ninguno** |
+| **Periféricos** | UART0 | UART0 + 1 canal DMA | **ninguno** |
+| **Hace falta** | conversor USB-serie (~$) | conversor USB-serie | **el debugger + OpenOCD corriendo** |
+| **¿Anda sin PC?** | **sí** | **sí** | no |
+| **¿Anda sin debugger?** | **sí** | **sí** | no |
+
+### Para qué es mejor cada uno
+
+**Usá RTT cuando:**
+
+- Estás en el laboratorio con el debugger ya enchufado. Que es casi siempre, en esta materia.
+- **No querés perturbar los tiempos.** 17 µs es lo mínimo que vas a conseguir. Si estás persiguiendo
+  un problema de temporización, cualquier otra cosa te lo cambia.
+- **Necesitás la UART para otra cosa.** Un TP de RS-485, un GPS, un módem: no podés gastarla además
+  como consola. RTT no te obliga a elegir.
+- Te faltan pines, o no tenés a mano un conversor USB-serie.
+- Querés una consola interactiva (comandos por teclado) sin cablear nada más.
+
+**Usá la UART cuando:**
+
+- **Tenés que mover volumen de datos.** Subís a 921600 y tenés 92 KB/s garantizados: seis veces más
+  que RTT con esta sonda.
+- **Te importa *cuándo* llegó cada cosa.** La UART sale por un reloj de hardware; RTT depende de que
+  el sistema operativo de tu PC decida correr el polleo. Si el dato tiene que estar sellado en el
+  tiempo, la UART es más confiable.
+- **El equipo va a funcionar sin PC ni debugger.** Un prototipo instalado en algún lado, una demo,
+  una defensa de TP donde no querés depender de que OpenOCD arranque. Un conversor de dos dólares y
+  cualquier terminal.
+- Querés que un compañero lea la salida en su máquina sin instalar nada.
+- Estás depurando el arranque muy temprano, antes de que `rtt_init()` haya corrido.
+
+### La regla corta
+
+> **RTT es la mejor consola. La UART es el mejor caño.**
+
+RTT gana cuando lo que te importa es **no molestar** al programa. La UART gana cuando lo que te
+importa es **sacar datos**. Y las dos pueden convivir en el mismo firmware: nada impide dejar RTT
+para los mensajes de estado y la UART para volcar un buffer de muestras.
+
+Y para los dos vale la misma advertencia, que es la de
+[capítulo 16 §10](../00_lenguaje_c/16-redirigir-printf-a-uart.md): antes de llenar el código de
+`printf`, hacé las dos cuentas. Ninguno de los dos caminos te salva de pedirle al enlace más de lo
+que puede dar.
+
+---
+
+## 9. Cuando algo no anda
 
 | Síntoma | Causa |
 |---|---|
@@ -322,7 +432,7 @@ grabado. La falla ocurre *antes* de conectarse al chip, así que ni siquiera lle
 
 ---
 
-## 9. Cuándo **no** usar RTT
+## 10. Cuándo **no** usar RTT
 
 Es cómodo, pero no es universal:
 
@@ -339,7 +449,7 @@ Es cómodo, pero no es universal:
   segura *la cola*, no `printf`, que sigue sin ser reentrante. La regla del módulo sigue siendo la
   misma: **la ISR levanta una bandera y el `main` imprime.**
 
-## 10. Sobre el SWO, que es lo que todo el mundo nombra primero
+## 11. Sobre el SWO, que es lo que todo el mundo nombra primero
 
 El camino "de manual" para imprimir por el debugger es **ITM/SWO**: el Cortex-M3 tiene una unidad de
 trazado que saca caracteres por el pin SWO, que en el LPC1769 comparte pin con TDO (UM10360 §33.4),
