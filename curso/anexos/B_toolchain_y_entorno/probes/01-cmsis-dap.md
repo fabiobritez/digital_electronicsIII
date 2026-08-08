@@ -213,6 +213,44 @@ lsusb -d 1fc9: -v | grep bInterfaceClass    # ya no debería decir 3 (HID)
 openocd -f interface/cmsis-dap.cfg -c init  # debería mencionar CMSIS-DAPv2
 ```
 
+### Lo que pasó cuando lo probamos en la placa de la cátedra
+
+El paso 0 se hizo, y **no entró al bootloader**. Vale la pena contarlo porque el intento
+fallido enseña más que la teoría, y porque muestra cómo se ve el proceso desde afuera.
+
+Monitoreando el bus USB con un script que registra cada cambio:
+
+```
+[12:46:56] <  1fc9:001d desaparece      ← se desenchufa el cable de la placa
+[12:46:57] >  1fc9:001d vuelve
+[12:47:06] <  1fc9:001d desaparece      ← segundo intento, con el puente puesto
+[12:47:17] >  1fc9:001d vuelve
+```
+
+Las dos veces volvió como `NXP CMSIS-DAP`, o sea con el firmware normal, y **nunca apareció
+un disco**. La sonda arranca de cero bien, pero el pin de ISP no está en bajo en ese momento.
+
+Dos aprendizajes del camino:
+
+- **Al principio se estaba desenchufando el cable equivocado.** Los eventos del bus eran
+  todos del `10c4:ea60` (el conversor USB-serie del TP) mientras el `1fc9:001d` no se movía.
+  Si la sonda no pierde alimentación, el LPC11U35 no arranca de cero y no mira el pin de ISP,
+  por más bien puenteado que esté. La verificación es simple: **el que tiene que desaparecer
+  de `lsusb` es el `1fc9`**.
+- **Y la conclusión, que es la respuesta correcta del paso 0: no seguir.** Sin haber visto el
+  bootloader funcionar no hay a dónde volver, y grabar firmware en ese estado es la única
+  forma de convertir un riesgo teórico en un problema real. En esta revisión de placa el pin
+  de ISP del *probe* no parece estar accesible.
+
+Después de todo el proceso la sonda quedó intacta (`Cortex-M3 r2p0 processor detected`), que
+es lo esperable: **el paso 0 no escribe nada**.
+
+Para monitorear el bus mientras probás, alcanza con esto en otra terminal:
+
+```bash
+watch -n1 'lsusb | grep -E "1fc9|10c4"; ls /dev/sd* 2>/dev/null'
+```
+
 ### Dos cosas que esta guía NO puede darte
 
 Y es honesto decirlo en vez de improvisar:
