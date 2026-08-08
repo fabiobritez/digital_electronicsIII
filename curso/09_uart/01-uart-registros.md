@@ -337,6 +337,7 @@ está el **driver CMSIS** ([página 2](./02-uart-con-driver.md)).
 | No transmite nada | te olvidaste de bajar **DLAB** (escribís en `DLL` creyendo que es `THR`) |
 | No transmite nada | `TER` bit 7 (TXEN) en 0 |
 | Recibís basura | baudrate mal: PCLK equivocado, o el otro extremo a otra velocidad |
+| Texto **cortado y entreverado**, pero con palabras bien escritas | no es la UART: hay **dos programas leyendo el mismo puerto** en la PC (un `cat` olvidado + minicom). El SO le da cada byte a uno solo, así que se reparten el texto |
 | Framing errors constantes | error de baudrate > ~2-3% (divisor mal elegido sin fraccional) |
 | Se pierden bytes | overrun (OE): no leíste `RBR` a tiempo, o trigger de FIFO mal puesto |
 | La FIFO se "tranca" | leíste `LSR` pero nunca `RBR` ante un error; el byte malo no se va |

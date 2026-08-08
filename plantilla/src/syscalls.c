@@ -28,7 +28,19 @@
  *
  * y listo: _write() de mas abajo la va a usar. La version completa, con la
  * inicializacion de la UART y la conversion de LF a CRLF, esta en el modulo 0,
- * capitulo 13 del curso.
+ * capitulo 16 del curso, y hay un ejemplo probado en
+ * curso/ejemplos/uart/printf_retarget.c.
+ *
+ * OJO CON EL BAUDRATE: recien compilado, la plantilla no llama a SystemInit(),
+ * asi que el micro corre a 4 MHz (RC interno) y PCLK_UART0 queda en 1 MHz. Con
+ * eso el baudrate mas alto que se puede generar es 62500: 115200 es
+ * literalmente inalcanzable y solo vas a ver basura. Para los 115200 de todos
+ * los ejemplos hay que compilar con "make USE_CMSIS=1", que trae el
+ * SystemInit() de CMSIS y deja CCLK en 100 MHz y PCLK_UART0 en 25 MHz.
+ *
+ * Si en vez del gancho preferis escribir tu propio _write() completo, podes:
+ * el de aca abajo esta declarado weak justamente para que el tuyo lo pise sin
+ * que el linker se queje de "multiple definition".
  *
  * Y tene presente que printf() es caro: se lleva varios KB de FLASH y es lento.
  * Para depurar de verdad conviene el debugger (modulo 12).
@@ -65,8 +77,12 @@ __attribute__((weak)) int __io_getchar(void)
 
 /* ---------------------------------------------------------------------------
  * _write - aca desemboca printf(), puts(), fwrite()...
+ * ---------------------------------------------------------------------------
+ * Weak a proposito. Lo normal es no tocarlo y quedarse con __io_putchar(), pero
+ * si escribis tu propio _write() (por ejemplo para mandar el bloque entero de
+ * una, en vez de byte por byte) el tuyo gana y este desaparece.
  * ------------------------------------------------------------------------ */
-int _write(int fd, const char *buf, int len)
+__attribute__((weak)) int _write(int fd, const char *buf, int len)
 {
     (void) fd;              /* no distinguimos stdout de stderr */
     for (int i = 0; i < len; i++) {
@@ -78,8 +94,10 @@ int _write(int fd, const char *buf, int len)
 
 /* ---------------------------------------------------------------------------
  * _read - aca desemboca scanf(), getchar()...
+ * ---------------------------------------------------------------------------
+ * Weak por la misma razon que _write.
  * ------------------------------------------------------------------------ */
-int _read(int fd, char *buf, int len)
+__attribute__((weak)) int _read(int fd, char *buf, int len)
 {
     (void) fd;
     for (int i = 0; i < len; i++) {
@@ -106,7 +124,7 @@ int _read(int fd, char *buf, int len)
  *
  * Igual, la recomendacion en embebidos sigue siendo no usar malloc: reservá
  * los buffers estaticos y sabé desde el dia uno cuanta RAM usa tu programa.
- * (Modulo 0, capitulo 9.)
+ * (Modulo 0, capitulo 11.)
  * ------------------------------------------------------------------------ */
 void *_sbrk(ptrdiff_t incr)
 {

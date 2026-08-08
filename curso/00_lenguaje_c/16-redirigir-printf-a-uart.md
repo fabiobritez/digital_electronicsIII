@@ -175,6 +175,12 @@ int  _kill(int pid, int sig)    { (void)pid; (void)sig; errno = EINVAL; return -
 void _exit(int code)            { (void)code; while (1) { } }   /* no hay a dónde "salir" */
 ```
 
+> **Si usás la plantilla del repo, no copies este archivo tal cual.** `plantilla/src/syscalls.c` ya
+> trae un `_write` (y todos los demás stubs) listo para usar. Está declarado `weak`, así que podés
+> pisarlo con el tuyo, pero el camino corto y recomendado ahí es el gancho `__io_putchar` de la
+> [sección 5a](#a-el-gancho-__io_putchar): son cinco líneas y no tenés que escribir ningún stub.
+> El `_write` completo de acá es para cuando armás el proyecto desde cero, sin esa plantilla.
+
 Y el `main` de prueba. Asumimos que `uart0_init()` es la inicialización del módulo 9 (driver,
 115200 8N1, pines P0.2/P0.3):
 
@@ -209,6 +215,15 @@ Compilás y linkeás `syscalls.c` **junto con** tu `main.c`, el startup, el driv
 script (anexo A). Como definiste `_write` propio, el linker usa **el tuyo** en vez del de
 `nosys.specs`. Abrís la terminal a 115200 y ves `ADC=0`, `ADC=1`, ... saliendo solos.
 
+> **Antes de buscar el bug en otro lado: mirá el clock.** Los 115200 de este capítulo (y los del
+> módulo 9) suponen `PCLK_UART0 = 25 MHz`, que sale de `CCLK = 100 MHz` dividido 4. Pero después de
+> un reset el LPC1769 corre con el **RC interno a 4 MHz**, así que `PCLK_UART0` vale 1 MHz y el
+> baudrate más alto que el hardware puede generar es `1e6 / 16 = 62500`. **A 4 MHz, 115200 no es un
+> error de redondeo: es inalcanzable**, y lo único que vas a ver en la terminal es basura. Hay que
+> subir el clock antes de inicializar la UART: llamando a `SystemInit()` de CMSIS (en la plantilla,
+> `make USE_CMSIS=1`) o configurando la PLL a mano ([módulo 3](../03_clock_y_power/)). Si por lo que
+> sea tenés que quedarte a 4 MHz, usá un baudrate bajo: 4800 sale con `DL = 13` y 0.16% de error.
+
 > Coherencia con el módulo 9: notá el caste `(LPC_UART_TypeDef *)LPC_UART0`. UART0 tiene su propio
 > tipo `LPC_UART0_TypeDef`, idéntico en layout a `LPC_UART_TypeDef`; el caste solo calla el warning.
 > Está explicado en [módulo 09 - UART con driver](../09_uart/02-uart-con-driver.md).
@@ -234,9 +249,24 @@ int __io_putchar(int ch)
 }
 ```
 
-Es más corto, pero **depende** de que tu `--specs` provea ese `_write` intermediario (el material
-del módulo 9 lo menciona como "a veces es `_write()`"). No es universal. Si no funciona, caés al
-`_write` completo de la sección 4, que **siempre** anda.
+Es más corto, pero **depende de que alguien haya escrito ese `_write` intermediario**. No es algo que
+`newlib` te dé: es una convención (viene de los proyectos generados por STM32CubeMX y se copió a
+medio mundo). O sea que `__io_putchar` funciona si tu proyecto ya trae un `_write` que la llame.
+
+**En la plantilla del repo, ese `_write` está.** `plantilla/src/syscalls.c` lo define y llama a
+`__io_putchar` byte por byte, con una versión `weak` de `__io_putchar` que tira todo a la basura. Al
+definir la tuya (fuerte, en cualquier archivo del proyecto) gana la tuya sin configurar nada más. Con
+esta plantilla, entonces, **el orden de preferencia se da vuelta respecto de lo que uno esperaría**:
+
+| | Con la plantilla del repo | En un proyecto armado desde cero |
+|---|---|---|
+| `__io_putchar` | **el camino recomendado**: 5 líneas, ya está todo enganchado | solo si tu proyecto trae un `_write` que la llame |
+| `_write` propio (sección 4) | opcional: el de `syscalls.c` es `weak`, el tuyo lo pisa | **el camino que siempre anda** |
+
+> Hasta hace poco el `_write` de la plantilla **no** era `weak`, y definir el tuyo cortaba el linkeo
+> con `multiple definition of '_write'`. Si te topás con ese error en una copia vieja de la
+> plantilla, la solución es agregarle `__attribute__((weak))` al `_write` de `syscalls.c`, o
+> simplemente usar `__io_putchar`.
 
 ### b) Tu propia `uart_printf` / `putchar`, sin la libc
 
@@ -272,40 +302,114 @@ void uart_put_int(int32_t n)
 
 | Camino | Conviene cuando |
 |--------|-----------------|
-| `_write` propio (sección 4) | querés `printf` completo, con todos sus `%`. El más portable. |
-| `__io_putchar` | tu specs lo soporta y querés menos código que escribir |
+| `__io_putchar` | **estás usando la plantilla del repo** (ya trae el `_write` que la llama) y querés escribir lo mínimo |
+| `_write` propio (sección 4) | armaste el proyecto desde cero, o querés mandar el bloque entero de una en vez de byte por byte. El más portable. |
 | `uart_puts` / `uart_put_int` propias | querés el binario **mínimo**, no necesitás formato complejo, o todavía no querés depender de la libc |
 
 ---
 
 ## 6. El costo de printf
 
-`printf` es **caro en tamaño de código**: tiene que interpretar el string de formato, soportar
-decenas de especificadores, anchos, banderas, etc. Eso se nota, y mucho, en un micro con 512 KB de
-flash pero proyectos que a veces quieren entrar en mucho menos.
+Todo el mundo repite que "printf es caro". Vale la pena preguntarse **caro en qué**, porque la
+respuesta no es la que uno espera.
 
-Medido en este mismo toolchain (Cortex-M3, el mismo binario de prueba de la sección 4):
+Los números de esta sección están **medidos en una LPCXpresso LPC1769**, no estimados: los de Flash
+con `arm-none-eabi-size`; los de stack pintando la pila con un patrón y buscando la marca de agua;
+los de heap leyendo `_sbrk(0)`; los de tiempo con el contador de ciclos `DWT->CYCCNT` del Cortex-M3
+a 100 MHz. Toolchain: `arm-none-eabi-gcc` 13.2, `-Og`, `--gc-sections`, `--specs=nano.specs`.
 
-| Configuración | `text` (flash) |
-|---------------|----------------|
-| `printf("%d")` con newlib completa | ~38.8 KB |
-| `printf("%d")` con **newlib-nano** (`--specs=nano.specs`) | ~5.9 KB |
-| nano + `printf("%f")` **sin** flag de float | ~5.5 KB (imprime mal el float) |
-| nano + `printf("%f")` **con** `-u _printf_float` | ~17.4 KB |
+### 6.1 Flash: barato
 
-Conclusiones:
+| Configuración | `text+data` | % de los 512 KB |
+|---|---:|---:|
+| Piso: `main` vacío (startup + vectores) | 764 B | 0.15% |
+| + UART y salida propia (`uart_puts`) | 1048 B | 0.20% |
+| + `printf` de enteros, newlib-nano | 7664 B | 1.46% |
+| + `printf` con `%f` (`-u _printf_float`) | 20936 B | 3.99% |
 
-- **Usá newlib-nano**: agregá `--specs=nano.specs` al linkeo. Es un `printf` reducido pero más que
-  suficiente para depurar, y achica el binario casi 7×.
-- **El soporte de `%f` (float) es pesado y, por defecto, está apagado en nano.** Si imprimís un
-  `float` sin habilitarlo, sale basura. Para activarlo tenés que pasarle al linker
-  `-u _printf_float`, y eso **infla el binario de ~5.9 KB a ~17.4 KB** (¡+11 KB solo por imprimir
-  comas decimales!). En el Cortex-M3 **no hay FPU**, así que todo el float es por software: lento y
-  grande.
-- **Recomendación: evitá `%f` al depurar.** Imprimí en enteros o en **punto fijo** (milivoltios,
-  centésimas, etc.). En vez de `printf("%f V\n", 3.3f * adc / 4096)` hacé las cuentas en `int` y
-  mandá `printf("%d.%03d V\n", mv/1000, mv%1000)`. Esto está desarrollado en
-  [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md).
+Aislando **solo lo que agrega `printf`** —contra hacer lo mismo a mano, porque la UART la vas a
+necesitar igual—: **6616 B para enteros, o sea 1.26% de la Flash.** Con `%f`, 19888 B (3.79%).
+
+### 6.2 RAM: hay que sumar tres cosas, no una
+
+`make size` te muestra la memoria estática y nada más. El stack y el heap no aparecen ahí, y son
+más de la mitad del gasto:
+
+| | estática | stack | heap | total | % de 32 KB |
+|---|---:|---:|---:|---:|---:|
+| Rutinas propias | 40 B | 84 B | 0 | 124 B | 0.4% |
+| `printf` enteros + `setvbuf(_IONBF)` | 464 B | 376 B | 0 | **840 B** | 2.6% |
+| `printf` enteros **sin** `setvbuf` | 464 B | 376 B | **1032 B** | 1872 B | 5.7% |
+| `printf` con `%f` | 832 B | 584 B | 232 B | 1648 B | 5.0% |
+
+Dos cosas que conviene saber antes de que te muerdan:
+
+- **Sin `setvbuf`, el primer `printf` reserva 1032 bytes de heap** para el buffer de stdout. Es el
+  gasto más grande de la tabla y el más invisible: no figura en `make size` porque ocurre en tiempo
+  de ejecución. La línea de la sección 7 que parecía una comodidad vale 3% de tu RAM.
+- **376 bytes de stack son el 18% de los 2 KB** que el linker script reserva. Si encima llamás
+  `printf` desde una ISR anidada sobre una cadena de llamadas profunda, ahí es donde se desborda,
+  y un desborde de stack no avisa: corrompe variables y el programa falla en otro lado.
+
+### 6.3 Tiempo: acá está el costo de verdad
+
+Imprimiendo `"x1234567\n"` (10 caracteres) a 115200 baud, con el core a 100 MHz:
+
+| | ciclos | tiempo |
+|---|---:|---:|
+| Solo formatear `%lu` (`sprintf`, sin tocar la UART) | 1557 | 15.6 µs |
+| Solo formatear `%f` | 7371 | 73.7 µs |
+| **`printf` completo, `%lu`** | **87396** | **874 µs** |
+| `printf` completo, `%f` | 96367 | 964 µs |
+| **Las mismas rutinas propias, sin libc** | **86812** | **868 µs** |
+
+Comparen las dos filas en negrita: **escribir tus propias rutinas para "evitar lo caro de printf" no
+ahorra tiempo.** 874 µs contra 868 µs, 0.7% de diferencia.
+
+La razón está en la primera fila. Formatear cuesta 15.6 µs; mandar 10 caracteres por la línea cuesta
+868 µs (`10 caracteres × 10 bits / 115131 baud`, que es exactamente lo que dio la medición). El
+formateo es el 1.8% del total y encima se esconde adentro de la espera del `THRE`.
+
+> **La conclusión que importa: el costo de `printf` no es `printf`, es el cable.** El 98% del tiempo
+> el CPU está parado en el `while (!(LSR & THRE))` esperando a que la UART termine de sacar un bit
+> por vez. A 100 MHz, esos 868 µs son **86.800 ciclos** tirados.
+
+### 6.4 ¿Conviene o no?
+
+**Para depurar, sí, sin discusión.** 1.26% de Flash y 2.6% de RAM en un chip con 512 KB y 32 KB es
+regalado, y te ahorra horas.
+
+**Dentro de un lazo de control, no.** Y no por la memoria: por los 86.800 ciclos bloqueados. Si tu
+superloop corre a 1 kHz (1 ms de período), **un solo `printf` por vuelta se come el 87% del
+presupuesto de tiempo**. El firmware empieza a perder plazos y el bug que estabas buscando se
+convierte en otro distinto: el clásico "cuando le pongo un printf anda, cuando lo saco falla".
+
+### 6.5 Qué hacer, ordenado por lo que realmente ataca
+
+Si el problema es **tiempo** (el caso normal en este chip):
+
+1. **Imprimí menos seguido**, no distinto: una de cada N vueltas, o solo cuando algo cambia. Cuesta
+   una línea y ataca directamente el 98% del costo.
+2. **Subí el baudrate.** El bloqueo es inversamente proporcional: a 921600 baja 8×, a ~109 µs.
+3. **Mandá por interrupción o DMA con una cola circular.** `printf` deja los bytes en la cola y
+   vuelve en microsegundos; el tiempo de línea sigue existiendo pero ya no lo paga el CPU. Es la
+   única solución de fondo, y las piezas están en el [módulo 11 (DMA)](../11_dma/).
+
+Si el problema es **espacio**:
+
+4. **Evitá `%f`.** Es lo único con un costo desproporcionado: +13 KB de Flash, +208 B de stack y
+   +232 B de heap contra hacer la cuenta en punto fijo. En el Cortex-M3 no hay FPU: todo el float es
+   por software. En vez de `printf("%f V\n", 3.3f*adc/4096)`, calculá en `int` y mandá
+   `printf("%d.%03d V\n", mv/1000, mv%1000)`. Desarrollado en
+   [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md).
+5. **Usá newlib-nano** (`--specs=nano.specs`, la plantilla ya lo trae): la newlib completa se lleva
+   4× más Flash para el mismo `printf`.
+6. **`setvbuf(stdout, NULL, _IONBF, 0)`**: una línea, 1032 bytes de heap.
+7. **Rutinas propias**: ahorran 6.6 KB de Flash y 292 B de stack, y perdés `%08X`, los anchos de
+   campo y el formato de `%s`. Elegí a sabiendas de que **no vas a ganar ni un microsegundo**.
+
+Y si te aprieta la RAM antes de tener que sacar `printf`: el LPC1769 tiene **32 KB de AHB SRAM sin
+usar** (dos bancos de 16 KB que el linker script declara pero no ocupa).
 
 ---
 
@@ -332,15 +436,18 @@ Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de 
 
 ## 8. Cuidados
 
-- **NO uses `printf` dentro de una ISR.** Dos razones: (1) `printf` **no es reentrante** (usa estado
-  global y, según el caso, el heap); si una interrupción lo llama mientras el `main` también lo está
-  usando, corrompés ese estado. (2) Es **lento**: formatear y mandar 20 bytes por UART a 115200
-  tarda ~2 ms, una eternidad dentro de una interrupción. Regla del [módulo 12](../12_debug/): la ISR
-  **levanta una bandera**, y el `main` imprime.
-- **El `_write` por polling bloquea.** `UART_SendByte` espera con `while` a que `THRE` esté libre
-  (módulo 9). Mientras imprime, tu programa no hace nada más. A 9600 baud eso es lentísimo; a 115200
-  es tolerable para depurar pero igual frena. Si necesitás imprimir sin bloquear, hay que mandar por
-  interrupción/DMA con una cola, lo cual es bastante más complejo.
+- **NO uses `printf` dentro de una ISR.** Tres razones, las tres medidas en la sección 6:
+  (1) **no es reentrante** (usa estado global y, según el caso, el heap); si una interrupción lo
+  llama mientras el `main` también lo está usando, corrompés ese estado. (2) Es **lentísimo para una
+  ISR**: 874 µs para diez caracteres, o sea 86.800 ciclos con el CPU parado. (3) Se come **376 bytes
+  de stack**, el 18% de lo que el linker reserva, encima de lo que ya venía usando la cadena de
+  llamadas interrumpida. Regla del [módulo 12](../12_debug/): la ISR **levanta una bandera**, y el
+  `main` imprime.
+- **El `_write` por polling bloquea, y ese es el costo dominante.** `UART_SendByte` espera con
+  `while` a que `THRE` esté libre (módulo 9), un bit por vez. El 98% del tiempo de un `printf` se va
+  ahí, no en formatear. A 9600 baud es doce veces peor todavía. Si necesitás imprimir sin bloquear,
+  hay que mandar por interrupción/DMA con una cola: más complejo, pero es lo único que ataca el
+  problema real ([módulo 11](../11_dma/)).
 - **Reentrancia y RTOS.** Si en el futuro usás un RTOS con varias tareas, dos tareas llamando
   `printf` a la vez chocan. Ahí se usa newlib con soporte de reentrancia (`_REENT`) o se protege con
   un mutex. Para programas bare-metal de un solo hilo (como los del curso) no es problema.
@@ -379,18 +486,33 @@ pocos pesos, sin debugger.
 4. **El bug del buffer.** Sacá el `setvbuf(..., _IONBF, ...)`, poné un `printf("antes del cuelgue\n")`
    (con `\n`, sin `fflush`) seguido de un `while(1){}`, y comprobá que el mensaje **no aparece**.
    Después agregá `fflush(stdout)` y verificá que sí aparece. Eso es la sección 7 en acción.
+5. **Los 1032 bytes invisibles.** Declarando `extern char end;` y `extern void *_sbrk(ptrdiff_t);`,
+   imprimí `(uint32_t)_sbrk(0) - (uint32_t)&end` (el heap usado) antes y después del primer `printf`,
+   con y sin `setvbuf(_IONBF)`. Vas a reproducir la fila más cara de la tabla de la sección 6.2.
+   ¿Por qué `make size` no te muestra ese gasto?
+6. **Medir el bloqueo.** Habilitá el contador de ciclos del Cortex-M3
+   (`DEMCR |= 1<<24; DWT_CYCCNT = 0; DWT_CTRL |= 1;`) y medí cuántos ciclos tarda un `printf` de diez
+   caracteres. Después medí solo el formateo, con `sprintf` a un buffer. Compará las dos cifras con
+   el tiempo teórico de la línea (`10 caracteres × 10 bits / baudrate`) y decidí vos dónde se va el
+   tiempo. Repetilo a 9600 baud: ¿cuál de los dos números cambia?
 
-> **Verificación del código.** El `syscalls.c` de la sección 4 y el `main` de prueba se compilaron y
-> linkearon con el toolchain del curso (`arm-none-eabi-gcc` 13.3.1, xPack) con
-> `-mcpu=cortex-m3 -mthumb`, tanto con newlib completa como con `--specs=nano.specs`. Los tamaños de
-> la tabla de la sección 6 salen de ese mismo experimento.
+> **Verificación del código.** El camino de `__io_putchar` de la sección 5a está **probado en placa**:
+> [`curso/ejemplos/uart/printf_retarget.c`](../ejemplos/uart/printf_retarget.c) se compiló sobre la
+> plantilla con `make USE_CMSIS=1`, se grabó en una LPCXpresso LPC1769 por CMSIS-DAP y su salida se
+> leyó a 115200 8N1 desde un conversor USB-serie en P0.2/P0.3, en los dos sentidos.
+>
+> Todos los números de la sección 6 son **mediciones sobre esa misma placa**, no estimaciones: Flash
+> con `arm-none-eabi-size`; stack pintando la pila con un patrón `0xAA` y buscando la marca de agua;
+> heap leyendo `_sbrk(0)`; tiempo con `DWT->CYCCNT` a 100 MHz. Los ejercicios 5 y 6 son exactamente
+> esos experimentos, para que los reproduzcas.
 
 ---
 
 **Anterior:** [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md) ·
 **Módulo:** [Lenguaje C](./README.md)
 
-**Ver también:** [Módulo 09 - UART](../09_uart/) · [Módulo 12 - Debug](../12_debug/)
+**Ver también:** [Módulo 09 - UART](../09_uart/) · [Módulo 12 - Debug](../12_debug/) ·
+[Ejemplo probado en placa: `ejemplos/uart/printf_retarget.c`](../ejemplos/uart/printf_retarget.c)
 
 ---
 

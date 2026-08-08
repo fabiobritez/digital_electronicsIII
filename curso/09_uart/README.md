@@ -34,7 +34,9 @@ Módulos 3 (clock/power, define el baudrate) y 7 (interrupciones, para recepció
 
 ## Código listo para probar
 En [`../ejemplos/uart/`](../ejemplos/uart/) está el eco serial en sus dos versiones (a registro y
-con driver), compilado y listo para cargar.
+con driver), más [`printf_retarget.c`](../ejemplos/uart/printf_retarget.c): `printf` saliendo por
+UART0 a 115200 con el divisor fraccional resuelto a mano, probado en placa. Todos suponen
+`CCLK = 100 MHz`, así que hay que llamar a `SystemInit()` (con la plantilla, `make USE_CMSIS=1`).
 
 ## Manual
 UART0/2/3: Capítulo 14 ([`manual/ch14_uart0-2-3.pdf`](../../manual/ch14_uart0-2-3.pdf)). UART1 (modem

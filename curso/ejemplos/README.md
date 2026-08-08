@@ -14,7 +14,7 @@ importar en MCUXpresso, compilar y cargar.
 | [systick/](./systick/) | Interrupción periódica, base de tiempo | [06 - SysTick](../06_systick/) |
 | [interrupciones/](./interrupciones/) | Interrupción por GPIO, NVIC, prioridades | [07 - Interrupciones](../07_interrupciones/) |
 | [timers/](./timers/) | `patterns/` (patrones), `lineas/` (control de líneas), match/capture | [08 - Timers](../08_timers/) |
-| [uart/](./uart/) | Eco serial: a registro (9600) y con driver (115200) | [09 - UART](../09_uart/) |
+| [uart/](./uart/) | Eco serial: a registro (9600) y con driver (115200); `printf` redirigido a la UART | [09 - UART](../09_uart/) · [00.16](../00_lenguaje_c/16-redirigir-printf-a-uart.md) |
 | [adc_dac/](./adc_dac/) | Passthrough analógico a registro; voltímetro serial con drivers | [10 - ADC/DAC](../10_adc_dac/) |
 | [dma/](./dma/) | `m2m.c`, `adc_dma_simple.c`, `dac_dma_sin.c`, `lli_example.c` | [11 - DMA](../11_dma/) |
 
