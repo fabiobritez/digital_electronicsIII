@@ -68,12 +68,31 @@ def lanzar_openocd(velocidad_khz, polleo_ms, cfg=CFG):
 
 
 def matar(p):
-    if p and p.poll() is None:
+    """Cierra OpenOCD con cuidado.
+
+    Importa mas de lo que parece. OpenOCD le pide al kernel que suelte la
+    interfaz USB de la sonda (que es HID) para poder hablarle en crudo, y se la
+    devuelve recien al cerrarse. Si lo matas a lo bruto, esa interfaz queda sin
+    driver: la sonda sigue apareciendo en lsusb pero ya nadie la puede abrir, y
+    el siguiente openocd contesta "unable to find a matching CMSIS-DAP device".
+    Se arregla desenchufando y volviendo a enchufar, pero mejor no llegar ahi.
+
+    Por eso: primero SIGINT, que OpenOCD trata como "cerra prolijo"; SIGTERM
+    despues; SIGKILL solo como ultimo recurso.
+    """
+    if not p or p.poll() is not None:
+        return
+    for sig, espera in ((signal.SIGINT, 5), (signal.SIGTERM, 3), (signal.SIGKILL, 2)):
         try:
-            os.killpg(os.getpgid(p.pid), signal.SIGTERM)
-            p.wait(timeout=5)
+            os.killpg(os.getpgid(p.pid), sig)
+            p.wait(timeout=espera)
+            return
+        except subprocess.TimeoutExpired:
+            continue
         except Exception:
-            pass
+            return
+    # Darle un respiro al kernel para que reasocie el driver antes del proximo
+    time.sleep(0.5)
 
 
 # --------------------------------------------------------------------------

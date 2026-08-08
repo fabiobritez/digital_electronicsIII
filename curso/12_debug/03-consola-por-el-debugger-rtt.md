@@ -128,7 +128,7 @@ make rtt
 Y ya:
 
 ```
-  RTT     servidor en el puerto 9090; Ctrl-C para salir
+  RTT     puerto 9090, SWD 4000 kHz, polleo 10 ms; Ctrl-C para salir
 
 Info : rtt: Control block found at 0x10000244
 
@@ -162,8 +162,10 @@ Conviene saberlo, porque el día que algo falle vas a querer correrlo a mano:
 ```bash
 # terminal 1: el servidor
 openocd -f openocd/lpc1769.cfg \
+  -c "adapter speed 4000" \
   -c "init" -c "reset run" \
   -c 'rtt setup 0x10000000 0x8000 "SEGGER RTT"' \
+  -c "rtt polling_interval 10" \
   -c "rtt start" \
   -c "rtt server start 9090 0"
 
@@ -173,6 +175,19 @@ nc localhost 9090
 
 Los argumentos de `rtt setup` son **dónde buscar** el bloque de control: dirección de inicio, cuántos
 bytes barrer, y la marca. `0x10000000 0x8000` son los 32 KB de RAM del LPC1769: barre toda la RAM.
+
+Las otras dos son las que deciden el caudal, y los valores por defecto de OpenOCD son malos: con
+`polling_interval` en 100 ms se sacan ~5.5 KB/s, **menos que una UART a 115200**. Con 10 ms y el SWD
+a 4 MHz se llega a ~15.7 KB/s, que es el techo que impone la sonda. La plantilla ya usa los buenos;
+se cambian con `make rtt RTT_POLL=100 RTT_SPEED=1000`. Está medido en
+[`ejemplos/uart/printf_rtt/README.md`](../ejemplos/uart/printf_rtt/README.md).
+
+### Dos cosas que `make rtt` hace y conviene saber
+
+- **Resetea el micro** (`reset run`), así que tu programa arranca de cero en cada `make rtt`. Es a
+  propósito: si no, te perderías los primeros `printf`.
+- **No graba.** Si editaste el código, `make rtt` recompila el `.elf` pero la placa sigue corriendo
+  el firmware viejo. El hábito seguro es `make flash && make rtt`.
 
 ---
 
@@ -266,12 +281,44 @@ rivales.
 
 | Síntoma | Causa |
 |---|---|
-| `Error: unable to find a matching CMSIS-DAP device` | reglas udev sin instalar (§3), o hay otra herramienta usando la sonda |
+| `Error: unable to find a matching CMSIS-DAP device` | reglas udev sin instalar (§3), otra herramienta usando la sonda, o **la sonda quedó sin driver** (ver abajo) |
 | `rtt: No control block found` | el firmware no llama a `rtt_init()`, o `rtt.c` no está en el proyecto |
 | Conecta pero no sale nada | ¿estás seguro de que el programa llega a los `printf`? Mirá el LED, o poné un `printf` como primera línea de `main` |
 | `descartados` crece sin parar | nadie está leyendo el canal, o imprimís más rápido de lo que el host pollea. Imprimí menos seguido o agrandá `RTT_UP_SIZE` |
 | Se ve la mitad de la última línea | falta `rtt_flush()` antes de frenar o resetear |
 | Anda solo con `sudo` | reglas udev (§3). No lo resuelvas con `sudo` |
+
+### El caso raro: "no encuentro la sonda" y sin embargo está enchufada
+
+Si `lsusb` la muestra pero OpenOCD dice que no la encuentra, mirá si la interfaz USB quedó sin
+dueño:
+
+```bash
+cat /sys/bus/usb/devices/1-3/1-3:1.0/uevent | grep DRIVER
+```
+
+(el `1-3` puede ser otro; sale de `lsusb -t`). Si no dice `DRIVER=usbhid`, ese es el problema.
+
+**Por qué pasa.** La sonda CMSIS-DAP es un dispositivo USB **HID**, y al enchufarla el kernel le ata
+su driver `usbhid`. OpenOCD necesita hablarle en crudo, así que le pide al kernel que **suelte** esa
+interfaz, y se la devuelve al cerrarse. Si OpenOCD muere antes de ese último paso —lo mataste con
+`kill -9`, se colgó, o suspendiste la máquina con una sesión abierta— la interfaz queda huérfana:
+enumerada pero sin driver. Y sin driver no hay nodo `/dev/hidraw*`, que es justo por donde OpenOCD
+la busca. De ahí el mensaje engañoso: la ve, pero no la puede abrir.
+
+**Cómo se arregla.** Desenchufar y volver a enchufar el USB del debugger. Fuerza una re-enumeración
+completa y el kernel le ata `usbhid` de nuevo. Sin desenchufar, también sirve:
+
+```bash
+sudo sh -c 'echo -n 1-3:1.0 > /sys/bus/usb/drivers/usbhid/bind'
+```
+
+**Cómo evitarlo.** Salí de `make rtt` con `Ctrl-C`, que deja a OpenOCD cerrarse ordenadamente. Nada
+de `kill -9` ni `pkill`.
+
+**No te preocupes por el hardware:** no se daña nada. Es puro estado del lado de la PC —qué driver
+es dueño de una interfaz USB—, no toca ni el firmware de la sonda ni el LPC1769 ni lo que tenés
+grabado. La falla ocurre *antes* de conectarse al chip, así que ni siquiera llega a escribir.
 
 ---
 
