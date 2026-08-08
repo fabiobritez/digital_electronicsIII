@@ -465,21 +465,52 @@ Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de 
 
 ---
 
-## 9. Otras formas de "imprimir" (solo para que sepas que existen)
+## 9. Otras formas de "imprimir"
 
-La UART no es la única salida de depuración. Sin desarrollarlas, dos alternativas que vas a ver
-nombradas:
+La UART no es la única salida de depuración. Las tres alternativas que vas a ver nombradas, con lo
+que pasa **en la placa del curso**:
 
-- **Semihosting** (`--specs=rdimon.specs`): el `printf` sale por el **debugger** (JTAG/SWD) a la
-  consola del IDE, sin usar UART. Cómodo porque no gastás un periférico, pero es **lento** y
-  **requiere un debugger conectado y corriendo**: si lo desconectás, el programa se cuelga en el
-  próximo `printf`. No sirve para un equipo en producción.
-- **ITM / SWO**: el Cortex-M3 tiene una unidad de trazado (ITM) que puede sacar caracteres por el
-  pin **SWO**, y el debugger los muestra. Muy rápido y no bloquea como la UART por polling, pero
-  también depende de tener el debugger y la herramienta configurada.
+- **Semihosting** (`--specs=rdimon.specs`): el `printf` sale por el **debugger** a la consola del
+  IDE. Cómodo porque no gasta un periférico, pero es **muy lento** (cada carácter frena el micro con
+  una excepción hacia el host) y **requiere el debugger conectado y corriendo**: si lo desconectás,
+  el programa se cuelga en el próximo `printf`. No sirve para un equipo en producción.
 
-Para el curso, la **UART es la opción más universal**: funciona con un simple conversor USB-serie de
-pocos pesos, sin debugger.
+- **ITM / SWO**: el Cortex-M3 tiene una unidad de trazado (ITM) que saca caracteres por el pin
+  **SWO**, y lo mejor es que ese pin **comparte con TDO**, así que está en el conector de debug y no
+  te cuesta ningún pin de aplicación (UM10360 §33.4). Rápido y no bloqueante.
+
+  **Pero la sonda CMSIS-DAP de a bordo de la LPCXpresso no lo soporta.** Su firmware es viejo y solo
+  anuncia SWD:
+
+  ```console
+  $ openocd -f interface/cmsis-dap.cfg -c "transport select swd" -c init -c exit
+  Info : CMSIS-DAP: SWD supported
+  Info : CMSIS-DAP: FW Version = 1.0
+  ```
+
+  Si insistís, OpenOCD contesta `Error: SWO-trace is not supported by the device`. Para usar SWO hace
+  falta otra sonda: J-Link, ST-Link V2/V3, o MCU-Link / LPC-Link2 con firmware CMSIS-DAP v2. **El
+  chip puede; la herramienta no.**
+
+- **RTT**: el programa escribe en una cola en RAM y el debugger **la lee por SWD mientras el micro
+  corre**, sin frenarlo, aprovechando que la unidad de debug accede a memoria en paralelo al CPU.
+  No usa pines ni periféricos, funciona **con la sonda que ya tenés**, y medido en placa cuesta
+  **24 µs** por línea de 48 caracteres, contra 4091 µs de la UART por polling. Está implementado y
+  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), incluida la verificación de
+  que se puede depurar con gdb y leer los `printf` al mismo tiempo, por el mismo cable.
+
+### ¿Cuál usar?
+
+| | Necesita debugger | Gasta pines | CPU por línea de 48 car. |
+|---|---|---|---|
+| UART por polling | no | 1 (TXD) | 4091 µs |
+| UART por DMA | no | 1 (TXD) | 36 µs |
+| RTT | **sí** | 0 | 24 µs |
+| SWO | **sí, y que la soporte** | 0 (usa TDO) | — (no probado acá) |
+
+En el laboratorio, con el debugger enchufado, **RTT es lo más cómodo y lo más barato**. Para un
+equipo que va a funcionar solo, la **UART sigue siendo la opción universal**: anda con un conversor
+USB-serie de pocos pesos y sin debugger. Por eso el curso arranca por ahí.
 
 ---
 

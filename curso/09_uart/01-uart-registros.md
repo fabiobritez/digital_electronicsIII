@@ -229,6 +229,46 @@ los registros; si no, falla. Lo vas a ver en la [página 2](./02-uart-con-driver
 > `DL = 100e6/(16×115200) = 54.25`... tampoco entero. Algunos diseños eligen un cristal "raro" (p. ej.
 > para que dé múltiplos de 1.8432 MHz) justamente para que los baudrates estándar salgan sin error.
 
+### ¿Hasta dónde se puede subir?
+
+Vale la pena, porque el tiempo que el CPU pasa esperando a la UART es **inversamente proporcional al
+baudrate**: pasar de 115200 a 921600 divide por 8 el bloqueo. Pero hay dos techos distintos.
+
+**El techo del PCLK.** Con `PCLK_UART0 = 25 MHz` el divisor se vuelve tan chico que ni el fraccional
+alcanza. Buscando la mejor combinación posible para cada velocidad:
+
+| Baudrate | Con `PCLK` = 25 MHz | Con `PCLK` = 100 MHz |
+|---|---|---|
+| 115200 | `DL=10, MUL=14, ADD=5` → −0.06% | `DL=31, MUL=4, ADD=3` → +0.01% |
+| 230400 | `DL=5, MUL=14, ADD=5` → −0.06% | `DL=19, MUL=7, ADD=3` → −0.06% |
+| 460800 | `DL=3, MUL=15, ADD=2` → −0.27% | `DL=10, MUL=14, ADD=5` → −0.06% |
+| 921600 | **imposible**: lo mejor es 781250, −15% | `DL=5, MUL=14, ADD=5` → −0.06% |
+| 1000000 | **imposible** | `DL=5, MUL=4, ADD=1` → **exacto** |
+
+Arriba de 460800 hay que subir `PCLK_UART0` a `CCLK/1 = 100 MHz`, que son dos bits de `PCLKSEL0`:
+
+```c
+LPC_SC->PCLKSEL0 &= ~(0x3u << 6);
+LPC_SC->PCLKSEL0 |=  (0x1u << 6);   /* 01 = CCLK/1 */
+```
+
+**El techo del otro extremo, que es el que manda.** Medido en la placa del curso con un conversor
+CP2102, mandando la misma línea 5 segundos seguidos:
+
+| | líneas recibidas | corruptas |
+|---|---:|---:|
+| 921600 | 1850 | **0** |
+| 1000000 | 520 | **183 (35%)** |
+
+Fijate la ironía: **a 1 Mbaud el divisor del LPC es exacto (0.00% de error) y aun así no funciona.**
+El problema no está en el micro sino en el conversor USB-serie y el camino hasta la PC. Es la lección
+importante de todo esto: que la cuenta del divisor dé bien **no garantiza** que el enlace ande. Hay
+que medirlo, y medirlo con integridad (¿llegaron todas las líneas bien?), no con la vista.
+
+En resumen, para esta placa: **921600 es el máximo utilizable**, y da 8× menos bloqueo que 115200.
+Los comandos para reproducir la prueba están en
+[`ejemplos/uart/MEDICIONES.md`](../ejemplos/uart/MEDICIONES.md) §6.
+
 ## Inicialización a registro (8N1, 9600 baud, polling)
 
 ```c

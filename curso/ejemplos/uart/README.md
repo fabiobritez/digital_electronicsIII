@@ -10,10 +10,15 @@ UART:
 | [`uart_eco_driver.c`](./uart_eco_driver.c) | Driver CMSIS (`UART_Init`, `UART_Send/Receive`) | 115200 |
 | [`printf_retarget.c`](./printf_retarget.c) | A registro **con fraccional** + `printf` redirigido por `__io_putchar` | 115200 |
 | [`printf_dma/`](./printf_dma/) | El mismo `printf`, pero **sin bloquear el CPU**: cola circular + GPDMA | 115200 |
+| [`printf_rtt/`](./printf_rtt/) | `printf` por el **cable del debugger**, sin UART ni pines | — |
 
-> El salto de `printf_retarget.c` a `printf_dma/` es el que más enseña: el primero funciona y el
-> segundo funciona **sin robarle tiempo al programa**. Medido en placa, imprimir una línea de 48
-> caracteres pasa de 4091 µs de CPU bloqueado a 36 µs. Leelos en ese orden.
+> Leelos en ese orden: es la misma tarea resuelta cada vez mejor. Medido en placa, imprimir una
+> línea de 48 caracteres le cuesta al CPU **4091 µs** por polling, **36 µs** por DMA y **24 µs** por
+> RTT. Los dos últimos son los que valen la pena entender.
+
+**¿Querés comprobar los números vos mismo?** Todos los comandos están en
+[`MEDICIONES.md`](./MEDICIONES.md): cómo medir Flash, stack, heap y ciclos, cómo subir el baudrate y
+hasta dónde aguanta, y cómo levantar el canal RTT con OpenOCD.
 
 Para probarlos: conectá la placa por el puente UART-USB (o el adaptador que tengas en
 P0.2/P0.3), abrí una terminal serie con el baudrate correcto y escribí: cada tecla debería
