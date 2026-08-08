@@ -35,10 +35,41 @@ lsusb | grep -i cmsis
 Tenés que ver algo con `CMSIS-DAP` en el nombre, y un ID de vendedor `1fc9` (NXP). Si en
 vez de eso ves `0471:df55`, tenés el probe viejo.
 
-Es **CMSIS-DAP v1**, o sea que se comunica por HID (`bInterfaceClass 3`). Eso tiene una
-consecuencia práctica: pyocd necesita el módulo `hidapi` para hablarle, y sin él no la
-detecta. Otro detalle de esta sonda, que se paga caro más abajo: declara su número de
-serie USB **vacío**.
+Es **CMSIS-DAP v1**. Si querés comprobarlo vos, la prueba decisiva está en los
+descriptores USB:
+
+```bash
+lsusb -d 1fc9:001d -v | grep -iE "bInterfaceClass|bNumEndpoints|wMaxPacketSize|bInterval|iSerial"
+```
+
+| Lo que sale | Qué prueba |
+|---|---|
+| `bInterfaceClass 3` (HID) | **Definitivo.** CMSIS-DAP v2 es, por definición, USB **bulk** (clase vendor-specific). Si habla HID, es v1 |
+| 2 endpoints interrupt, 64 B, `bInterval 1` | el perfil HID clásico: 64 bytes cada milisegundo |
+| `iSerial` vacío | v2 **exige** número de serie; esta no lo declara |
+| `bNumInterfaces 1` | solo HID: ni disco USB ni puerto serie |
+
+Y OpenOCD lo corrobora por otro lado:
+
+```console
+$ openocd -f interface/cmsis-dap.cfg -c "transport select swd" -c init -c exit
+Info : CMSIS-DAP: SWD supported
+Info : CMSIS-DAP: FW Version = 1.0
+```
+
+Fijate lo que **no** dice: `SWO-UART supported`. La v1.0 no tiene los comandos de SWO.
+
+Eso tiene tres consecuencias prácticas, y conviene tenerlas juntas:
+
+1. **pyocd necesita el módulo `hidapi`** para hablarle; sin él no la detecta y no te avisa
+   por qué.
+2. **No podés capturar SWO** con esta sonda ([módulo 12, capítulo 3](../../../12_debug/03-consola-por-el-debugger-rtt.md)).
+3. **El caudal está acotado por el HID.** 64 bytes cada milisegundo son 64 KB/s teóricos, y
+   como cada lectura de memoria necesita ida y vuelta, en la práctica se sacan ~15.7 KB/s
+   (medido con RTT). No es un límite del LPC1769 ni del cable SWD: subir el reloj del SWD de
+   4 a 15 MHz no cambia el resultado ni un byte.
+
+Y un detalle más, que se paga caro abajo: declara su número de serie USB **vacío**.
 
 En Windows no hace falta instalar ningún driver: CMSIS-DAP v1 se presenta como un
 dispositivo HID, de la misma familia que un teclado, y Windows lo reconoce solo.
@@ -121,6 +152,103 @@ La placa tiene un **conector Cortex de 10 pines** para enchufar otro probe, y ju
 desconectar el de a bordo. Sirve si querés usar un J-Link, o si el probe integrado se
 rompió. Con el probe de a bordo deshabilitado, la placa pasa a ser un LPC1769 pelado con
 sus pines SWD accesibles: seguí la guía del probe que vayas a usar.
+
+## ¿Se puede actualizar a CMSIS-DAP v2?
+
+Sí, técnicamente. Pero antes de entusiasmarte conviene separar **qué ganarías**, **qué
+riesgo hay** y **si vale la pena**, porque la respuesta corta es que para esta materia
+probablemente no.
+
+### Qué ganarías
+
+- **Más caudal.** v2 usa USB bulk en vez de HID, así que el techo de ~15.7 KB/s de RTT sube.
+- **Captura de SWO**, que hoy no tenés.
+- **Un número de serie**, con lo cual LinkServer pasaría a funcionar (ver la sección
+  anterior).
+
+### Qué NO se puede dañar
+
+Esto es lo primero que hay que entender, porque acota el miedo:
+
+- **El LPC1769 no corre ningún riesgo.** Es otro chip. Estarías grabando el micro de la
+  sonda, no el tuyo.
+- **El LPC11U35 no se puede "brickear" de forma permanente.** Su bootloader vive en **ROM
+  de máscara**: no es borrable por ningún medio, y se entra por un **pin de hardware al
+  reset**, no por software. El peor caso posible no es "la sonda murió", es "la sonda no
+  anda hasta que le grabe una imagen correcta".
+
+### Cuál es el riesgo real
+
+- **Quedarte sin sonda funcionando por un rato.** En una materia donde la placa se comparte,
+  eso cuesta más de lo que parece.
+- **Grabar una imagen compilada para otra placa con el mismo chip.** Enumeraría bien pero
+  podría no hablar con el target, porque las asignaciones de pines (SWDIO, SWCLK, reset)
+  difieren entre diseños. Recuperable, pero confuso.
+- **No poder entrar al bootloader.** Este es el único escenario que te deja colgado de
+  verdad, y por eso es lo primero que hay que verificar.
+
+### El orden seguro
+
+**Paso 0, y es el que decide todo: comprobá que podés entrar al bootloader ANTES de tocar
+nada.** Se hace puenteando el pin de ISP del LPC11U35 y reseteando. Si funciona, la sonda se
+re-enumera como un **disco USB** llamado `CRP DISABLD` con un `firmware.bin` adentro.
+
+Este paso es **completamente reversible**: sacás el puente, reseteás, y vuelve a ser la
+sonda de siempre. No se graba nada.
+
+```bash
+# con el puente puesto y despues del reset:
+lsusb                      # ¿aparece un dispositivo distinto?
+ls /dev/sd*                # ¿aparecio un disco nuevo?
+```
+
+**Si no llegás a ver el disco, no sigas.** Sin bootloader accesible no tenés red de
+seguridad.
+
+Recién después: conseguir una imagen construida para *esta* placa, grabarla arrastrando el
+archivo al disco, y verificar que quedó en v2:
+
+```bash
+lsusb -d 1fc9: -v | grep bInterfaceClass    # ya no debería decir 3 (HID)
+openocd -f interface/cmsis-dap.cfg -c init  # debería mencionar CMSIS-DAPv2
+```
+
+### Dos cosas que esta guía NO puede darte
+
+Y es honesto decirlo en vez de improvisar:
+
+1. **El punto exacto de entrada a ISP en tu revisión de placa.** Sale del esquemático o de
+   la serigrafía. No te fíes de un número de jumper sacado de otra placa.
+2. **Una imagen v2 verificada para la OM13085.** El proyecto **DAPLink** (el firmware de
+   sonda abierto de ARM/Mbed) soporta el LPC11U35 como plataforma y sus versiones modernas
+   hacen CMSIS-DAP v2 con SWO, pero *no está comprobado* que exista un build específico para
+   esta placa. Usar el de otra placa es exactamente el escenario confuso de más arriba.
+
+### La alternativa con riesgo cero, que es la que se recomienda
+
+**No toques la sonda que funciona: sumá una segunda.**
+
+- Una **Raspberry Pi Pico** con el firmware oficial `debugprobe` es CMSIS-DAP **v2**, sale
+  muy poco, y grabarla es apretar BOOTSEL y arrastrar un archivo — también con bootloader en
+  ROM, también imposible de brickear.
+- Un **MCU-Link** de NXP (~US$10) es v2, tiene SWO y está oficialmente soportado, incluso
+  por LinkServer ([guía 03](./03-lpc-link2-y-mcu-link.md)).
+
+Cualquiera de las dos se enchufa en el conector Cortex de 10 pines (ver la sección
+anterior) sin tocar una sola línea del firmware de la placa.
+
+### Y la pregunta que casi nadie hace: ¿lo necesitás?
+
+Para el curso, **no**. Lo que se gana con v2 ya está cubierto:
+
+| Lo que daría v2 | Lo que ya tenés |
+|---|---|
+| Captura de SWO | **RTT**, que es más rápido y no gasta pines ([módulo 12 cap. 3](../../../12_debug/03-consola-por-el-debugger-rtt.md)) |
+| Más caudal por el debugger | **UART a 921600 = 92 KB/s**, hoy, sin tocar nada ([módulo 9](../../../09_uart/)) |
+| LinkServer andando | **OpenOCD**, que anda perfecto y es lo que usa todo el repo |
+
+Convertir la única sonda que tenés para ganar algo que ya tenés por otro lado no es un buen
+negocio. Si igual querés hacerlo, hacelo cuando tengas una segunda sonda como respaldo.
 
 ## Lo que NO funciona con esta sonda: LinkServer
 
