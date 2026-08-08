@@ -495,9 +495,10 @@ que pasa **en la placa del curso**:
 - **RTT**: el programa escribe en una cola en RAM y el debugger **la lee por SWD mientras el micro
   corre**, sin frenarlo, aprovechando que la unidad de debug accede a memoria en paralelo al CPU.
   No usa pines ni periféricos, funciona **con la sonda que ya tenés**, y medido en placa cuesta
-  **24 µs** por línea de 48 caracteres, contra 4091 µs de la UART por polling. Está implementado y
-  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), incluida la verificación de
-  que se puede depurar con gdb y leer los `printf` al mismo tiempo, por el mismo cable.
+  **17 µs** por línea de 48 caracteres, contra 4091 µs de la UART por polling. Está implementado y
+  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), con la guía de uso completa
+  —incluida la puesta a punto en Ubuntu 24 y qué pasa si además usás MCUXpresso— en
+  [módulo 12, capítulo 3](../12_debug/03-consola-por-el-debugger-rtt.md).
 
 ### ¿Cuál usar?
 
@@ -505,7 +506,7 @@ que pasa **en la placa del curso**:
 |---|---|---|---|
 | UART por polling | no | 1 (TXD) | 4091 µs |
 | UART por DMA | no | 1 (TXD) | 36 µs |
-| RTT | **sí** | 0 | 24 µs |
+| RTT | **sí** | 0 | 17 µs |
 | SWO | **sí, y que la soporte** | 0 (usa TDO) | — (no probado acá) |
 
 En el laboratorio, con el debugger enchufado, **RTT es lo más cómodo y lo más barato**. Para un

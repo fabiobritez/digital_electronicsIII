@@ -12,6 +12,14 @@ herramientas para ver qué está haciendo tu programa y un método para no perde
 2. [02 - El debugger y un método](./02-debugger-y-metodo.md)
    El debugger SWD/JTAG (breakpoints, paso a paso, ver registros en vivo), el checklist del "no anda"
    y los hard faults.
+3. [03 - La consola por el cable del debugger (RTT)](./03-consola-por-el-debugger-rtt.md)
+   `printf` y entrada de teclado **sin UART, sin pines y sin conversor USB-serie**, por el mismo
+   cable con el que grabás. 17 µs de CPU por línea contra 4091 µs de la UART por polling. Es la
+   forma más cómoda de depurar en el laboratorio, y la guía incluye la puesta a punto en Ubuntu 24 y
+   qué pasa (y qué no) si además usás MCUXpresso.
+
+> **Si venís a buscar una sola cosa de este módulo, que sea el capítulo 3.** Tener una consola que
+> no gasta la UART ni cuesta tiempo de CPU cambia cómo se depura el resto del curso.
 
 ## La idea central
 La mayoría de los "no funciona" de la materia son una de seis cosas: el periférico **sin encender**

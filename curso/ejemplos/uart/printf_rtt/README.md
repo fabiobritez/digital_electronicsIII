@@ -1,5 +1,9 @@
 # `printf` por el cable del debugger (RTT)
 
+> **La guía de uso está en [módulo 12, capítulo 3](../../../12_debug/03-consola-por-el-debugger-rtt.md)**:
+> puesta a punto en Ubuntu 24, los tres pasos para usarlo, cómo depurar y ver los `printf` a la vez,
+> y qué pasa si además usás MCUXpresso. Este README explica el ejemplo y el porqué del diseño.
+
 Los dos ejemplos anteriores mandan el texto por la UART. Este no usa la UART **para nada**: el
 programa escribe en una cola en RAM y **el debugger la lee por SWD mientras el micro corre**, sin
 frenarlo. Ni un pin de aplicación, ni un periférico, ni conversor USB-serie, ni baudrate que
@@ -9,7 +13,7 @@ calcular.
 |---|---:|
 | `printf` por UART, polling | 4091 µs |
 | `printf` por UART, DMA | 36 µs |
-| **`printf` por RTT** | **24 µs** |
+| **`printf` por RTT** | **17 µs** |
 
 ## ¿Y el SWO/ITM, que es lo que todo el mundo nombra?
 
@@ -52,12 +56,11 @@ depende de un pin serie sino de lecturas de memoria por SWD.
 ```
 
 La clave es que la unidad de debug del Cortex-M3 puede leer memoria **en paralelo al CPU**, sin
-frenarlo ni interrumpirlo. El micro no se entera. Por eso `_write` cuesta 24 µs: es un `memcpy` a
+frenarlo ni interrumpirlo. El micro no se entera. Por eso `_write` cuesta 17 µs: es un `memcpy` a
 RAM y nada más.
 
 El bloque de control tiene el formato de **SEGGER RTT**, que es el que entienden OpenOCD, J-Link y
-pyOCD. No usamos el código de SEGGER: son cuarenta líneas, están en [`rtt.c`](./rtt.c) y se leen
-enteras.
+pyOCD. No usamos el código de SEGGER: son cien líneas, están en [`rtt.c`](./rtt.c) y se leen enteras.
 
 ### Dos detalles que parecen manías y no lo son
 
@@ -70,6 +73,22 @@ a medio construir.
 **Hay una barrera de memoria antes de publicar el índice.** Primero los datos, después `WrOff`. Si
 el host viera el índice nuevo con el buffer todavía sin escribir, leería basura.
 
+**Se copia con `memcpy` en uno o dos tramos, no byte por byte.** El segundo tramo aparece cuando los
+datos dan la vuelta al final del arreglo. Para una línea de 48 caracteres la diferencia medida fue
+de 24 µs a 17 µs.
+
+### Y es de ida y vuelta
+
+El canal de bajada (PC → micro) hace que `getchar()` y `scanf()` funcionen, así que tenés una consola
+de comandos sin gastar un solo pin:
+
+```c
+int k = rtt_getchar();          /* -1 si no hay nada, no bloquea */
+if (k == 'l') { alternar_led(); }
+```
+
+Probado mandando texto desde la PC: el micro recibe cada tecla y contesta.
+
 ## Compilar y probar
 
 ```bash
@@ -78,9 +97,10 @@ cp ../curso/ejemplos/uart/printf_rtt/rtt.h  src/
 cp ../curso/ejemplos/uart/printf_rtt/rtt.c  src/
 cp ../curso/ejemplos/uart/printf_rtt/main.c src/
 make USE_CMSIS=1 flash
+make rtt                 # levanta el servidor y se conecta, en un comando
 ```
 
-Servidor (una terminal):
+`make rtt` hace esto por debajo, que conviene saber para el día que algo falle:
 
 ```bash
 openocd -f openocd/lpc1769.cfg \
@@ -105,7 +125,7 @@ nc localhost 9090
 ```
 === printf por SWD (RTT): sin UART ni pines ===
 [t=1234567] adc=2048 estado=3 err=0 temp=25.4 C
-48 caracteres: 2437 ciclos (24 us)
+48 caracteres: 1726 ciclos (17 us de CPU)
 tick 0 (descartados 0)
 tick 1 (descartados 0)
 ```
@@ -138,6 +158,9 @@ cable.
 - **El caudal depende de cada cuánto pollea el host**, no de un reloj fijo. No sirve para medir
   tiempos con precisión del lado de la PC.
 - **No sirve para depurar el arranque temprano** si el bloque de control todavía no se inicializó.
+- **No es reentrante.** Imprimir desde una ISR y desde el `main` a la vez corrompe la cola. Hay una
+  red de seguridad opcional (`-DRTT_SEGURO_ISR=1`), pero protege *la cola*, no `printf`, que sigue
+  sin ser reentrante.
 
 ## Lo que cuesta
 
@@ -145,6 +168,7 @@ cable.
 |---|---|
 | RAM | 1024 B de cola + ~64 B del bloque de control + 128 B de buffer de stdout |
 | Flash | menos que la versión por UART: no hay que configurar ningún periférico |
+| Configuración | `RTT_UP_SIZE`, `RTT_DOWN_SIZE`, `RTT_BLOQUEANTE`, `RTT_SEGURO_ISR` (se pisan con `-D`) |
 | Pines | **ninguno** |
 | Periféricos | **ninguno** |
 

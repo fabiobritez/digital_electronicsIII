@@ -276,6 +276,14 @@ Error: SWO-trace is not supported by the device.
 Funciona con esta misma sonda, porque no usa hardware de traza: OpenOCD lee un buffer de RAM por
 SWD **mientras el programa corre**. Ver [`printf_rtt/`](./printf_rtt/).
 
+Con la plantilla es un solo comando:
+
+```bash
+make rtt
+```
+
+Y esto es lo que hace por debajo, que conviene saber para el día que falle:
+
 ```bash
 # 1) servidor: encuentra el bloque de control y publica el canal en el 9090
 openocd -f openocd/lpc1769.cfg \
@@ -318,4 +326,5 @@ sin reconfigurar nada.
 - [Capítulo 16 §6](../../00_lenguaje_c/16-redirigir-printf-a-uart.md) — la tabla completa de costos
 - [`printf_retarget.c`](./printf_retarget.c) · [`printf_dma/`](./printf_dma/) ·
   [`printf_rtt/`](./printf_rtt/)
-- [Módulo 12 - Debug](../../12_debug/)
+- [Módulo 12, capítulo 3 - La consola por el cable del debugger](../../12_debug/03-consola-por-el-debugger-rtt.md)
+  — la guía de uso de RTT, con la puesta a punto en Ubuntu 24 y la parte de MCUXpresso

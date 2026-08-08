@@ -1,8 +1,8 @@
 # Ejemplos de UART
 
-Tres programas, siguiendo la progresión del curso. Los dos primeros son el mismo eco serial
-(todo lo que llega se devuelve) a dos niveles de abstracción; el tercero engancha `printf` a la
-UART:
+Cinco programas, siguiendo la progresión del curso. Los dos primeros son el mismo eco serial (todo
+lo que llega se devuelve) a dos niveles de abstracción; los tres últimos son `printf` resuelto cada
+vez mejor:
 
 | Archivo | Nivel | Baudrate |
 |---------|-------|----------|
@@ -13,7 +13,7 @@ UART:
 | [`printf_rtt/`](./printf_rtt/) | `printf` por el **cable del debugger**, sin UART ni pines | — |
 
 > Leelos en ese orden: es la misma tarea resuelta cada vez mejor. Medido en placa, imprimir una
-> línea de 48 caracteres le cuesta al CPU **4091 µs** por polling, **36 µs** por DMA y **24 µs** por
+> línea de 48 caracteres le cuesta al CPU **4091 µs** por polling, **36 µs** por DMA y **17 µs** por
 > RTT. Los dos últimos son los que valen la pena entender.
 
 **¿Querés comprobar los números vos mismo?** Todos los comandos están en
