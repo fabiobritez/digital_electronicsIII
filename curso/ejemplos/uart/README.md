@@ -9,6 +9,11 @@ UART:
 | [`uart_eco_registros.c`](./uart_eco_registros.c) | A registro (DLAB, DLL/DLM, LSR, polling) | 9600 |
 | [`uart_eco_driver.c`](./uart_eco_driver.c) | Driver CMSIS (`UART_Init`, `UART_Send/Receive`) | 115200 |
 | [`printf_retarget.c`](./printf_retarget.c) | A registro **con fraccional** + `printf` redirigido por `__io_putchar` | 115200 |
+| [`printf_dma/`](./printf_dma/) | El mismo `printf`, pero **sin bloquear el CPU**: cola circular + GPDMA | 115200 |
+
+> El salto de `printf_retarget.c` a `printf_dma/` es el que más enseña: el primero funciona y el
+> segundo funciona **sin robarle tiempo al programa**. Medido en placa, imprimir una línea de 48
+> caracteres pasa de 4091 µs de CPU bloqueado a 36 µs. Leelos en ese orden.
 
 Para probarlos: conectá la placa por el puente UART-USB (o el adaptador que tengas en
 P0.2/P0.3), abrí una terminal serie con el baudrate correcto y escribí: cada tecla debería

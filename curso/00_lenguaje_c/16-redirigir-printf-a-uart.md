@@ -393,7 +393,11 @@ Si el problema es **tiempo** (el caso normal en este chip):
 2. **Subí el baudrate.** El bloqueo es inversamente proporcional: a 921600 baja 8×, a ~109 µs.
 3. **Mandá por interrupción o DMA con una cola circular.** `printf` deja los bytes en la cola y
    vuelve en microsegundos; el tiempo de línea sigue existiendo pero ya no lo paga el CPU. Es la
-   única solución de fondo, y las piezas están en el [módulo 11 (DMA)](../11_dma/).
+   única solución de fondo. **Está implementado y medido** en
+   [`ejemplos/uart/printf_dma/`](../ejemplos/uart/printf_dma/): los 4091 µs de CPU bloqueado de una
+   línea de 48 caracteres bajan a 36 µs, a cambio de 360 bytes de Flash y un canal de GPDMA. Ahí
+   vas a ver además que, con DMA, `setvbuf(_IONBF)` pasa a ser **contraproducente** — justo al revés
+   que en la sección 7.
 
 Si el problema es **espacio**:
 
@@ -431,6 +435,13 @@ punto sin desactivar el buffering en general.
 
 Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de eficiencia, ganás que
 **lo último que ves es lo último que pasó**).
+
+> **Esto vale mientras la salida sea por polling.** Si algún día pasás a mandar por DMA
+> ([`ejemplos/uart/printf_dma/`](../ejemplos/uart/printf_dma/)), la recomendación **se da vuelta**:
+> sin buffer, newlib llama a `_write` una vez por carácter y cada llamada arranca su propia
+> transferencia con su propia interrupción. Medido, eso triplica el costo de un `printf`. Ahí
+> conviene buffering de línea, dándole vos el buffer para que no lo pida al heap:
+> `setvbuf(stdout, mi_buffer, _IOLBF, sizeof mi_buffer)`.
 
 ---
 
