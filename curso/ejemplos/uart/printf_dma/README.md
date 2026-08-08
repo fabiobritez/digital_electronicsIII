@@ -148,6 +148,22 @@ relaciones costo-beneficio del curso.
 - Si necesitás que no se pierda **nada**, hay que agrandar la cola o bajar el volumen de impresión;
   no hay una tercera opción mientras la línea sea de 115200.
 
+### La garantía: o entra el mensaje entero, o no entra nada
+
+Cuando la cola se llena, se descarta **el mensaje completo**, nunca la mitad. Es una decisión
+deliberada, no un detalle:
+
+> **Todo lo que ves está completo y en orden. Lo que no entró, no aparece, y está contado en
+> `dbg_uart_perdidos()`.**
+
+La alternativa —recortar a mitad de línea— produce cosas como `adc=20` cuando la línea era
+`adc=2048 temp=25.4 C`: una línea truncada que *parece* válida y te manda a buscar un bug que no
+existe. Verificado en placa saturando la cola a propósito: de las líneas que llegan, **cero
+truncadas**, todas en orden creciente.
+
+Cuánto podés imprimir sin llegar a ese punto está en
+[módulo 0, capítulo 16 §10](../../../00_lenguaje_c/16-redirigir-printf-a-uart.md).
+
 ## Ver también
 
 - [Módulo 11 - DMA](../../../11_dma/) · [Módulo 09 - UART](../../../09_uart/)

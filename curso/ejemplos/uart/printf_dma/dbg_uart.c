@@ -135,15 +135,16 @@ void DMA_IRQHandler(void)
  * ------------------------------------------------------------------------ */
 static void encolar(uint8_t c)
 {
-    uint32_t siguiente = (cabeza + 1u) & BUF_MASK;
-
-    if (siguiente == lectura) {     /* llena: se deja un hueco para distinguir
-                                       "llena" de "vacia" */
-        perdidos++;
-        return;
-    }
+    /* Sin chequeo: _write() ya verifico que entra el mensaje entero. Se deja
+       siempre un byte sin usar para poder distinguir "llena" de "vacia". */
     cola[cabeza] = c;
-    cabeza = siguiente;
+    cabeza = (cabeza + 1u) & BUF_MASK;
+}
+
+
+static uint32_t espacio_libre(void)
+{
+    return (BUF_SIZE - 1u) - ((cabeza - lectura) & BUF_MASK);
 }
 
 
@@ -157,14 +158,47 @@ int _write(int fd, const char *buf, int len)
 {
     (void) fd;
 
+    /* Cuanto lugar necesita: cada '\n' se convierte en dos bytes (CR LF). */
+    uint32_t necesita = (uint32_t) len;
     for (int i = 0; i < len; i++) {
         if (buf[i] == '\n') {
-            encolar((uint8_t) '\r');    /* las terminales serie quieren CRLF */
+            necesita++;
         }
-        encolar((uint8_t) buf[i]);
     }
 
-    arrancar_dma();
+    /* O ENTRA TODO EL MENSAJE O NO ENTRA NADA. Nunca se escribe la mitad.
+     *
+     * Si al llenarse la cola se recortara el mensaje, en la terminal
+     * apareceria una linea incompleta que PARECE valida:
+     *
+     *     adc=2048 temp=25.4 C        <- buena
+     *     adc=20                      <- recortada, y no hay como saberlo
+     *
+     * Depurando, eso es peor que perder la linea entera: te manda a buscar un
+     * bug que no existe. Asi la garantia es fuerte y simple: TODO LO QUE VES
+     * ESTA COMPLETO Y EN ORDEN. Lo que no entro queda contado en
+     * dbg_uart_perdidos().
+     *
+     * Como stdout esta en buffering de linea, cada llamada trae una linea
+     * entera: "mensaje" y "linea" son lo mismo. */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    int entra = (espacio_libre() >= necesita);
+    if (entra) {
+        for (int i = 0; i < len; i++) {
+            if (buf[i] == '\n') {
+                encolar((uint8_t) '\r');   /* las terminales quieren CRLF */
+            }
+            encolar((uint8_t) buf[i]);
+        }
+    } else {
+        perdidos += necesita;              /* el mensaje entero, no un pedazo */
+    }
+    __set_PRIMASK(primask);
+
+    if (entra) {
+        arrancar_dma();
+    }
     return len;
 }
 

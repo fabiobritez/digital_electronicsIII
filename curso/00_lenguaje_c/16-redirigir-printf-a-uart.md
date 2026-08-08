@@ -8,6 +8,12 @@
 Esta es una de las prácticas más lindas del curso porque toca un punto que casi nunca se explica:
 *¿cómo sabe `printf` a dónde mandar los caracteres?* Spoiler: no lo sabe. Lo decidís vos.
 
+> **Si ya tenés `printf` andando y venís a preguntarte por qué se te pierden mensajes, o por qué el
+> programa dejó de cumplir sus tiempos al agregar un `printf`, andá directo a la
+> [sección 10](#10-cuánto-podés-imprimir-de-verdad-leé-esto-antes-de-llenar-el-código-de-printf).**
+> Son dos cuentas que hay que hacer antes de llenar el código de impresiones, y casi todo lo que
+> sale mal viene de haber hecho solo una de las dos.
+
 ---
 
 ## 1. El problema
@@ -515,6 +521,166 @@ USB-serie de pocos pesos y sin debugger. Por eso el curso arranca por ahí.
 
 ---
 
+## 10. Cuánto podés imprimir de verdad (leé esto antes de llenar el código de printf)
+
+Casi todo lo que sale mal con `printf` en un embebido viene de no haber hecho **dos cuentas** que
+son independientes entre sí. La mayoría hace la primera y se olvida de la segunda, que suele ser
+la que muerde.
+
+### Cuenta 1: el tiempo de CPU
+
+```
+costo_de_un_printf  ×  impresiones_por_segundo  <  presupuesto de tu lazo
+```
+
+| Camino | CPU por línea de 48 caracteres |
+|---|---:|
+| UART por polling a 115200 | **4091 µs** |
+| UART por DMA | 36 µs |
+| RTT (por el debugger) | 17 µs |
+
+En un lazo de control de **1 kHz** (período de 1000 µs), la primera fila ni siquiera entra **una
+vez**: un solo `printf` tarda cuatro veces más que todo el período. Las otras dos usan el 3.6% y el
+1.7%: sin problema.
+
+### Cuenta 2: el caudal del enlace (la que se olvidan)
+
+```
+bytes_por_impresión  ×  impresiones_por_segundo  <  caudal del enlace
+```
+
+Caudales sostenidos, medidos:
+
+| Enlace | Caudal |
+|---|---:|
+| RTT con la configuración por defecto de OpenOCD | 5 490 B/s |
+| UART a 115200 | 11 520 B/s |
+| RTT afinado (SWD 4 MHz, polleo 10 ms) | 15 660 B/s |
+| UART a 921600 | 92 160 B/s |
+
+Y esto es lo que significa, en impresiones por segundo:
+
+| | línea de 20 B | línea de 40 B | dos líneas (80 B) |
+|---|---:|---:|---:|
+| RTT por defecto | 274/s | 137/s | 68/s |
+| UART 115200 | 576/s | 288/s | 144/s |
+| RTT afinado | 783/s | 391/s | 195/s |
+| UART 921600 | 4608/s | 2304/s | 1152/s |
+
+### El caso concreto: imprimir en cada muestra del ADC
+
+Supongamos que muestreás a **1 kHz** y querés dos líneas por muestra (≈80 bytes). Eso son
+**80 000 bytes por segundo**.
+
+Mirá la tabla: el único enlace que se acerca es la UART a 921600, y con **cero margen**. Por RTT
+afinado te faltan cinco veces. Por UART a 115200, siete veces.
+
+**No es un problema de optimizar el código: no entra por el cable.** Podés usar DMA, RTT, el
+compilador que quieras — el caudal es el caudal.
+
+Y ojo con la conclusión apurada: **el DMA y el RTT arreglan la cuenta 1, no la cuenta 2.** Sacan al
+CPU del camino, pero no ensanchan el caño. Es el error más común después de descubrir el DMA.
+
+### "¿Y si pongo un buffer más grande?"
+
+Es la reacción natural, y **no funciona**. Un buffer absorbe *picos*, no sostiene un caudal mayor.
+Si producís más rápido de lo que el enlace drena, el buffer se llena y a partir de ahí perdés todo
+lo que sobra, para siempre. Lo único que ganás es tiempo:
+
+```
+                       tamaño del buffer
+tiempo que aguanta = ─────────────────────
+                      producción − drenaje
+```
+
+Con el ejemplo de arriba (producís 80 000 B/s, drenás 15 660 B/s) y una cola de 1 KB:
+
+```
+1024 / (80000 − 15660) = 0.016 s
+```
+
+**Dieciséis milisegundos.** Y si le dieras *toda* la RAM del LPC1769 (32 KB), comprarías medio
+segundo. Medido en la placa: 2000 líneas de golpe contra una cola de 1 KB → **se descarta el 98%**.
+
+Los buffers de estos módulos sirven para lo que sirven: aguantar una ráfaga corta —un mensaje de
+error de veinte líneas, el volcado de un `HardFault`— sin frenar el programa. No para sostener un
+caudal que el enlace no da.
+
+### Lo que sí te garantizan
+
+Los dos módulos del curso (`printf_dma/` y `printf_rtt/`) descartan **el mensaje entero** cuando no
+entra, nunca la mitad. La garantía es fuerte y vale la pena tenerla presente:
+
+> **Todo lo que ves está completo y en orden. Lo que no entró, no aparece, y está contado.**
+
+Eso importa muchísimo depurando. La alternativa —recortar a mitad de línea— produce cosas así:
+
+```
+adc=2048 temp=25.4 C        ← buena
+adc=20                      ← recortada, y no tenés forma de saberlo
+```
+
+Una línea truncada que *parece* válida te manda a buscar un bug que no existe. Por eso
+`rtt_perdidos()` y `dbg_uart_perdidos()` existen: **si ese número crece, tu observación está
+incompleta y tenés que saberlo.** Miralo siempre que estés midiendo algo en serio.
+
+### Entonces, ¿dónde pongo los printf?
+
+**Para eventos: sí, printf.** Cambios de estado, errores, arranque, transiciones de una máquina de
+estados. Son pocos y espaciados, y ahí `printf` es exactamente la herramienta correcta.
+
+**Para datos continuos: no.** Un ADC a 1 kHz, una corriente muestreada, un lazo de control. Ahí hay
+cuatro salidas, en orden de preferencia:
+
+1. **Diezmar.** Imprimí 1 de cada N muestras. Con `if ((n % 100) == 0)` pasás de 1000 a 10
+   impresiones por segundo y entra holgado en cualquier enlace. Para *ver que el sistema anda*,
+   alcanza casi siempre.
+2. **Imprimir solo cuando algo cambia**, o cuando se cruza un umbral. Un lazo estable no genera
+   texto; cuando pasa algo interesante, aparece.
+3. **Capturar en RAM y volcar después.** Es el patrón que **sí** escala, y el que corresponde
+   cuando de verdad necesitás todas las muestras:
+
+   ```c
+   static uint16_t captura[8000] __attribute__((section(".ahbram0")));
+
+   /* en el lazo rápido: guardar, sin imprimir */
+   captura[n++] = LPC_ADC->ADGDR;
+
+   /* cuando termina, ahí sí, tranquilo */
+   for (uint32_t i = 0; i < n; i++) { printf("%u\n", captura[i]); }
+   ```
+
+   Guardar una muestra cuesta unos pocos ciclos, no 1700. Con los 16 KB de AHB SRAM que el LPC1769
+   tiene libres entran 8000 muestras: a 10 kHz son **0.8 segundos de captura continua**, y después
+   lo volcás con todo el tiempo del mundo. Esta es la respuesta correcta al "quiero ver todas las
+   muestras".
+4. **Subir el caudal**, si nada de lo anterior alcanza: UART a 921600 (módulo 9) o RTT afinado.
+
+### El error más traicionero: el heisenbug
+
+Agregar un `printf` **cambia los tiempos que estás tratando de medir**. Con la UART por polling,
+4091 µs de bloqueo desordenan cualquier lazo con plazos, y entonces:
+
+> "Cuando le pongo el `printf` anda, cuando lo saco falla."
+
+Eso no es magia: el `printf` estaba tapando una condición de carrera, o dándole tiempo a un
+periférico a terminar. Es la razón principal por la que **el debugger y los contadores de ciclos son
+mejores herramientas que `printf`** para problemas de temporización (módulo 12). `printf` es
+excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
+
+### Las seis reglas, resumidas
+
+1. **Nunca `printf` dentro de una ISR.** No es reentrante, se come 376 bytes de stack y, por
+   polling, tarda una eternidad. La ISR levanta una bandera; el `main` imprime.
+2. **Nunca `printf` sin diezmar dentro de un lazo de control.**
+3. **Hacé las dos cuentas antes de escribir el código**, no después de que no ande. Son dos
+   multiplicaciones.
+4. **DMA y RTT arreglan el tiempo de CPU, no el caudal.**
+5. **Mirá el contador de descartados.** Si crece, lo que estás viendo está incompleto.
+6. **Para datos, capturá en RAM y volcá después. Para eventos, `printf`.**
+
+---
+
 ## Ejercicios
 
 1. **Lectura por la UART (`scanf`).** Hacé que `_read(fd, buf, len)` lea bytes de UART0 (con
@@ -526,14 +692,21 @@ USB-serie de pocos pesos y sin debugger. Por eso el curso arranca por ahí.
    volvé a medir. Anotá los tres tamaños de `text` y comparalos con la tabla de la sección 6.
 3. **Sin la libc.** Reemplazá todos los `printf` de tu programa por `uart_puts` / `uart_put_int`
    propias (sección 5b) y medí cuánto baja el binario. ¿Vale la pena? ¿Qué perdés?
-4. **El bug del buffer.** Sacá el `setvbuf(..., _IONBF, ...)`, poné un `printf("antes del cuelgue\n")`
+4. **Las dos cuentas, en tu caso.** Elegí una frecuencia de muestreo que te interese (1 kHz, 10 kHz)
+   y decidí qué querés imprimir por muestra. Calculá los bytes por segundo y compará con la tabla de
+   caudales de la sección 10. Si no entra —lo más probable—, resolvelo de las tres maneras: diezmando,
+   subiendo el caudal, y capturando en RAM para volcar después. ¿Cuál conserva **todas** las muestras?
+5. **Cuánto aguanta el buffer.** Con los números de tu ejercicio anterior, calculá
+   `tamaño / (producción − drenaje)`. Después comprobalo en la placa: imprimí a esa velocidad y medí
+   cuántos segundos tarda `rtt_perdidos()` en empezar a crecer. ¿Coincide con la cuenta?
+6. **El bug del buffer.** Sacá el `setvbuf(..., _IONBF, ...)`, poné un `printf("antes del cuelgue\n")`
    (con `\n`, sin `fflush`) seguido de un `while(1){}`, y comprobá que el mensaje **no aparece**.
    Después agregá `fflush(stdout)` y verificá que sí aparece. Eso es la sección 7 en acción.
-5. **Los 1032 bytes invisibles.** Declarando `extern char end;` y `extern void *_sbrk(ptrdiff_t);`,
+7. **Los 1032 bytes invisibles.** Declarando `extern char end;` y `extern void *_sbrk(ptrdiff_t);`,
    imprimí `(uint32_t)_sbrk(0) - (uint32_t)&end` (el heap usado) antes y después del primer `printf`,
    con y sin `setvbuf(_IONBF)`. Vas a reproducir la fila más cara de la tabla de la sección 6.2.
    ¿Por qué `make size` no te muestra ese gasto?
-6. **Medir el bloqueo.** Habilitá el contador de ciclos del Cortex-M3
+8. **Medir el bloqueo.** Habilitá el contador de ciclos del Cortex-M3
    (`DEMCR |= 1<<24; DWT_CYCCNT = 0; DWT_CTRL |= 1;`) y medí cuántos ciclos tarda un `printf` de diez
    caracteres. Después medí solo el formateo, con `sprintf` a un buffer. Compará las dos cifras con
    el tiempo teórico de la línea (`10 caracteres × 10 bits / baudrate`) y decidí vos dónde se va el

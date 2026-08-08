@@ -132,23 +132,57 @@ static unsigned escribir(const char *datos, unsigned len)
 }
 
 
-/* Entrega len bytes a la cola, aplicando la politica de RTT_BLOQUEANTE. */
+static unsigned espacio_libre(void)
+{
+    unsigned wr = cb.aUp[0].WrOff;
+    unsigned rd = cb.aUp[0].RdOff;
+    return (rd > wr) ? (rd - wr - 1u) : (RTT_UP_SIZE - wr + rd - 1u);
+}
+
+
+/* ---------------------------------------------------------------------------
+ * entregar - politica de que hacer cuando no entra
+ * ---------------------------------------------------------------------------
+ * O ENTRA TODO EL MENSAJE O NO ENTRA NADA. Nunca se escribe la mitad.
+ *
+ * Es la decision mas importante de este archivo, y no es un detalle de estilo.
+ * Si al llenarse la cola se recortara el mensaje a la mitad, en la terminal
+ * apareceria una linea incompleta que PARECE valida:
+ *
+ *     adc=2048 temp=25.4 C        <- buena
+ *     adc=20                      <- esta recortada, pero no hay como saberlo
+ *
+ * Depurando, eso es peor que perder la linea entera: te manda a buscar un bug
+ * que no existe. Descartando el mensaje completo, la garantia es fuerte y
+ * simple: TODO LO QUE VES ESTA COMPLETO Y EN ORDEN. Lo que no entro, no
+ * aparece, y queda contado en rtt_perdidos().
+ *
+ * Como stdout esta en buffering de linea, cada llamada trae una linea entera,
+ * asi que "mensaje" y "linea" son lo mismo.
+ * ------------------------------------------------------------------------ */
 static void entregar(const char *datos, unsigned len)
 {
+    /* Un mensaje mas largo que la cola no entra nunca, ni esperando. Sin este
+       guardia, el modo bloqueante giraria para siempre. Pasa si subis el
+       buffer de stdout por encima de RTT_UP_SIZE. */
+    if (len >= RTT_UP_SIZE) {
+        perdidos += len;
+        return;
+    }
+
     uint32_t estado = entrar_critica();
 
-    unsigned puestos = escribir(datos, len);
-
 #if RTT_BLOQUEANTE
-    /* Insistir hasta colocarlo todo. Si nadie lee, esto no vuelve nunca: es
-       exactamente lo que pediste al poner RTT_BLOQUEANTE en 1. */
-    while (puestos < len) {
-        datos   += puestos;
-        len     -= puestos;
-        puestos  = escribir(datos, len);
-    }
+    /* Esperar a que entre. Si nadie lee, esto no vuelve nunca: es exactamente
+       lo que pediste al poner RTT_BLOQUEANTE en 1. */
+    while (espacio_libre() < len) { }
+    (void) escribir(datos, len);
 #else
-    perdidos += (len - puestos);
+    if (espacio_libre() >= len) {
+        (void) escribir(datos, len);
+    } else {
+        perdidos += len;            /* el mensaje entero, no un pedazo */
+    }
 #endif
 
     salir_critica(estado);
