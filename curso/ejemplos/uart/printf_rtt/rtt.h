@@ -9,6 +9,7 @@
  *
  * Medido en una LPCXpresso LPC1769, linea de 48 caracteres:
  *
+ *     _DBG por UART, polling   : 4005 us de CPU bloqueado
  *     printf por UART, polling : 4091 us de CPU bloqueado
  *     printf por UART, DMA     :   36 us
  *     printf por RTT           :   24 us

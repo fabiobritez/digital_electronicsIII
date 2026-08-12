@@ -4,6 +4,8 @@
 |---------|-------|----------|
 | [`adc_dac_registros.c`](./adc_dac_registros.c) | A registro | "Passthrough": lee un pote en AD0.0 (P0.23) y saca la misma tensión por AOUT (P0.26) |
 | [`voltimetro_adc_uart.c`](./voltimetro_adc_uart.c) | Drivers CMSIS | Voltímetro serial: manda la tensión leída por UART0 cada 1 s, en mV sin `float` |
+| [`osciloscopio_uart/`](./osciloscopio_uart/) | Proyecto completo | Genera 20 kHz con DAC, captura con Timer + ADC + DMA y grafica por UART con sample and hold |
+| [`generador_funciones_uart/`](./generador_funciones_uart/) | Proyecto completo | Genera cinco formas con frecuencia y niveles variables, control UART y monitor ADC |
 
 El voltímetro es el ejercicio 1 del módulo 10 resuelto, e integra tres módulos: ADC
 ([módulo 10](../../10_adc_dac/)), UART ([módulo 9](../../09_uart/)) y SysTick

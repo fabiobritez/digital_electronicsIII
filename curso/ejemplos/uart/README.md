@@ -1,20 +1,24 @@
 # Ejemplos de UART
 
-Cinco programas, siguiendo la progresión del curso. Los dos primeros son el mismo eco serial (todo
-lo que llega se devuelve) a dos niveles de abstracción; los tres últimos son `printf` resuelto cada
-vez mejor:
+Siete ejemplos, siguiendo la progresión del curso. Los dos primeros son el mismo eco serial, todo lo
+que llega se devuelve, a dos niveles de abstracción. Los cinco restantes comparan distintas formas
+de obtener una consola de diagnóstico:
 
 | Archivo | Nivel | Baudrate |
 |---------|-------|----------|
 | [`uart_eco_registros.c`](./uart_eco_registros.c) | A registro (DLAB, DLL/DLM, LSR, polling) | 9600 |
 | [`uart_eco_driver.c`](./uart_eco_driver.c) | Driver CMSIS (`UART_Init`, `UART_Send/Receive`) | 115200 |
 | [`printf_retarget.c`](./printf_retarget.c) | A registro **con fraccional** + `printf` redirigido por `__io_putchar` | 115200 |
+| [`debug_framework/`](./debug_framework/) | Macros `_DBG` y `_DBD32` de la biblioteca de NXP, con mediciones | 115200 |
+| [`debug_framework_mejorado/`](./debug_framework_mejorado/) | Misma idea, con bloques, interrupciones o DMA seleccionables | 115200 o 921600 |
 | [`printf_dma/`](./printf_dma/) | El mismo `printf`, pero **sin bloquear el CPU**: cola circular + GPDMA | 115200 |
-| [`printf_rtt/`](./printf_rtt/) | `printf` por el **cable del debugger**, sin UART ni pines | — |
+| [`printf_rtt/`](./printf_rtt/) | `printf` por el **cable del debugger**, sin UART ni pines | no usa UART |
 
-> Leelos en ese orden: es la misma tarea resuelta cada vez mejor. Medido en placa, imprimir una
-> línea de 48 caracteres le cuesta al CPU **4091 µs** por polling, **36 µs** por DMA y **17 µs** por
-> RTT. Los dos últimos son los que valen la pena entender.
+> Medido en placa, imprimir una línea de 48 caracteres le cuesta al CPU **4005 µs** con `_DBG`,
+> **4091 µs** con `printf` por polling, **36 µs** con DMA y **17 µs** con RTT. El framework hace más
+> cómoda la llamada, pero por debajo sigue usando polling bloqueante. La
+> [versión mejorada](./debug_framework_mejorado/) conserva sus macros y devuelve el control en
+> **5,9 µs** con DMA.
 
 **¿Querés comprobar los números vos mismo?** Todos los comandos están en
 [`MEDICIONES.md`](./MEDICIONES.md): cómo medir Flash, stack, heap y ciclos, cómo subir el baudrate y

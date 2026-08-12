@@ -7,7 +7,7 @@ y en los README de esta carpeta salieron de correr los comandos de acá, en una 
 No hace falta creerle a la tabla: corré esto y comprobá.
 
 > **Herramientas usadas:** `arm-none-eabi-gcc` 13.2, `openocd` 0.12.0, `minicom` 2.9, `python3`.
-> Instalación en [el anexo B](../../anexos/B_toolchain_y_entorno/).
+> Instalación en [la unidad de herramientas](../../../herramientas/07_lpc1769/03-instalacion-linux.md).
 
 ---
 
@@ -390,10 +390,68 @@ techo lo pone la sonda.
 
 ---
 
+## 10. Medir el Debug Framework de NXP
+
+El banco está en [`debug_framework/main.c`](./debug_framework/main.c). Mide `_DBG()` y `_DBD32()`
+contra `printf()` sobre la misma UART y deja los resultados tanto en la consola como en la variable
+global `resultados`.
+
+```bash
+cd plantilla
+cp ../curso/ejemplos/uart/debug_framework/main.c src/main.c
+make USE_CMSIS=1 flash
+```
+
+La prueba corta usa la mediana de cinco repeticiones y espera `TEMT=1` antes de cada una. Así todas
+empiezan con la UART vacía. La prueba de caudal envía 1000 líneas consecutivas para que el efecto de
+los bytes que quedan en la FIFO al final sea despreciable.
+
+Si no tenés disponible el conversor USB-serie, podés leer la estructura con GDB:
+
+```gdb
+target remote :3333
+monitor reset run
+# esperar unos segundos
+monitor halt
+p resultados
+```
+
+`resultados.terminado == 0xC0DEF00D` confirma que la prueba terminó. Los valores obtenidos y su
+interpretación están en el [`README` del ejemplo](./debug_framework/README.md).
+
+---
+
+## 11. Medir el Debug Framework mejorado
+
+La versión mejorada y su banco están en [`debug_framework_mejorado/`](./debug_framework_mejorado/).
+Para elegir backend y baudrate hay que forzar una recompilación completa:
+
+```bash
+cd plantilla
+cp ../curso/ejemplos/uart/debug_framework_mejorado/debug_frmwrk_mejorado.h src/
+cp ../curso/ejemplos/uart/debug_framework_mejorado/debug_frmwrk_mejorado.c src/
+cp ../curso/ejemplos/uart/debug_framework_mejorado/bench.c src/main.c
+
+make -B USE_CMSIS=1 \
+  EXTRA_CFLAGS="-DDEBUG_BACKEND=DEBUG_BACKEND_DMA -DDEBUG_BAUD=921600" \
+  flash
+```
+
+También se pueden seleccionar `DEBUG_BACKEND_BLOQUES` y `DEBUG_BACKEND_IRQ`, con 115200 o 921600.
+El benchmark mide conversión decimal, tiempo hasta que cada llamada devuelve el control, caudal
+sostenido y saturación. Los valores quedan en la estructura global `resultados_mejorado`.
+
+El procedimiento con GDB y la tabla de las seis combinaciones están en el
+[`README`](./debug_framework_mejorado/README.md).
+
+---
+
 ## Ver también
 
-- [Capítulo 16 §6](../../00_lenguaje_c/16-redirigir-printf-a-uart.md) — la tabla completa de costos
-- [`printf_retarget.c`](./printf_retarget.c) · [`printf_dma/`](./printf_dma/) ·
+- [Capítulo 16 §6](../../00_lenguaje_c/16-redirigir-printf-a-uart.md): la tabla completa de costos
+- [`printf_retarget.c`](./printf_retarget.c) · [`debug_framework/`](./debug_framework/) ·
+  [`debug_framework_mejorado/`](./debug_framework_mejorado/) ·
+  [`printf_dma/`](./printf_dma/) ·
   [`printf_rtt/`](./printf_rtt/)
-- [Módulo 12, capítulo 3 - La consola por el cable del debugger](../../12_debug/03-consola-por-el-debugger-rtt.md)
-  — la guía de uso de RTT, con la puesta a punto en Ubuntu 24 y la parte de MCUXpresso
+- [Herramientas 06-04 - La consola por el cable del debugger](../../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md):
+  La guía de uso de RTT, con la puesta a punto en Ubuntu 24 y la parte de MCUXpresso.

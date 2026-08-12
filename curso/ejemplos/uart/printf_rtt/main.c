@@ -49,7 +49,8 @@ int main(void)
     printf("%u caracteres: %lu ciclos (%lu us de CPU)\n",
            (unsigned) (sizeof TEXTO - 1u),
            (unsigned long) c, (unsigned long) (c / 100u));
-    printf("Por UART y polling lo mismo cuesta 4091 us; por UART y DMA, 36 us.\n");
+    printf("Con _DBG por UART cuesta 4005 us; con printf por polling, 4091 us.\n");
+    printf("Por UART y DMA cuesta 36 us.\n");
     printf("\nEscribi algo y apreta Enter: el micro te contesta.\n");
     printf("(las teclas viajan por el mismo cable SWD)\n\n");
 

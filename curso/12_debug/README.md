@@ -1,40 +1,43 @@
-# Módulo 12: Debug, cómo encontrar por qué no anda
+# Módulo 12: Debug
 
-En embebidos no hay una consola por defecto ni se ve fácil qué pasa adentro del chip. Saber **depurar**
-es la diferencia entre pelearse horas con un bug y resolverlo en minutos. Este módulo junta las
-herramientas para ver qué está haciendo tu programa y un método para no perderte.
+> **Este módulo se mudó.** Todo lo de depuración está ahora en la unidad
+> [**Herramientas**](../../herramientas/), fuera de la secuencia del curso, junto con los
+> protocolos de depuración, las sondas y el toolchain.
+>
+> **Andá a [`herramientas/06_depurar_en_serio/`](../../herramientas/06_depurar_en_serio/).**
 
-## Recorrido
+Se mudó porque no es contenido de la materia: es contenido sobre **las herramientas** con las
+que se trabaja, y se aplica igual a cualquier microcontrolador. Tenerlo aparte evita mezclarlo
+con los periféricos del LPC1769, que es lo que sí entra en los parciales.
 
-1. [01 - Imprimir para depurar](./01-imprimir-para-depurar.md)
-   El LED de diagnóstico, la UART como consola, `printf` por serial y el debug framework de NXP
-   (`_DBG`, `_DBD`, `_DBH`).
-2. [02 - El debugger y un método](./02-debugger-y-metodo.md)
-   El debugger SWD/JTAG (breakpoints, paso a paso, ver registros en vivo), el checklist del "no anda"
-   y los hard faults.
-3. [03 - La consola por el cable del debugger (RTT)](./03-consola-por-el-debugger-rtt.md)
-   `printf` y entrada de teclado **sin UART, sin pines y sin conversor USB-serie**, por el mismo
-   cable con el que grabás. 17 µs de CPU por línea contra 4091 µs de la UART por polling. Es la
-   forma más cómoda de depurar en el laboratorio, y la guía incluye la puesta a punto en Ubuntu 24 y
-   qué pasa (y qué no) si además usás MCUXpresso.
+## Dónde quedó cada cosa
 
-> **Si venís a buscar una sola cosa de este módulo, que sea el capítulo 3.** Tener una consola que
-> no gasta la UART ni cuesta tiempo de CPU cambia cómo se depura el resto del curso.
+| Lo que buscabas | Ahora está en |
+|---|---|
+| Imprimir para depurar (LED, UART, `_DBG`) | [06-01 - Imprimir para depurar](../../herramientas/06_depurar_en_serio/01-imprimir-para-depurar.md) |
+| El checklist del "no anda" y los breakpoints | [06-02 - El método del "no anda"](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md) |
+| Hard faults | [06-03 - Hard faults](../../herramientas/06_depurar_en_serio/03-hard-faults.md) |
+| La consola por el cable del debugger (RTT) | [06-04 - RTT](../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md) |
+| Cómo funciona el debugger por dentro (SWD, JTAG, CoreSight) | [02 - Protocolos y debug en el chip](../../herramientas/02_protocolos_y_debug_en_el_chip/) |
+| Qué es una sonda de depuración | [03 - Debug probes](../../herramientas/03_debug_probes/) |
+| El framework de debug de NXP | [`_origen/`](../../herramientas/06_depurar_en_serio/_origen/) |
 
-## La idea central
-La mayoría de los "no funciona" de la materia son una de seis cosas: el periférico **sin encender**
-(PCONP), **sin clock** o con el `PCLK` mal calculado, los **pines** mal configurados (PINSEL), una
-**bandera de interrupción sin limpiar**, una variable de ISR **sin `volatile`**, o una **cuenta de
-tiempo/baudrate** mal hecha. El debugger, que te
-deja leer los registros en vivo, es la forma más rápida de descubrir cuál.
+## Lo mínimo que hay que saber, si estás apurado
 
-## Se apoya en todo lo anterior
-Módulos 3 (PCONP/PCLKSEL), 4 (PINSEL), 7 (interrupciones), 9 (UART) y 0 cap. 08 (`volatile`).
+La mayoría de los "no funciona" de esta materia son **una de seis cosas**:
 
-## Manual
-Depuración por hardware (núcleo Cortex-M3): Capítulos 33 y 34. Framework de debug del repo en
-[`_origen/`](./_origen/).
+1. el periférico **sin encender** (`PCONP`, [módulo 3](../03_clock_y_power/)),
+2. **sin clock**, o con el `PCLK` mal calculado ([módulo 3](../03_clock_y_power/)),
+3. los **pines** mal configurados (`PINSEL`, [módulo 4](../04_pinsel/)),
+4. una **bandera de interrupción sin limpiar** ([módulo 7](../07_interrupciones/)),
+5. una variable compartida con una ISR **sin `volatile`**
+   ([módulo 0, cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)),
+6. una **cuenta de tiempo o de baudrate** mal hecha.
+
+El checklist desarrollado está en
+[06-02](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md).
 
 ---
 
-**Anterior:** [11 - DMA](../11_dma/) · **Siguiente:** [13 - I2C](../13_i2c/)
+**Anterior:** [11 - DMA](../11_dma/) · **Siguiente:** [13 - I2C](../13_i2c/) ·
+**La unidad completa:** [Herramientas](../../herramientas/)

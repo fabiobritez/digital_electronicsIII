@@ -7,11 +7,17 @@ sabiendo exactamente qué hace por dentro.
 
 ## Por dónde empezar
 
-**El curso completo está en [`curso/`](./curso/README.md).** Ahí está el índice con los 19
+**El curso completo está en [`curso/`](./curso/README.md).** Ahí está el índice con los
 módulos en orden pedagógico: C para embebidos (que cierra con arquitectura de firmware),
 acceso a registros, clock y power, y después cada periférico (GPIO, SysTick, interrupciones,
-timers, UART, ADC/DAC, DMA, I2C, SPI, USB, PWM y más), más el hardware de la placa. Aparte
-quedan los **anexos A y B**, opcionales, sobre el proceso de build y el toolchain.
+timers, UART, ADC/DAC, DMA, I2C, SPI, USB, PWM y más), más el hardware de la placa.
+
+**Todo lo que es herramienta y no materia está aparte, en
+[`herramientas/`](./herramientas/README.md):** cómo se compila, cómo se graba y cómo se
+depura una placa de desarrollo. Los protocolos JTAG y SWD, el hardware de depuración que trae
+el Cortex-M3 adentro del núcleo, qué es una sonda y qué es CMSIS-DAP, el toolchain y el
+triplet, y al final todo eso aplicado al LPC1769. Es opcional para cursar, y es lo único del
+repositorio que te va a servir igual con cualquier otro microcontrolador.
 
 Si es tu primera vez acá:
 
@@ -25,12 +31,15 @@ Si es tu primera vez acá:
 4. Antes del parcial, imprimite la
    [referencia rápida](./curso/REFERENCIA_RAPIDA.md): una página con el ritual de arranque,
    las fórmulas y los registros que más se usan.
+5. Cuando algo no ande, o cuando te dé curiosidad qué pasa detrás del botón "Build", abrí
+   [`herramientas/`](./herramientas/README.md).
 
 ## Qué hay en el repositorio
 
 | Carpeta | Contenido |
 |---------|-----------|
-| [`curso/`](./curso/) | El material de estudio: 19 módulos, dos anexos opcionales, ejemplos y ejercicios. **Empezá acá.** |
+| [`curso/`](./curso/) | El material de estudio: los módulos del LPC1769 en orden, más ejemplos y ejercicios. **Empezá acá.** |
+| [`herramientas/`](./herramientas/) | **Unidad aparte:** programar y depurar placas de desarrollo. Protocolos, sondas, CMSIS-DAP, toolchains, build y depuración |
 | [`plantilla/`](./plantilla/) | Proyecto listo para compilar, grabar y depurar sin MCUXpresso. `make`, `make flash`, `make debug` |
 | [`manual/`](./manual/) | UM10360 (User Manual del LPC17xx) dividido por capítulo, con [índice](./manual/INDEX.md) que mapea cada periférico a su capítulo y registros clave |
 | [`library/`](./library/) | CMSIS v2.00 para LPC17xx: drivers de periféricos y más de 100 ejemplos oficiales de NXP |
@@ -52,13 +61,14 @@ make debug                         # graba y abre gdb, parado en main
 
 - La [plantilla](./plantilla/) es un proyecto autocontenido: `Makefile`, linker script,
   startup y configuración de editor, todo comentado línea por línea.
-- El [anexo B](./curso/anexos/B_toolchain_y_entorno/) lo explica pieza por pieza, arrancando
-  por [el camino completo de `main.c` al LED](./curso/anexos/B_toolchain_y_entorno/00-el-camino-completo.md).
+- La unidad [herramientas](./herramientas/) lo explica pieza por pieza, arrancando por
+  [el mapa completo de `main.c` al LED](./herramientas/01_panorama/01-el-mapa-completo.md).
 - La instalación paso a paso está para
-  [Linux](./curso/anexos/B_toolchain_y_entorno/06-instalacion-linux.md) y
-  [Windows](./curso/anexos/B_toolchain_y_entorno/07-instalacion-windows.md).
+  [Linux](herramientas/07_lpc1769/03-instalacion-linux.md) y
+  [Windows](herramientas/07_lpc1769/04-instalacion-windows.md).
 - Y como grabar depende del hardware que tengas, hay una
-  [guía por cada sonda](./curso/anexos/B_toolchain_y_entorno/probes/).
+  [guía por cada sonda](./herramientas/07_lpc1769/probes/), más una página sobre
+  [qué es exactamente una sonda](./herramientas/03_debug_probes/01-un-probe-es-otro-micro.md).
 
 ## Hardware y software
 
@@ -67,9 +77,9 @@ make debug                         # graba y abre gdb, parado en main
 - **Placa:** LPCXpresso LPC1769 rev D (OM13085), con sonda **CMSIS-DAP** a bordo. Al ser un
   estándar abierto de ARM, se graba y depura con herramientas libres, sin nada de NXP.
 - **IDE:** ninguno obligatorio. Funciona con VSCode, con vim/neovim vía clangd, o con
-  MCUXpresso si preferís. El [anexo B](./curso/anexos/B_toolchain_y_entorno/) detalla
-  [qué es cada pieza del toolchain](./curso/anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md) y
-  [cómo compila y graba MCUXpresso por dentro](./curso/anexos/B_toolchain_y_entorno/05-como-compila-y-graba-mcuxpresso.md).
+  MCUXpresso si preferís. La unidad [herramientas](./herramientas/) detalla
+  [qué es cada pieza del toolchain](herramientas/04_toolchains/03-anatomia-de-la-carpeta.md) y
+  [cómo compila y graba MCUXpresso por dentro](herramientas/07_lpc1769/07-mcuxpresso-por-dentro.md).
 - **Toolchain:** `bash tools/install_toolchain.sh` deja `arm-none-eabi-gcc` en `tools/toolchain/`
   sin tocar el sistema ni pedir `sudo`.
 - **Librería:** CMSIS v2.00 para LPC17xx, incluida en [`library/`](./library/).

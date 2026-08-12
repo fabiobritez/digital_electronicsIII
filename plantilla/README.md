@@ -40,8 +40,8 @@ Memory region         Used Size  Region Size  %age Used
 
 Con eso ya compilaste un firmware real. Para grabarlo hace falta la placa y un grabador
 instalado: la instalación completa está en
-[el anexo B](../curso/anexos/B_toolchain_y_entorno/), y qué hacer según el debug probe que tengas,
-en [la guía de probes](../curso/anexos/B_toolchain_y_entorno/probes/).
+[Herramientas 07-03](../herramientas/07_lpc1769/03-instalacion-linux.md), y qué hacer según la
+sonda que tengas, en [la guía por sonda](../herramientas/07_lpc1769/probes/).
 
 ## Qué hay adentro
 
@@ -242,10 +242,16 @@ externa.
 
 ## Para entender qué hace cada pieza
 
-- [Anexo A: build, linker y startup](../curso/anexos/A_build_linker_startup/) — qué son las
+Todo esto está explicado, pieza por pieza, en la unidad
+[**Herramientas**](../herramientas/):
+
+- [01 - El mapa completo](../herramientas/01_panorama/01-el-mapa-completo.md): las once piezas
+  que van de `main.c` al LED, de una sola vez.
+- [04 - Toolchains](../herramientas/04_toolchains/): qué es `arm-none-eabi-gcc`, qué significa
+  el triplet y qué hay adentro de la carpeta del compilador.
+- [05 - Del código al binario](../herramientas/05_del_codigo_al_binario/): qué son las
   secciones, cómo funciona el linker script y qué hace el startup.
-- [Anexo B: toolchain y entorno](../curso/anexos/B_toolchain_y_entorno/) — qué es
-  `arm-none-eabi-gcc`, cómo instalar todo en Linux y Windows, y cómo grabar según la
-  probe que tengas.
-- [Módulo 12: debug](../curso/12_debug/) — cómo usar el debugger y qué hacer con un hard
-  fault.
+- [06 - Depurar en serio](../herramientas/06_depurar_en_serio/): cómo usar el debugger, qué
+  hacer con un hard fault, y la consola por RTT que usa `make rtt`.
+- [07 - LPC1769](../herramientas/07_lpc1769/): instalación en Linux y Windows, el checksum de
+  la boot ROM que explica `make preflight`, y una guía por cada sonda.

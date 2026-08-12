@@ -93,7 +93,7 @@ Una herramienta relacionada es **LTO** (*Link-Time Optimization*, flag `-flto`):
 optimizar **a través de archivos** en el momento del enlace. Con LTO, el compilador puede hacer inline
 de funciones que están en **otro** `.c` (algo imposible en la compilación normal, archivo por archivo)
 y eliminar código muerto entre módulos. En embebidos suele reducir el binario de forma notable; lo ves
-con el toolchain en el [Anexo B](../anexos/B_toolchain_y_entorno/).
+con el toolchain en la [unidad de herramientas](../../herramientas/04_toolchains/).
 
 ## Bitfields contra máscaras: por qué CMSIS eligió máscaras
 
@@ -171,7 +171,7 @@ __attribute__((weak)) void SysTick_Handler(void) { /* handler por defecto, vací
 // used: "no lo borres aunque parezca que nadie lo usa" (típico junto a section)
 ```
 
-`section`, `used` y `weak` son la base de la **tabla de vectores y el startup** (Anexo A): los
+`section`, `used` y `weak` son la base de la **tabla de vectores y el startup** ([herramientas 05](../../herramientas/05_del_codigo_al_binario/)): los
 handlers se declaran `weak` con un cuerpo por defecto, y cuando vos escribís tu `SysTick_Handler`
 real, el tuyo "gana". `aligned` y `packed` son los que más vas a tocar en datos.
 

@@ -16,8 +16,8 @@ cada dato en la memoria del micro.
 > compilador (`sizeof` reales, warnings, desensamblado) e invitan a que las compruebes vos mismo. Para
 > poder hacerlo necesitás el toolchain instalado: lo instala `bash tools/install_toolchain.sh` desde
 > la raíz del repo, y el paso a paso completo está en el
-> [anexo B](../anexos/B_toolchain_y_entorno/): [Linux](../anexos/B_toolchain_y_entorno/06-instalacion-linux.md)
-> o [Windows](../anexos/B_toolchain_y_entorno/07-instalacion-windows.md). Si vas a usar MCUXpresso,
+> unidad de [herramientas](../../herramientas/): [Linux](../../herramientas/07_lpc1769/03-instalacion-linux.md)
+> o [Windows](../../herramientas/07_lpc1769/04-instalacion-windows.md). Si vas a usar MCUXpresso,
 > podés saltear esto y leer el módulo igual: ninguna de esas comprobaciones es obligatoria.
 
 **Fundamentos (sin punteros):**
@@ -93,18 +93,20 @@ cada dato en la memoria del micro.
 
 ---
 
-## Anexos: qué leer del resto del curso, y cuándo
+## Qué leer de la unidad de herramientas, y cuándo
 
 Varios capítulos de acá llegan hasta el borde de lo que se puede explicar sin abrir el build, y ahí
-apuntan a los [anexos](../anexos/). **Son opcionales**: no entran en los parciales, y si usás
-MCUXpresso no los necesitás para nada. Si te quedaste con la duda, este es el orden que tiene sentido:
+apuntan a la unidad de [herramientas](../../herramientas/). **Es opcional**: no entra en los
+parciales, y si usás MCUXpresso no la necesitás para nada. Si te quedaste con la duda, este es el
+orden que tiene sentido:
 
 | Cuándo | Qué leer | Qué termina de explicar |
 |---|---|---|
-| Después del **10** y el **11** | [Anexo A - Build, linker y startup](../anexos/A_build_linker_startup/) | Quién pone `.bss` en cero antes de `main`, quién copia `.data` desde la Flash, de dónde salen el tamaño del stack y el del heap, y qué pasa entre el reset y tu primera línea de código |
-| Después del **16** (`printf` a la UART) | [Anexo B - El camino completo](../anexos/B_toolchain_y_entorno/00-el-camino-completo.md) | Las once piezas que van de `main.c` al LED encendido, de una sola vez |
-| Cuando te dé curiosidad el **07** | [Anexo B - Adentro del toolchain](../anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md) | Por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib, y qué hay en cada carpeta del compilador |
-| Cuando quieras compilar sin IDE | [Anexo B - Instalación](../anexos/B_toolchain_y_entorno/06-instalacion-linux.md) + [la plantilla](../../plantilla/) | `make`, `make flash`, `make debug`, sin MCUXpresso |
+| Después del **10** y el **11** | [05 - Del código al binario](../../herramientas/05_del_codigo_al_binario/) | Quién pone `.bss` en cero antes de `main`, quién copia `.data` desde la Flash, de dónde salen el tamaño del stack y el del heap, y qué pasa entre el reset y tu primera línea de código |
+| Después del **16** (`printf` a la UART) | [01 - El mapa completo](../../herramientas/01_panorama/01-el-mapa-completo.md) | Las once piezas que van de `main.c` al LED encendido, de una sola vez |
+| Cuando te dé curiosidad el **07** | [04 - Anatomía de la carpeta del toolchain](../../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md) | Por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib, y qué hay en cada carpeta del compilador |
+| Cuando quieras compilar sin IDE | [07 - Instalación](../../herramientas/07_lpc1769/03-instalacion-linux.md) + [la plantilla](../../plantilla/) | `make`, `make flash`, `make debug`, sin MCUXpresso |
+| Cuando algo no ande | [06 - Depurar en serio](../../herramientas/06_depurar_en_serio/) | El checklist del "no anda", los hard faults, y una consola que no gasta la UART |
 
 
 #   Introducción a C para Sistemas Embebidos

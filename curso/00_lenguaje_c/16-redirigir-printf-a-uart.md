@@ -218,7 +218,7 @@ int main(void)
 ```
 
 Compilás y linkeás `syscalls.c` **junto con** tu `main.c`, el startup, el driver de UART y el linker
-script (anexo A). Como definiste `_write` propio, el linker usa **el tuyo** en vez del de
+script ([herramientas 05](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md)). Como definiste `_write` propio, el linker usa **el tuyo** en vez del de
 `nosys.specs`. Abrís la terminal a 115200 y ves `ADC=0`, `ADC=1`, ... saliendo solos.
 
 > **Antes de buscar el bug en otro lado: mirá el clock.** Los 115200 de este capítulo (y los del
@@ -301,8 +301,17 @@ void uart_put_int(int32_t n)
 }
 ```
 
-(El debug framework de NXP del [módulo 12](../12_debug/) ya hace exactamente esto con macros como
+(El debug framework de NXP de [herramientas 06-01](../../herramientas/06_depurar_en_serio/01-imprimir-para-depurar.md) ya hace exactamente esto con macros como
 `_DBG`/`_DBD32`; mirálo como referencia.)
+
+Medido con una línea idéntica de 48 bytes, `_DBG` tardó 4005 µs y `printf` redirigido a la misma
+UART, 4014 µs. El ahorro temporal fue de solo 0,24 % porque ambos esperan al mismo periférico. El
+[banco reproducible](../ejemplos/uart/debug_framework/) muestra también la comparación al convertir
+un entero.
+
+La [versión mejorada](../ejemplos/uart/debug_framework_mejorado/) conserva esas macros, pero permite
+usar una cola atendida por interrupciones o DMA. Con DMA, el mismo literal devuelve el control en
+5,90 µs a 115200 y mantiene el caudal físico de la UART.
 
 ### ¿Cuándo conviene cada camino?
 
@@ -333,8 +342,8 @@ a 100 MHz. Toolchain: `arm-none-eabi-gcc` 13.2, `-Og`, `--gc-sections`, `--specs
 | + `printf` de enteros, newlib-nano | 7664 B | 1.46% |
 | + `printf` con `%f` (`-u _printf_float`) | 20936 B | 3.99% |
 
-Aislando **solo lo que agrega `printf`** —contra hacer lo mismo a mano, porque la UART la vas a
-necesitar igual—: **6616 B para enteros, o sea 1.26% de la Flash.** Con `%f`, 19888 B (3.79%).
+Aislando **solo lo que agrega `printf`**, contra hacer lo mismo a mano porque la UART la vas a
+necesitar igual, son **6616 B para enteros, o sea 1.26% de la Flash**. Con `%f`, 19888 B (3.79%).
 
 ### 6.2 RAM: hay que sumar tres cosas, no una
 
@@ -402,7 +411,7 @@ Si el problema es **tiempo** (el caso normal en este chip):
    única solución de fondo. **Está implementado y medido** en
    [`ejemplos/uart/printf_dma/`](../ejemplos/uart/printf_dma/): los 4091 µs de CPU bloqueado de una
    línea de 48 caracteres bajan a 36 µs, a cambio de 360 bytes de Flash y un canal de GPDMA. Ahí
-   vas a ver además que, con DMA, `setvbuf(_IONBF)` pasa a ser **contraproducente** — justo al revés
+   vas a ver además que, con DMA, `setvbuf(_IONBF)` pasa a ser **contraproducente**, justo al revés
    que en la sección 7.
 
 Si el problema es **espacio**:
@@ -458,7 +467,7 @@ Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de 
   llama mientras el `main` también lo está usando, corrompés ese estado. (2) Es **lentísimo para una
   ISR**: 874 µs para diez caracteres, o sea 86.800 ciclos con el CPU parado. (3) Se come **376 bytes
   de stack**, el 18% de lo que el linker reserva, encima de lo que ya venía usando la cadena de
-  llamadas interrumpida. Regla del [módulo 12](../12_debug/): la ISR **levanta una bandera**, y el
+  llamadas interrumpida. Regla de [herramientas 06](../../herramientas/06_depurar_en_serio/): la ISR **levanta una bandera**, y el
   `main` imprime.
 - **El `_write` por polling bloquea, y ese es el costo dominante.** `UART_SendByte` espera con
   `while` a que `THRE` esté libre (módulo 9), un bit por vez. El 98% del tiempo de un `printf` se va
@@ -502,18 +511,20 @@ que pasa **en la placa del curso**:
   corre**, sin frenarlo, aprovechando que la unidad de debug accede a memoria en paralelo al CPU.
   No usa pines ni periféricos, funciona **con la sonda que ya tenés**, y medido en placa cuesta
   **17 µs** por línea de 48 caracteres, contra 4091 µs de la UART por polling. Está implementado y
-  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), con la guía de uso completa
-  —incluida la puesta a punto en Ubuntu 24 y qué pasa si además usás MCUXpresso— en
-  [módulo 12, capítulo 3](../12_debug/03-consola-por-el-debugger-rtt.md).
+  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), con la guía de uso completa,
+  incluida la puesta a punto en Ubuntu 24 y qué pasa si además usás MCUXpresso, en
+  [herramientas 06-04](../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md).
 
 ### ¿Cuál usar?
 
 | | Necesita debugger | Gasta pines | CPU por línea de 48 car. | Caudal sostenido |
 |---|---|---|---|---|
+| Debug Framework | no | 1 (TXD) | 4005 µs | 11.5 KB/s a 115200 |
+| Debug Framework mejorado, DMA | no | 1 (TXD) | **5,84 µs** | **92.1 KB/s a 921600** |
 | UART por polling | no | 1 (TXD) | 4091 µs | el del baudrate |
 | UART por DMA | no | 1 (TXD) | 36 µs | **92 KB/s a 921600** |
 | RTT | **sí** | 0 | **17 µs** | 15.7 KB/s (con esta sonda) |
-| SWO | **sí, y que la soporte** | 0 (usa TDO) | — (no probado acá) | — |
+| SWO | **sí, y que la soporte** | 0 (usa TDO) | no probado acá | no medido |
 
 **Fijate que no gana el mismo en las dos últimas columnas, y eso no es un error.** Miden cosas
 distintas: RTT le sale casi gratis al micro porque solo escribe en RAM, pero los bytes llegan a la
@@ -525,7 +536,7 @@ saca bits solo a un ritmo fijo, y ese ritmo lo subís vos.
 
 En el laboratorio, con el debugger enchufado, RTT es lo más cómodo. Para un equipo que va a
 funcionar solo, o para volcar volumen, la UART sigue siendo la opción. Están comparadas en detalle
-en [módulo 12, capítulo 3 §8](../12_debug/03-consola-por-el-debugger-rtt.md).
+en [herramientas 06-04 §8](../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md).
 
 ---
 
@@ -543,6 +554,8 @@ costo_de_un_printf  ×  impresiones_por_segundo  <  presupuesto de tu lazo
 
 | Camino | CPU por línea de 48 caracteres |
 |---|---:|
+| Debug Framework a 115200 | **4005 µs** |
+| Debug Framework mejorado, DMA a 115200 | **5,90 µs** |
 | UART por polling a 115200 | **4091 µs** |
 | UART por DMA | 36 µs |
 | RTT (por el debugger) | 17 µs |
@@ -584,7 +597,7 @@ Mirá la tabla: el único enlace que se acerca es la UART a 921600, y con **cero
 afinado te faltan cinco veces. Por UART a 115200, siete veces.
 
 **No es un problema de optimizar el código: no entra por el cable.** Podés usar DMA, RTT, el
-compilador que quieras — el caudal es el caudal.
+compilador que quieras. El caudal es el caudal.
 
 Y ojo con la conclusión apurada: **el DMA y el RTT arreglan la cuenta 1, no la cuenta 2.** Sacan al
 CPU del camino, pero no ensanchan el caño. Es el error más común después de descubrir el DMA.
@@ -610,8 +623,8 @@ Con el ejemplo de arriba (producís 80 000 B/s, drenás 15 660 B/s) y una cola d
 **Dieciséis milisegundos.** Y si le dieras *toda* la RAM del LPC1769 (32 KB), comprarías medio
 segundo. Medido en la placa: 2000 líneas de golpe contra una cola de 1 KB → **se descarta el 98%**.
 
-Los buffers de estos módulos sirven para lo que sirven: aguantar una ráfaga corta —un mensaje de
-error de veinte líneas, el volcado de un `HardFault`— sin frenar el programa. No para sostener un
+Los buffers de estos módulos sirven para aguantar una ráfaga corta, como un mensaje de error de
+veinte líneas o el volcado de un `HardFault`, sin frenar el programa. No sirven para sostener un
 caudal que el enlace no da.
 
 ### Lo que sí te garantizan
@@ -621,7 +634,7 @@ entra, nunca la mitad. La garantía es fuerte y vale la pena tenerla presente:
 
 > **Todo lo que ves está completo y en orden. Lo que no entró, no aparece, y está contado.**
 
-Eso importa muchísimo depurando. La alternativa —recortar a mitad de línea— produce cosas así:
+Eso importa muchísimo al depurar. Recortar a mitad de línea produce cosas así:
 
 ```
 adc=2048 temp=25.4 C        ← buena
@@ -673,7 +686,7 @@ Agregar un `printf` **cambia los tiempos que estás tratando de medir**. Con la 
 
 Eso no es magia: el `printf` estaba tapando una condición de carrera, o dándole tiempo a un
 periférico a terminar. Es la razón principal por la que **el debugger y los contadores de ciclos son
-mejores herramientas que `printf`** para problemas de temporización (módulo 12). `printf` es
+mejores herramientas que `printf`** para problemas de temporización ([herramientas 06](../../herramientas/06_depurar_en_serio/)). `printf` es
 excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 
 ### Las seis reglas, resumidas
@@ -702,8 +715,9 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
    propias (sección 5b) y medí cuánto baja el binario. ¿Vale la pena? ¿Qué perdés?
 4. **Las dos cuentas, en tu caso.** Elegí una frecuencia de muestreo que te interese (1 kHz, 10 kHz)
    y decidí qué querés imprimir por muestra. Calculá los bytes por segundo y compará con la tabla de
-   caudales de la sección 10. Si no entra —lo más probable—, resolvelo de las tres maneras: diezmando,
-   subiendo el caudal, y capturando en RAM para volcar después. ¿Cuál conserva **todas** las muestras?
+   caudales de la sección 10. Si no entra, que es lo más probable, resolvelo de las tres maneras:
+   diezmando, subiendo el caudal, y capturando en RAM para volcar después. ¿Cuál conserva **todas**
+   las muestras?
 5. **Cuánto aguanta el buffer.** Con los números de tu ejercicio anterior, calculá
    `tamaño / (producción − drenaje)`. Después comprobalo en la placa: imprimí a esa velocidad y medí
    cuántos segundos tarda `rtt_perdidos()` en empezar a crecer. ¿Coincide con la cuenta?
@@ -735,7 +749,7 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 **Anterior:** [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md) ·
 **Módulo:** [Lenguaje C](./README.md)
 
-**Ver también:** [Módulo 09 - UART](../09_uart/) · [Módulo 12 - Debug](../12_debug/) ·
+**Ver también:** [Módulo 09 - UART](../09_uart/) · [Herramientas 06 - Depurar en serio](../../herramientas/06_depurar_en_serio/) ·
 [Ejemplo probado en placa: `ejemplos/uart/printf_retarget.c`](../ejemplos/uart/printf_retarget.c)
 
 ---
@@ -761,7 +775,7 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 
 - [UM10360: LPC176x/5x User Manual](../../UM10360.pdf), Capítulo 14 (UART0/2/3). Los registros `THR`, `LSR` y el divisor de baudios que usa `UART_SendByte`.
 - [Semihosting (Arm)](https://developer.arm.com/documentation/dui0471/latest/what-is-semihosting-). La alternativa que se menciona al final: imprimir a través del debugger, sin cable serie, a costa de que el micro se frene en cada carácter.
-- De dónde sale el heap que necesita `_sbrk`, en [Build, linker y startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+- De dónde sale el heap que necesita `_sbrk`, en [Build, linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ---
 

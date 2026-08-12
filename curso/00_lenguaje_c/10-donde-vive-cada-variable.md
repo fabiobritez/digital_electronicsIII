@@ -213,8 +213,8 @@ Tres cosas para leer ahí:
 > dirección exacta de cualquier global —algo impensable en una PC—, y por eso el `.ld` es un archivo
 > que sí vas a tener que leer. El recorrido completo `.c → .o → .elf`, con el linker script del
 > LPC1769 comentado línea por línea, está en
-> [Módulo 16 - De código a binario](../anexos/A_build_linker_startup/01-de-codigo-a-binario.md) y
-> [Módulo 16 - El linker script y el startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+> [Módulo 16 - De código a binario](../../herramientas/05_del_codigo_al_binario/01-de-codigo-a-binario.md) y
+> [Módulo 16 - El linker script y el startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ### Dos consecuencias prácticas
 
@@ -272,7 +272,7 @@ for (dst = &_sbss; dst < &_ebss; ) *dst++ = 0;
 ```
 
 Ese código lo desarmamos línea por línea en
-[Anexo A - El linker script y el startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+[Herramientas 05 - El linker script y el startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 La conclusión práctica es esta: **el startup inicializa `.data` y `.bss`, pero no toca el stack.**
 Por eso una global sin inicializar vale 0 garantizado, y una local sin inicializar vale lo que haya
 quedado ahí de antes.
@@ -310,7 +310,7 @@ Y arranca solo: al salir del reset, el núcleo **carga el `SP` leyendo la palabr
 dirección `0x00000000`** —la primera entrada de la tabla de vectores— antes de ejecutar una sola
 instrucción tuya. Es literalmente lo primero que hace el chip. Lo ves en
 [07 - NVIC y vectores](../07_interrupciones/01-nvic-y-vectores.md) y en
-[16 - Linker y startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+[16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ### El *stack frame*: qué guarda cada llamada
 
@@ -582,7 +582,7 @@ Los síntomas típicos, y por qué son tan difíciles de diagnosticar:
 - Funciona en debug (`-O0`, frames grandes... o al revés) y falla en release.
 - Cae en `HardFault_Handler`: cuando la corrupción llega a una **dirección de retorno**, el `bx lr`
   salta a una dirección inventada. Ese es el camino más común de "stack overflow" a "hard fault",
-  y está desarrollado en [12 - El debugger y el método](../12_debug/02-debugger-y-metodo.md).
+  y está desarrollado en [12 - El debugger y el método](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md).
 
 Causas concretas, en orden de frecuencia:
 
@@ -691,7 +691,7 @@ esa sección en el `.ld`, `size` te diría "28 bytes de bss" y te dejaría creye
 libres.
 
 Más sobre cómo leer `size` y el `.map`, en
-[16 - De código a binario](../anexos/A_build_linker_startup/01-de-codigo-a-binario.md).
+[16 - De código a binario](../../herramientas/05_del_codigo_al_binario/01-de-codigo-a-binario.md).
 
 ### e) Pintar el stack: la medición empírica (*watermark*)
 
@@ -745,7 +745,7 @@ el peor momento observado. Si devuelve 40, estás a punto de romper todo.
 Frenado en cualquier punto, el debugger te muestra el **call stack** (la cadena de frames vivos) y el
 valor del `SP`. Comparar `SP` contra `_estack` te dice cuánto stack se consumió hasta ese instante.
 Es la forma más rápida de contestar "¿qué me trajo hasta acá?" cuando caés en un hard fault
-([12 - Debug](../12_debug/02-debugger-y-metodo.md)).
+([12 - Debug](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md)).
 
 ---
 

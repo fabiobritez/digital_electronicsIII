@@ -84,7 +84,7 @@ uint8_t is_ready(void) { return READY; }    // lee 0 o 1
 
 El `__attribute__((section(".bss.$RamAHB32")))` le pide al linker de MCUXpresso que ponga `flags` en
 la SRAM AHB (`0x2007_C000`), que sí está dentro de la ventana (los nombres de sección dependen del
-*linker script*; lo vemos en el [anexo A](../anexos/A_build_linker_startup/)). Si te olvidás de esto y
+*linker script*; lo vemos en [herramientas 05](../../herramientas/05_del_codigo_al_binario/)). Si te olvidás de esto y
 `flags` queda en la SRAM local (`0x1000_0000`), la macro calcula una dirección que no corresponde a
 nada y el acceso termina en un Bus Fault o en datos corruptos: el error clásico con bit-banding en
 esta familia.

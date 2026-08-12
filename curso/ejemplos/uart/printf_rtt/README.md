@@ -1,16 +1,17 @@
 # `printf` por el cable del debugger (RTT)
 
-> **La guía de uso está en [módulo 12, capítulo 3](../../../12_debug/03-consola-por-el-debugger-rtt.md)**:
+> **La guía de uso está en [Herramientas 06-04](../../../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md)**:
 > puesta a punto en Ubuntu 24, los tres pasos para usarlo, cómo depurar y ver los `printf` a la vez,
 > y qué pasa si además usás MCUXpresso. Este README explica el ejemplo y el porqué del diseño.
 
-Los dos ejemplos anteriores mandan el texto por la UART. Este no usa la UART **para nada**: el
+Los ejemplos anteriores mandan el texto por la UART. Este no usa la UART **para nada**: el
 programa escribe en una cola en RAM y **el debugger la lee por SWD mientras el micro corre**, sin
 frenarlo. Ni un pin de aplicación, ni un periférico, ni conversor USB-serie, ni baudrate que
 calcular.
 
 | | CPU por línea de 48 caracteres |
 |---|---:|
+| `_DBG` del Debug Framework, UART por polling | 4005 µs |
 | `printf` por UART, polling | 4091 µs |
 | `printf` por UART, DMA | 36 µs |
 | **`printf` por RTT** | **17 µs** |
@@ -271,4 +272,4 @@ Cuánto podés imprimir sin llegar a ese punto está en
 
 - [`../MEDICIONES.md`](../MEDICIONES.md) §7 y §8 — los comandos para comprobar todo esto
 - [`../printf_dma/`](../printf_dma/) — la versión por UART sin bloquear, para cuando no hay debugger
-- [Módulo 12 - Debug](../../../12_debug/)
+- [Herramientas 06 - Depurar en serio](../../../../herramientas/06_depurar_en_serio/)

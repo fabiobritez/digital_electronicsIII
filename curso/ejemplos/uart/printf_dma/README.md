@@ -10,6 +10,7 @@ Acá está la versión que arregla eso. `printf` deja los bytes en una cola circ
 
 | | ciclos | tiempo de CPU |
 |---|---:|---:|
+| `_DBG` del Debug Framework (48 bytes) | 400542 | 4005 µs |
 | `printf` por polling (48 caracteres) | 409095 | 4091 µs |
 | **`printf` por DMA (los mismos 48 caracteres)** | **3562** | **36 µs** |
 

@@ -14,7 +14,7 @@ float v = (cuentas / 4095.0f) * 3.3f;   // se ve inocente...
 ```
 
 Como no hay hardware, **cada operación con `float` la emula el compilador** llamando a funciones de
-software (de la libc, anexo B). Una multiplicación de `float` que en una PC es una instrucción, en
+software (de la libc, [herramientas 04](../../herramientas/04_toolchains/)). Una multiplicación de `float` que en una PC es una instrucción, en
 el Cortex-M3 son **decenas o cientos de instrucciones**. No es que no funcione (funciona perfecto),
 pero es **lento** y **ocupa más Flash** (arrastra esas rutinas de emulación).
 
@@ -185,7 +185,7 @@ de `float`. Sabiendo esto, lo reescribís con enteros y vuela.
    tamaño del binario (`size`) con la versión `float`.
 2. Implementá un promedio de 16 muestras de ADC en punto fijo (sumá enteros, dividí al final).
 3. Investigá cuántas instrucciones genera una multiplicación `float` vs una `int` con
-   `arm-none-eabi-objdump -d` (anexo B).
+   `arm-none-eabi-objdump -d` ([herramientas 04](../../herramientas/04_toolchains/)).
 
 ---
 

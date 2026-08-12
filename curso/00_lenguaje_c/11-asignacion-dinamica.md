@@ -77,7 +77,7 @@ un bloque del heap, o al revés, y el sistema falla de una manera que no se pare
 > `(void *) -1` si el heap alcanzaría al stack. Muchos `_sbrk` de ejemplo que circulan por internet no
 > lo hacen, y en ese caso `malloc` te devuelve alegremente un puntero a memoria que el stack va a pisar.
 > Cómo se escribe uno bien, y de dónde salen `_end` y los demás símbolos, está en
-> [16 - Linker y startup](../anexos/A_build_linker_startup/02-linker-y-startup.md#el-linker-script-ld-el-mapa-de-memoria).
+> [16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md#el-linker-script-ld-el-mapa-de-memoria).
 > El panorama de las cuatro zonas de memoria está en
 > [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap).
 
@@ -596,7 +596,7 @@ resultados, y entender **por qué** los cambian es la mitad del aprendizaje.
 **En este curso**
 
 - [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap): las cuatro zonas de memoria y el choque stack/heap.
-- [16 - Linker y startup](../anexos/A_build_linker_startup/02-linker-y-startup.md): de dónde sale el heap en el `.ld` y cómo se escribe `_sbrk`.
+- [16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md): de dónde sale el heap en el `.ld` y cómo se escribe `_sbrk`.
 - [Superloop no bloqueante](./17-superloop-y-codigo-no-bloqueante.md): cómo estructurar el firmware con buffers estáticos y sin asignación en operación.
 
 ---

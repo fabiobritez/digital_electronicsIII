@@ -20,7 +20,8 @@ reseteó", "el botón hace cualquier cosa", "no sé qué pin es P0.22") se evita
 
 ## Cuándo leerlo
 Cuanto antes mejor: idealmente junto con el [módulo 5 (GPIO)](../05_gpio/), la primera vez que
-conectás algo físico. La parte de instrumentos complementa el [módulo 12 (debug)](../12_debug/).
+conectás algo físico. La parte de instrumentos complementa la unidad de
+[herramientas](../../herramientas/06_depurar_en_serio/).
 
 ## Nota
 Los detalles exactos (qué pin tiene el LED, cuáles son tolerantes a 5 V) dependen de **tu placa**.

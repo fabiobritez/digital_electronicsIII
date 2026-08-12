@@ -109,7 +109,7 @@ ejemplo, ahí se ve que `CHAR_BIT` es 8 y que `CHAR_MIN` es **0**, no `-128`, qu
 de que en ARM el `char` es `unsigned` (ver [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md)).
 
 > Qué hay en cada carpeta del toolchain, por qué pesa 710 MB y qué es el *multilib*, en
-> [18 - Adentro de la carpeta del toolchain](../anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md).
+> [18 - Adentro de la carpeta del toolchain](../../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md).
 
 ### Por qué existen los `.h`: cada `.c` se compila solo
 
@@ -619,7 +619,7 @@ _Static_assert(sizeof(int) == 4, "este codigo asume int de 32 bits (Cortex-M3)")
 **Sobre los temas puntuales**
 
 - [X-Macros (Randy Meyers, Dr. Dobb's)](https://www.drdobbs.com/the-new-c-x-macros/184401387). El artículo que popularizó la técnica.
-- [Dónde vive cada header del toolchain](../anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md). Qué es cada carpeta del compilador y por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib.
+- [Dónde vive cada header del toolchain](../../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md). Qué es cada carpeta del compilador y por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib.
 
 ---
 
