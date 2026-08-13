@@ -21,7 +21,7 @@ trabaja a nivel de registros; **después**, con los drivers incluidos en el repo
 ### Bases (empezá acá)
 | # | Módulo | De qué trata |
 |---|--------|--------------|
-| 0 | [Lenguaje C](./00_lenguaje_c/) | C para embebidos: tipos, punteros, structs, `volatile`, ancho fijo, [dónde vive cada variable](./00_lenguaje_c/10-donde-vive-cada-variable.md) (stack, heap y estáticos) y, para cerrar, [cómo se estructura un firmware entero](./00_lenguaje_c/17-superloop-y-codigo-no-bloqueante.md) |
+| 0 | [Lenguaje C](./00_lenguaje_c/) | Recorrido C0–C14: programa mínimo, tipos, control, funciones, arreglos, módulos, punteros, memoria, MMIO, layout e interfaces; incluye un [trayecto posterior de arquitectura de firmware](./00_lenguaje_c/arquitectura/) |
 | 1 | [Arquitectura y acceso a registros](./01_arquitectura_y_acceso_a_registros/) | **El módulo clave:** un registro es una dirección de memoria |
 | 2 | [Armá tu propia librería](./02_arma_tu_propia_libreria/) | Construí tu mini-CMSIS desde cero, para entender que el hardware es tuyo |
 | 3 | [Clock y Power](./03_clock_y_power/) | PCONP y PCLKSEL: encender y clockear periféricos (el paso que todos olvidan) |

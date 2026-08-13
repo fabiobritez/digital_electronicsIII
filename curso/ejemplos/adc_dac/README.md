@@ -10,7 +10,7 @@
 El voltímetro es el ejercicio 1 del módulo 10 resuelto, e integra tres módulos: ADC
 ([módulo 10](../../10_adc_dac/)), UART ([módulo 9](../../09_uart/)) y SysTick
 ([módulo 6](../../06_systick/)) con el patrón de tiempo no bloqueante del
-[capítulos 17 a 19 del módulo 0](../../00_lenguaje_c/17-superloop-y-codigo-no-bloqueante.md).
+[capítulos 17 a 19 del módulo 0](../../00_lenguaje_c/arquitectura/17-superloop-y-codigo-no-bloqueante.md).
 
 Para el combo ADC/DAC con DMA (muestreo automático, generación de ondas), ver
 [`../dma/`](../dma/): `adc_dma_simple.c` y `dac_dma_sin.c`.

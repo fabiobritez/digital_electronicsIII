@@ -1,19 +1,13 @@
-# Estructuras y enumeraciones
+# Estructuras, enumeraciones y modelado de estado
 
 Los tipos primitivos (`int`, `char`, `float`, etc.) son útiles, pero limitados. Para representar datos
 más complejos, C ofrece **tipos compuestos**: los que agrupan varios datos bajo un solo nombre.
 
-Ya viste uno en [02 - Arreglos](./02-arreglos-conversiones-y-promociones.md): el arreglo junta varios
-datos **del mismo tipo**. Este capítulo agrega los dos que faltan:
+Un arreglo junta varios datos **del mismo tipo**. Cuando los datos tienen tipos distintos, o cuando
+queremos darles nombre a los estados posibles de un sistema, C ofrece otras dos herramientas:
 
 * **Estructuras (`struct`)**: agrupan variables de **distintos** tipos bajo un solo nombre.
 * **Enumeraciones (`enum`)**: definen constantes enteras con nombre.
-
-Los dos se pueden entender sin saber nada de punteros, y por eso están acá. Lo que sí necesita
-punteros viene después: el operador `->` (llegar a los campos de un struct a través de un puntero) en
-[09 - Punteros avanzados](./09-punteros-avanzado.md#acceso-a-miembros-de-estructura-con-punteros), y
-el *padding*, los *bitfields*, las uniones y el mapeo de registros del micro en
-[13 - Structs para hardware](./13-structs-para-hardware.md).
 
 En sistemas embebidos estos tipos son la base para modelar registros de hardware, organizar datos de
 sensores, implementar protocolos y escribir máquinas de estado legibles.
@@ -66,6 +60,21 @@ struct Punto p3 = {.y = 5, .x = 3};  // orden no importa
 ---
 
 ### Acceso a miembros
+
+El operador `.` accede a un miembro de una estructura o unión:
+
+```c
+struct Punto {
+    int x;
+    int y;
+};
+
+struct Punto p = {10, 20};
+int valor_x = p.x;
+```
+
+El operador `->` hace lo mismo a través de un puntero. Como depende de C8, se desarrolla en
+[C9 - Punteros y estructuras](./09-punteros-avanzado.md#punteros-y-estructuras).
 
 Se usa el operador `.` (punto):
 
@@ -182,20 +191,30 @@ for (int i = 0; i < 3; i++) {
 }
 ```
 
-> **Para los curiosos (avanzado): flexible array members**
->
-> Desde C99, el **último** miembro de una estructura puede ser un arreglo **sin tamaño**. Sirve para una cabecera seguida de un payload de longitud variable: muy útil para tramas de comunicación.
-> ```c
-> typedef struct {
->     uint8_t  id;
->     uint8_t  len;
->     uint8_t  datos[];   // flexible array member: ocupa 0 bytes en sizeof
-> } Mensaje;
-> // sizeof(Mensaje) == 2 (no cuenta 'datos')
-> ```
-> El arreglo `datos` no reserva espacio propio: apunta a lo que venga **inmediatamente después** de la cabecera en memoria. Es la forma idiomática de "castear" un buffer recibido a un mensaje con payload variable, sin copiar. En embebido se usa para parsear paquetes directamente sobre el buffer de recepción.
+## Devolver una estructura desde una función
 
----
+Una función también puede devolver una estructura por valor:
+
+### Retornar estructuras
+
+```c
+typedef struct {
+    int x;
+    int y;
+} Punto;
+
+Punto crear_punto(int x, int y) {
+    Punto p = {x, y};
+    return p;  // se copia la estructura
+}
+
+int main(void) {
+    Punto p1 = crear_punto(10, 20);
+    printf("Punto: (%d, %d)\n", p1.x, p1.y);
+    return 0;
+}
+```
+
 ---
 
 ## Enumeraciones (`enum`)
@@ -416,9 +435,35 @@ Un `enum` es, por debajo, un **tipo entero**. El compilador elige cuál (el "tip
 > 1. **Nunca asumas el tamaño de un `enum`** en un `struct` que mapea un registro, una trama de protocolo o algo que se guarde en memoria. Si necesitás un ancho exacto, poné `uint8_t`/`uint32_t` en el campo y usá las constantes del `enum` aparte.
 > 2. Si linkeás una librería precompilada con la opción contraria, los tamaños no coinciden y tenés corrupción silenciosa. El linker de GNU suele avisar con un warning sobre `Tag_ABI_enum_size`.
 >
-> Esto ya lo vimos en [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#constantes-de-enumeración-enum), donde está la comprobación con el toolchain del repo.
-
 > Ojo con no confundir dos cosas: **cada constante** del enum (`ROJO`, `VERDE`) tiene tipo `int` en C17 y anteriores, así que `sizeof(ROJO)` da 4. Lo que mide 1 byte es **el tipo enumerado** (`Color`). En **C23** el tipo subyacente se puede fijar a mano y el problema desaparece: `enum Color : uint8_t { ROJO, VERDE, AZUL };`
+
+---
+
+### Constantes de enumeración y representación
+
+Este contenido se estudia acá —y no junto con los literales de C1— porque ahora ya se distingue la
+constante enumerada del tipo `enum` que la contiene.
+
+- Lista de identificadores con valores enteros constantes:
+
+```c
+enum boolean { NO, YES };      // NO = 0, YES = 1
+enum months { ENE = 1, FEB, MAR };  // FEB = 2, MAR = 3
+enum escapes { BELL = '\a', BACKSPACE = '\b', TAB = '\t' , NEWLINE = '\n', RETURN = '\r'};
+```
+
+- Si no se da valor explícito, continúan desde el anterior (el primero arranca en 0).
+- Se usan como alternativa a `#define`.
+- Los `enum` hacen que el compilador pueda verificar su uso, lo cual es más seguro. Además el depurador te muestra el **nombre** (`YES`) en vez del número, algo que con `#define` perdés.
+- Los valores pueden repetirse: `enum { A = 1, B = 1 };` es válido.
+- **Cada constante de enumeración tiene tipo `int`** (en C17 y anteriores). O sea que `NO` y `YES` son `int`, y `sizeof(YES)` da 4 en el M3.
+Además, una constante enumerada sí es una constante entera de compilación, por lo que completa el
+caso que C1 dejó pendiente:
+
+```c
+enum { N3 = 8 };
+int buf3[N3];        // válido a nivel de archivo y en una etiqueta case
+```
 
 ---
 
@@ -427,6 +472,92 @@ Un `enum` es, por debajo, un **tipo entero**. El compilador elige cuál (el "tip
 * Los valores **deben ser enteros** (no float, no strings)
 * No hay verificación fuerte de tipos: podés asignar cualquier `int` a un `enum` (el compilador no te frena si pasás un valor fuera del rango definido)
 * El tamaño es el de su tipo subyacente, que **depende del compilador**: 1 o 2 bytes en el LPC1769, 4 en x86
+
+---
+
+## De `enum` y `switch` al estado explícito
+
+Un `enum` y un `switch` forman una combinación natural para representar el estado de un sistema y
+controlar las transiciones posibles.
+
+### Uso en sistemas embebidos: máquina de estados
+
+```c
+enum State { IDLE, RUNNING, PAUSED, ERROR };
+enum State estado = IDLE;
+
+switch (estado) {
+    case IDLE:
+        // inicializar sistema
+        if (start_button_pressed()) {
+            estado = RUNNING;
+        }
+        break;
+
+    case RUNNING:
+        // ejecutar tarea principal
+        if (pause_button_pressed()) {
+            estado = PAUSED;
+        } else if (error_detected()) {
+            estado = ERROR;
+        }
+        break;
+
+    case PAUSED:
+        // esperar
+        if (resume_button_pressed()) {
+            estado = RUNNING;
+        }
+        break;
+
+    case ERROR:
+        // manejar error
+        LED_Error();
+        estado = IDLE;
+        break;
+
+    default:
+        // estado no reconocido → reiniciar
+        estado = IDLE;
+        break;
+}
+```
+
+> `switch` es ideal para **máquinas de estados**, muy comunes en firmware embebido.
+
+El patrón es siempre el mismo: un `enum` con los estados posibles, una variable que guarda el estado actual, y un `switch` que en cada vuelta del bucle principal decide qué hacer y a qué estado pasar. Las ventajas de usar un `enum` (en vez de números mágicos `0`, `1`, `2`) son que el código se lee solo y que el compilador puede avisarte si te olvidás de manejar algún estado. Este patrón se profundiza en [Máquinas de estado](./arquitectura/18-maquinas-de-estado.md), donde vas a ver cómo estructurar firmware entero alrededor de esta idea.
+
+> [!WARNING]
+> **Ojo: `default` y `-Wswitch` se pelean, y nadie te lo dice.**
+>
+> `-Wswitch` (incluido en `-Wall`) avisa cuando a un `switch` sobre un `enum` le falta manejar algún
+> valor. Es la red de seguridad que hace que agregar un estado nuevo al `enum` no pase inadvertido.
+> El problema es que **agregar un `default` la desactiva por completo**: para GCC, un `default` ya
+> cubre "todo lo demás", así que deja de contar los casos que faltan.
+>
+> ```c
+> enum State { IDLE, RUNNING, PAUSED, ERR };
+>
+> void a(enum State s) { switch (s) { case IDLE: break; case RUNNING: break; } }
+> void b(enum State s) { switch (s) { case IDLE: break; case RUNNING: break;
+>                                     default: break; } }
+> ```
+> ```console
+> $ arm-none-eabi-gcc -mcpu=cortex-m3 -Wall -c estados.c
+> warning: enumeration value 'PAUSED' not handled in switch [-Wswitch]
+> warning: enumeration value 'ERR' not handled in switch [-Wswitch]
+> ```
+>
+> Los dos warnings son de `a()`. Sobre `b()`, que tiene el mismo agujero, **GCC no dice nada**.
+>
+> Y las dos cosas las querés: el `default` para sobrevivir a un valor corrupto en ejecución, y el
+> aviso para no olvidarte de un estado al compilar. La forma de tener las dos es pedir
+> **`-Wswitch-enum`**, que cuenta los valores faltantes *aunque haya `default`*. Con esa flag el
+> ejemplo de arriba tira los cuatro warnings, dos por cada función.
+>
+> ```make
+> CFLAGS += -Wall -Wextra -Wswitch-enum
+> ```
 
 ---
 
@@ -440,7 +571,7 @@ Un `enum` es, por debajo, un **tipo entero**. El compilador elige cuál (el "tip
 | Nunca asumas el `sizeof` de un `enum` | En ARM vale 1 o 2 bytes (`-fshort-enums`), en tu PC 4 |
 | En un `struct` que va a hardware o a un protocolo, poné `uint8_t`/`uint32_t`, no un `enum` | El ancho tiene que ser exacto; usá las constantes del `enum` aparte |
 | Un `enum` no valida nada en ejecución | Podés asignarle cualquier `int`: por eso todo `switch` sobre un estado lleva `default` |
-| Un `struct` se copia entero al pasarlo o devolverlo por valor | Para estructuras grandes, pasá un puntero (capítulo [09](./09-punteros-avanzado.md#punteros-y-estructuras)) |
+| Un `struct` se copia entero al pasarlo o devolverlo por valor | Para estructuras grandes, pasá un puntero ([C9](./09-punteros-avanzado.md#punteros-y-estructuras)) |
 
 ---
 
@@ -466,5 +597,5 @@ Un `enum` es, por debajo, un **tipo entero**. El compilador elige cuál (el "tip
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [04 - Control de flujo](./04-control-de-flujo.md) ·
-**Siguiente:** [06 - Funciones](./06-funciones.md)
+**Anterior:** [C5 - Arreglos y strings](./05-arreglos-y-strings.md) ·
+**Siguiente:** [C7 - Headers, módulos y preprocesador](./07-preprocesador.md)

@@ -103,10 +103,10 @@ explicar sin abrir el build, y mandan para acá:
 
 | Desde | Para qué |
 |---|---|
-| [00 - C, cap. 07 (preprocesador)](../curso/00_lenguaje_c/07-preprocesador.md) | dónde viven físicamente `stdint.h` y `stdio.h` |
-| [00 - C, cap. 10 (dónde vive cada variable)](../curso/00_lenguaje_c/10-donde-vive-cada-variable.md) | quién pone `.bss` en cero y de dónde sale el tamaño del stack |
-| [00 - C, cap. 11 (asignación dinámica)](../curso/00_lenguaje_c/11-asignacion-dinamica.md) | de dónde sale el heap y cómo se escribe `_sbrk` |
-| [00 - C, cap. 16 (`printf` a la UART)](../curso/00_lenguaje_c/16-redirigir-printf-a-uart.md) | los syscall stubs de newlib y el heap que necesitan |
+| [C7 - Preprocesador](../curso/00_lenguaje_c/07-preprocesador.md) | dónde viven físicamente `stdint.h` y `stdio.h` |
+| [C10 - Dónde vive cada variable](../curso/00_lenguaje_c/10-donde-vive-cada-variable.md) | quién pone `.bss` en cero y de dónde sale el tamaño del stack |
+| [C10B - Asignación dinámica](../curso/00_lenguaje_c/10b-asignacion-dinamica.md) | de dónde sale el heap y cómo se escribe `_sbrk` |
+| [06.05 - Redirigir `printf` a la UART](./06_depurar_en_serio/05-redirigir-printf-a-uart.md) | los syscall stubs de newlib, sus costos y el heap que necesitan |
 | [01 - Arquitectura y acceso a registros](../curso/01_arquitectura_y_acceso_a_registros/) | qué pasa entre el reset y la primera línea de `main` |
 | [02 - Armá tu propia librería](../curso/02_arma_tu_propia_libreria/) | el `startup.c` y el `.ld` con los que se compiló `mygpio` |
 | [09 - UART](../curso/09_uart/) | la consola de depuración, y por qué a veces conviene RTT en su lugar |

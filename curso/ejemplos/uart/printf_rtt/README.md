@@ -181,7 +181,7 @@ Hay un banco de pruebas completo: [`bench.c`](./bench.c) del lado del micro y
 Fijate la primera columna: **encolar 256 bytes cuesta 410 ciclos, apenas el doble que encolar 8.**
 Es un `memcpy` y dos índices. La cola no es el costo.
 
-Y entonces aparece el resultado que da vuelta todo lo del capítulo 16:
+Y entonces aparece el resultado que da vuelta la comparación de la práctica de `printf`:
 
 | | |
 |---|---:|
@@ -266,7 +266,7 @@ existe. Verificado en placa saturando la cola a propósito: de las líneas que l
 truncadas**, todas en orden creciente.
 
 Cuánto podés imprimir sin llegar a ese punto está en
-[módulo 0, capítulo 16 §10](../../../00_lenguaje_c/16-redirigir-printf-a-uart.md).
+[Herramientas 06, `printf` por UART §10](../../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md).
 
 ## Ver también
 

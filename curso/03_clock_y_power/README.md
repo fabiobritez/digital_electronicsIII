@@ -44,7 +44,7 @@ tiempos.
 
 ## Requisito
 [Módulo 1](../01_arquitectura_y_acceso_a_registros/) (saber escribir registros) y manejar máscaras
-de bits del [módulo 0, cap. 03](../00_lenguaje_c/03-operadores.md).
+de bits del [módulo 0, cap. 03](../00_lenguaje_c/02-expresiones-operadores-conversiones.md).
 
 ## Manual de referencia
 - **Capítulo 4** (clock y power): [`manual/ch04_clocking-and-power-control.pdf`](../../manual/ch04_clocking-and-power-control.pdf).

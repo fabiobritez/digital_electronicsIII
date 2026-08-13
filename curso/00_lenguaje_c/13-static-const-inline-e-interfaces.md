@@ -1,17 +1,51 @@
-# `static`, `inline` y campos de bits (C embebido fino)
+# `static`, `const`, `inline` y diseño de interfaces
 
-Estas herramientas aparecen todo el tiempo en código embebido bien escrito (y en CMSIS). No son "C
-avanzado": son lo que distingue un código prolijo y eficiente de uno que "anda pero es un desastre".
-Vale la pena dominarlas.
+`static`, `const` e `inline` aparecen todo el tiempo en los drivers y en CMSIS. No son adornos:
+determinan quién puede modificar un dato, qué nombres quedan visibles fuera de un archivo y cómo se
+publica una función pequeña sin llenar la interfaz de detalles internos.
 
-> [!NOTE]
-> **Lo que este capítulo da por sabido.** Qué hace `static` (duración contra enlace), qué es `extern`
-> y por qué una tabla `const` termina en Flash está en
-> [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#2-especificador-de-almacenamiento).
-> Cómo se lee la posición del `const` en un puntero está en
-> [08 - Punteros](./08-punteros.md#const-y-punteros-const-correctness), y `restrict` en
-> [01](./01-declaraciones-y-tipos.md#3-calificador-de-tipo). Acá no repetimos nada de eso: vamos
-> directo a lo que todavía no viste.
+Vamos a usarlos juntos para separar con claridad el `.h` público de la implementación privada en
+el `.c`.
+
+---
+
+## `const` como parte del contrato y del almacenamiento
+
+En una interfaz, `const` comunica qué puede modificar una función y permite aceptar tanto datos
+mutables como datos de solo lectura. En una definición a nivel de archivo, además ayuda a que tablas
+y configuración terminen en `.rodata` (Flash) en vez de consumir RAM.
+
+```c
+// sensor.h: el llamador conserva la propiedad; la función solo lee
+sensor_status_t sensor_configure(const sensor_config_t *cfg);
+
+// sensor.c: detalle privado y de solo lectura
+static const uint16_t linearizacion[256] = { /* ... */ };
+```
+
+No pongas la **definición** de una tabla global común en un header: cada unidad de traducción puede
+obtener su propia copia o producir símbolos duplicados, según cómo la declares. Si el dato debe ser
+único, el header publica `extern const T nombre[];` y un solo `.c` aporta la definición. Si cada
+unidad necesita un helper pequeño, ahí sí suele corresponder `static inline`.
+
+### `restrict`: una promesa de no aliasing
+
+`restrict` no significa “la única forma de acceder es un puntero”. Es una promesa hecha al
+compilador: durante la vida de ese puntero, el objeto se accede únicamente a través de él o de
+punteros derivados. Eso permite mantener valores en registros y vectorizar o reordenar operaciones.
+
+```c
+void copiar(size_t n,
+            uint8_t * restrict destino,
+            const uint8_t * restrict origen);
+```
+
+Si `destino` y `origen` se solapan y el código escribe y lee por ambos, se viola el contrato y el
+comportamiento es indefinido. Por eso `memcpy` declara punteros `restrict`, mientras que `memmove`
+acepta solapamiento y no puede hacer esa promesa. Es una herramienta de optimización y diseño de
+API; no una forma de corregir aliasing a fuerza de agregar una palabra.
+
+---
 
 ## `static`: los dos patrones que vas a escribir
 
@@ -34,7 +68,7 @@ void tarea_led(void) {
 
 Es la alternativa a una variable global: el dato vive todo el programa, pero **solo esta función puede
 tocarlo**. Se ve en detalle en
-[Superloop no bloqueante](./17-superloop-y-codigo-no-bloqueante.md).
+[Superloop no bloqueante](./arquitectura/17-superloop-y-codigo-no-bloqueante.md).
 
 **2. Todo lo que no es API pública.** Sobre una global o una función a nivel de archivo, `static` la
 hace invisible para el resto del programa:
@@ -82,6 +116,23 @@ expande, no queda ninguna copia; si no, queda una copia local e inofensiva por a
 los helpers de un header siempre se escriben `static inline`**, y por eso CMSIS lo hace en todo
 (`NVIC_EnableIRQ`, `__WFI`, etc.).
 
+> [!WARNING]
+> **Escribí `static inline`, no `inline` a secas.** Un `inline` sin `static` **no define la función**:
+> aporta una "definición en línea" que el compilador puede usar si le conviene, pero si decide *no*
+> expandirla (por ejemplo con `-O0`, que es como compilás en debug), la llamada queda buscando un
+> símbolo que nadie definió:
+>
+> ```console
+> $ gcc -O0 -std=c99 cuadrado.c -o cuadrado
+> /usr/bin/ld: undefined reference to `cuadrado'
+> collect2: error: ld returned 1 exit status
+> ```
+>
+> Es un error desconcertante porque **compila bien y falla recién al linkear**, y solo con ciertos
+> niveles de optimización. Con `static inline` el problema no existe. Las semánticas finas de
+> `inline`, `static inline` y `extern inline` explican por qué en los headers de firmware casi
+> siempre vas a ver la segunda.
+
 ### Efecto en tamaño vs velocidad, y LTO
 
 Inline es un **canje**: ganás velocidad (sacás el costo de la llamada) a cambio de **tamaño** (el
@@ -95,52 +146,113 @@ de funciones que están en **otro** `.c` (algo imposible en la compilación norm
 y eliminar código muerto entre módulos. En embebidos suele reducir el binario de forma notable; lo ves
 con el toolchain en la [unidad de herramientas](../../herramientas/04_toolchains/).
 
-## Bitfields contra máscaras: por qué CMSIS eligió máscaras
+## Ejemplo completo: interfaz de un módulo de sensor
 
-Los campos de bits ya los viste en
-[13 - Structs para hardware](./13-structs-para-hardware.md#estructuras-bit-field), con la advertencia
-de que **el orden de los bits no está garantizado por el estándar**. Esa sola razón ya alcanzaría para
-descartarlos en registros de hardware, pero hay una segunda que no se suele mencionar y que se ve
-mejor con el desensamblado al lado.
 
-Tomemos el registro de control del SysTick, y prendamos dos bits de las dos maneras:
 
 ```c
-void con_bitfield(void) { R->ENABLE = 1; R->CLKSOURCE = 1; }
-void con_mascara(void)  { *M |= (1u << 0) | (1u << 2); }
+// sensor.h
+#ifndef SENSOR_H
+#define SENSOR_H
+
+#include <stdint.h>
+
+void Sensor_Init(void);
+uint16_t Sensor_Read(void);
+float Sensor_GetTemperature(void);
+
+#endif
+
+// sensor.c
+#include "sensor.h"
+
+static uint16_t ultimo_valor = 0;  // variable privada
+
+void Sensor_Init(void) {
+    // Configurar ADC, pines, etc.
+}
+
+uint16_t Sensor_Read(void) {
+    // Leer valor del ADC
+    ultimo_valor = ADC_Read(0);
+    return ultimo_valor;
+}
+
+float Sensor_GetTemperature(void) {
+    // Convertir ADC a temperatura
+    return (float)ultimo_valor * 0.0625f;  // ejemplo
+}
+
+// main.c
+#include "sensor.h"
+#include <stdio.h>
+
+int main(void) {
+    Sensor_Init();
+
+    uint16_t raw = Sensor_Read();
+    float temp = Sensor_GetTemperature();
+
+    printf("Temperatura: %.2f°C\n", temp);
+
+    return 0;
+}
 ```
 
-Compilá con `-O2` y mirá lo que sale:
+---
 
-```asm
-con_bitfield:              con_mascara:
-    ldr  r3, [r3]              ldr  r3, [r2]
-    ldr  r2, [r3]      <-      orr  r3, r3, #5
-    orr  r2, r2, #1            str  r3, [r2]
-    str  r2, [r3]      <-
-    ldr  r2, [r3]      <-
-    orr  r2, r2, #4
-    str  r2, [r3]      <-
+## Atributos de función y extensiones del compilador
+
+Además de las palabras definidas por C, GCC permite agregar información sobre una función o un
+símbolo. Son extensiones del compilador: resultan útiles en firmware, pero hacen que el código dependa
+de esa familia de herramientas.
+
+### Atributos de función de GCC
+
+GCC permite "anotar" funciones con `__attribute__((...))` para darle información extra al compilador. Algunos muy usados en firmware:
+
+```c
+// Esta función nunca retorna (ej: un handler de error que reinicia el micro).
+// El compilador deja de avisar "control reaches end of non-void function"
+// y puede optimizar el código que viene después de la llamada.
+__attribute__((noreturn)) void panic(void);
+
+// No emitir warning si el parámetro/función no se usa (común en callbacks).
+void Timer_Callback(void *ctx __attribute__((unused)));
+
+// Handler de interrupción "naked": sin prólogo/epílogo automático.
+__attribute__((naked)) void HardFault_Handler(void);
+
+// Colocar la función/variable en una sección concreta del linker (ej: RAM).
+__attribute__((section(".fast_code"))) void rutina_critica(void);
+
+// Alinear, empaquetar, forzar que se mantenga aunque parezca no usada, etc.
+__attribute__((weak)) void Default_Handler(void);   // símbolo "débil", redefinible
 ```
 
-La versión con máscara hace **un** ciclo leer-modificar-escribir. La de bitfields hace **dos**, uno
-por campo, porque cada asignación es una sentencia independiente y el compilador no las puede fusionar.
+El `weak` es especialmente importante: los handlers de interrupción por defecto del LPC1769 se declaran `weak` para que vos puedas **redefinirlos** simplemente escribiendo una función con el mismo nombre, sin tocar el archivo de arranque. Lo vas a ver en el módulo de interrupciones y de build/linker.
 
-En una `struct` tuya en RAM eso sería solo un poco más lento. En un **registro de hardware** puede
-romperte el programa, y por dos motivos:
+### Tail-call (llamada de cola)
 
-- Si el registro tiene bits que se limpian al leerlos (como `U0LSR`, que viste en el
-  [capítulo 12](./12-volatile-y-tipos-para-hardware.md#const-volatile-registros-de-solo-lectura)),
-  leerlo dos veces en lugar de una **pierde información**.
-- Entre la primera escritura y la segunda hay una ventana en la que el registro quedó con un valor
-  intermedio que vos nunca quisiste. Si en el medio entra una interrupción, o si el periférico
-  reacciona al primer cambio, el resultado no es el que pediste.
+Si lo **último** que hace una función es llamar a otra y devolver su resultado (`return otra(x);`), el compilador puede reusar el marco de pila actual en vez de apilar uno nuevo: es la **optimización de llamada de cola**. Con `-O2`, GCC convierte una recursión "de cola" en un bucle, eliminando el riesgo de stack overflow. **Pero no te apoyes en esto** en firmware: no está garantizado por el estándar y depende del nivel de optimización. Si necesitás un bucle, escribí un bucle.
 
-> **Conclusión práctica:** los *bitfields* son cómodos y legibles para **tus propias** estructuras de
-> datos, donde el orden de los bits no le importa a nadie más que a vos. Para **registros de
-> hardware**, usá **máscaras** (`|=`, `&= ~`, `<<`): son portables, generan el acceso mínimo y te
-> dejan controlar exactamente cuántas escrituras ocurren. Por eso son las que usa CMSIS y las que
-> enseñamos en todo el curso. Conocé las dos, y sabé por qué elegís cada una.
+### `_Generic` (C11): "sobrecarga" según el tipo
+
+C no tiene sobrecarga de funciones como C++, pero desde C11 `_Generic` permite elegir una expresión según el **tipo** de un argumento, en tiempo de compilación. Se usa para construir macros con apariencia de función genérica:
+
+```c
+#define abs_val(x) _Generic((x),        \
+        int:    abs,                    \
+        long:   labs,                   \
+        float:  fabsf,                  \
+        double: fabs                    \
+    )(x)
+
+int    a = abs_val(-5);     // usa abs
+double b = abs_val(-5.0);   // usa fabs
+```
+
+Es una herramienta de bibliotecas, rara vez la vas a escribir vos, pero es útil reconocerla.
 
 ---
 
@@ -158,7 +270,7 @@ controlan cómo se generan. Los que más vas a ver en embebidos:
 // aligned: forzar alineación (ej. un buffer de DMA que debe arrancar en múltiplo de 4)
 static uint8_t buffer_dma[64] __attribute__((aligned(4)));
 
-// packed: sin padding (struct que mapea un protocolo o un registro exacto; ver cap. 13)
+// packed: sin padding (struct que mapea un protocolo o registro exacto; ver C12)
 typedef struct __attribute__((packed)) { uint8_t cmd; uint32_t val; } trama_t;
 
 // section: ubicar el símbolo en una sección concreta del linker (ej. la tabla de vectores)
@@ -177,7 +289,7 @@ real, el tuyo "gana". `aligned` y `packed` son los que más vas a tocar en datos
 
 ### Barreras de memoria: `__DMB()` / `__DSB()` y la barrera del compilador
 
-Como vimos en el cap. 12, `volatile` **no** es una barrera de memoria. Hay dos tipos de barrera:
+Como vimos en C11, `volatile` **no** es una barrera de memoria. Hay dos tipos de barrera:
 
 - **Barrera del compilador**: impide que el compilador *reordene* instrucciones a través de ella.
   En GCC: `__asm volatile ("" ::: "memory");`. No genera ninguna instrucción.
@@ -230,7 +342,6 @@ un sistema con SMP, acordate de esto.
 | `static` (global/función) | todo lo que no está en el `.h` debería serlo: privado y más optimizable |
 | `static inline` | helpers chicos rápidos y legibles en headers (como CMSIS), sin choque de símbolos |
 | `inline` a secas en un header | **evitalo**: si el compilador no lo expande, el linker se queja de doble definición |
-| bitfields | structs propias legibles; para registros, máscaras (orden de bits + doble RMW) |
 | `-flto` | dejar que el compilador haga inline y borre código muerto **entre** archivos |
 | `__attribute__`, `__DMB`/`__DSB`, asm (curiosos) | control fino de memoria y código; startup, DMA, lazos calientes |
 
@@ -240,7 +351,7 @@ un sistema con SMP, acordate de esto.
 
 **Normativas y de referencia**
 
-- [ISO/IEC 9899 (borrador público de C17, N2176)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2176.pdf). El estándar. Cláusulas relevantes para este capítulo: 6.7.4 (especificadores de función, o sea las reglas de `inline` y por qué en un header hace falta `static`), 6.2.2 (enlace interno y externo), 6.7.2.1 ¶11 (campos de bits).
+- [ISO/IEC 9899 (borrador público de C17, N2176)](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2176.pdf). El estándar. Cláusulas relevantes para este capítulo: 6.7.4 (especificadores de función, o sea las reglas de `inline` y por qué en un header hace falta `static`), 6.2.2 (enlace interno y externo) y 6.7.3 (`const`).
 - [cppreference: inline](https://en.cppreference.com/w/c/language/inline). La explicación más clara del modelo de `inline` en C, que no es el de C++.
 
 **GCC y el toolchain**
@@ -257,5 +368,5 @@ un sistema con SMP, acordate de esto.
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [13 - Structs para hardware](./13-structs-para-hardware.md) ·
-**Siguiente:** [15 - Punto fijo vs punto flotante](./15-punto-fijo-vs-flotante.md)
+**Anterior:** [C12 - Layout, alineación, uniones y bitfields](./12-layout-alineacion-unions-y-bitfields.md) ·
+**Siguiente:** [C14 - Punto fijo y punto flotante](./14-punto-fijo-vs-flotante.md)

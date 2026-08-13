@@ -22,6 +22,9 @@ herramientas, cuando algo no anda.
 4. [04 - La consola por el cable del debugger (RTT)](./04-consola-por-el-debugger-rtt.md)
    Una consola en RAM leída mediante la sonda: configuración, costos medidos, convivencia con GDB y
    criterios para elegirla frente a la UART.
+5. [05 - Redirigir `printf` a la UART](./05-redirigir-printf-a-uart.md)
+   *Retargeting* de newlib (`_write`, `_sbrk`), costos de Flash/RAM/tiempo, buffering y comparación
+   con DMA, RTT y semihosting. Requiere haber trabajado antes el módulo 09 de UART.
 
 ---
 
@@ -48,7 +51,9 @@ microcontrolador.
 Del curso: [módulo 3](../../curso/03_clock_y_power/) (PCONP y PCLKSEL),
 [4](../../curso/04_pinsel/) (PINSEL), [7](../../curso/07_interrupciones/) (interrupciones),
 [9](../../curso/09_uart/) (UART) y
-[0 cap. 12](../../curso/00_lenguaje_c/12-volatile-y-tipos-para-hardware.md) (`volatile`).
+[C11](../../curso/00_lenguaje_c/11-c-para-hardware.md) (`volatile`). Para la práctica 05 también
+se apoya en [UART](../../curso/09_uart/) y en
+[linker/startup](../05_del_codigo_al_binario/02-linker-y-startup.md).
 
 De esta unidad: [02 - Protocolos y debug en el chip](../02_protocolos_y_debug_en_el_chip/)
 para saber qué está pasando por debajo, y

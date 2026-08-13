@@ -6,8 +6,8 @@ bloquea. Pero apenas el comportamiento tiene **etapas** que se suceden según el
 y `if` anidados se vuelve un nido imposible de seguir.
 
 La herramienta correcta es la **máquina de estados finitos** (FSM, *finite state machine*). Y en C se
-escribe con dos cosas que ya tenés: un [`enum`](./05-estructuras-y-enums.md#enumeraciones-enum) y un
-[`switch`](./04-control-de-flujo.md#2-estructura-switch).
+escribe con dos cosas que ya tenés: un [`enum`](../06-estructuras-y-enums.md#enumeraciones-enum) y un
+[`switch`](../03-control-de-flujo.md#2-estructura-switch).
 
 ---
 
@@ -87,7 +87,7 @@ Fijate las propiedades buenas:
 ### El `default` que te salva, y el warning que te lo tapa
 
 Ese `switch` está incompleto a propósito: le falta el `default`. Y acá hay una sutileza que ya
-apareció en el [capítulo 04](./04-control-de-flujo.md#2-estructura-switch) y que en una FSM es
+apareció en [C3](../03-control-de-flujo.md#2-estructura-switch) y que en una FSM es
 crítica.
 
 Querés **las dos** cosas a la vez:
@@ -205,7 +205,7 @@ puede olvidar nunca (era el error clásico de la versión a mano), y si mañana 
 las transiciones para depurar, lo hacés en **una** línea dentro de `ir_a()`.
 
 > Todas esas funciones son `static`: son internas de este `.c` y no parte de ninguna API. Es la regla
-> del [capítulo 14](./14-static-const-inline-y-bitfields.md#static-los-dos-patrones-que-vas-a-escribir).
+> de [C13](../13-static-const-inline-e-interfaces.md#static-los-dos-patrones-que-vas-a-escribir).
 
 ---
 
@@ -228,7 +228,7 @@ una salida Moore es más fácil de razonar y de probar.
 ## FSM dirigida por tabla
 
 Cuando la máquina crece, el `switch` gigante empieza a molestar. Con **punteros a función**
-([capítulo 09](./09-punteros-avanzado.md#punteros-a-función-y-callbacks)) podés poner cada estado en
+([C9](../09-punteros-avanzado.md#punteros-a-función-y-callbacks)) podés poner cada estado en
 su propia función y guardar la máquina en una tabla:
 
 ```c
@@ -252,7 +252,7 @@ void tarea_maquina(void) {
 Ese `N_ESTADOS` al final del `enum` es un truco que vale oro: como los valores arrancan en 0 y
 avanzan de a uno, la última constante **es** la cantidad de estados, y se actualiza sola cuando
 agregás uno. El arreglo es `static const`, así que la tabla se va a Flash y no gasta RAM
-([capítulo 01](./01-declaraciones-y-tipos.md#2-especificador-de-almacenamiento)).
+([C1](../01-declaraciones-y-tipos.md#2-especificador-de-almacenamiento)).
 
 | Preferí el `switch` | Preferí la tabla |
 |---|---|
@@ -264,7 +264,7 @@ agregás uno. El arreglo es `static const`, así que la tabla se va a Flash y no
 > olvidás de agregar su función, el arreglo queda con un `NULL` (los inicializadores faltantes se
 > ponen en cero) y la máquina no hace nada. Por eso el `!= NULL` del ejemplo no es opcional, y por eso
 > conviene un `_Static_assert(sizeof maquina / sizeof maquina[0] == N_ESTADOS, "falta un estado");`
-> ([capítulo 07](./07-preprocesador.md)).
+> ([C7](../07-preprocesador.md)).
 
 ---
 
@@ -320,7 +320,7 @@ Con una FSM:
 1. Modelá el semáforo de arriba **con botón de peatón**: un estado extra que adelanta el rojo.
    Dibujalo primero.
 2. Una FSM de **antirrebote** de botón (estados: SUELTO, REBOTE, APRETADO) con tiempo. Compará el
-   resultado con lo que hace el [módulo 5](../05_gpio/03-debounce-y-filtrado-de-entradas.md).
+   resultado con lo que hace el [módulo 5](../../05_gpio/03-debounce-y-filtrado-de-entradas.md).
 3. Una FSM que parsee comandos por UART: ESPERANDO_INICIO, LEYENDO_COMANDO, LEYENDO_DATOS,
    VERIFICANDO_CRC. ¿Qué pasa si el mensaje se corta a la mitad? Agregale un estado de timeout.
 4. Tomá cualquiera de las tres y escribila en las **dos** formas (`switch` y tabla). Compará el
@@ -353,15 +353,15 @@ Con una FSM:
 
 **Del curso**
 
-- [04 - Control de flujo](./04-control-de-flujo.md#2-estructura-switch): el `switch`, el
+- [C3 - Control de flujo](../03-control-de-flujo.md#2-estructura-switch): el `switch`, el
   *fall-through* y la pelea entre `default` y `-Wswitch`.
-- [05 - Estructuras y enumeraciones](./05-estructuras-y-enums.md#uso-en-sistemas-embebidos): el `enum`
+- [C6 - Estructuras y enumeraciones](../06-estructuras-y-enums.md#uso-en-sistemas-embebidos): el `enum`
   de estados y por qué es mejor que tres `#define`.
-- [09 - Punteros a función](./09-punteros-avanzado.md#máquina-de-estados-dirigida-por-tabla): la
+- [C9 - Punteros a función](../09-punteros-avanzado.md#máquina-de-estados-dirigida-por-tabla): la
   versión con tabla, desde el lado de los punteros.
 
 ---
 
-**Módulo:** [Lenguaje C](./README.md) ·
+**Trayecto:** [Arquitectura de firmware](./README.md) ·
 **Anterior:** [17 - El superloop y el código no bloqueante](./17-superloop-y-codigo-no-bloqueante.md) ·
 **Siguiente:** [19 - Cuando el superloop no alcanza: intro a RTOS](./19-intro-a-rtos.md)

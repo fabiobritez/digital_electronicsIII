@@ -1,30 +1,13 @@
-# Structs para hardware: punteros, padding, bitfields y uniones
+# Layout para hardware: alineación, padding, aliasing, uniones y bitfields
 
-Segunda mitad del capítulo de tipos compuestos. En
-[05 - Estructuras y enumeraciones](./05-estructuras-y-enums.md) viste cómo declarar un `struct` y
-acceder a sus campos con `.`, y en [09](./09-punteros-avanzado.md#punteros-y-estructuras) cómo llegar
-a ellos por puntero con `->`. Acá vemos todo lo que necesita saber **dónde está cada byte**: cuánto
-ocupa de verdad una estructura en memoria, cómo se fuerza un layout exacto y cómo se usa todo eso
-para mapear los registros del LPC1769.
+Cuando declaramos una `struct` es fácil imaginar que sus campos quedan guardados uno junto al otro,
+exactamente en el orden en que los escribimos. No siempre es así. El compilador puede dejar bytes
+libres entre ellos para que el procesador acceda a la memoria de manera eficiente.
 
-Es el capítulo que convierte a `struct` de "una comodidad para agrupar datos" en **la herramienta
-principal para hablarle al hardware**.
-
----
-
-## Lo que este capítulo da por sabido
-
-Los punteros a estructura y el operador flecha `->` ya están en
-[09 - Punteros avanzados](./09-punteros-avanzado.md#acceso-a-miembros-de-estructura-con-punteros).
-El recordatorio de una línea, porque de acá en adelante se usa en cada ejemplo:
-
-```c
-Punto *ptr = &p1;
-ptr->y = 30;      // equivale a (*ptr).y = 30
-```
-
-Con eso alcanza. Lo que sigue es lo que todavía no viste: cuánto ocupa de verdad una estructura en
-memoria y cómo se fuerza su layout.
+En una estructura de uso interno ese detalle suele pasar inadvertido. En cambio, si la estructura
+representa una trama, datos guardados en memoria o los registros de un periférico, necesitamos saber
+cuánto ocupa y en qué posición cae cada campo. Ahí entran la alineación, el *padding*, `offsetof`,
+las uniones y los campos de bits.
 
 ---
 
@@ -116,6 +99,31 @@ struct __attribute__((packed)) Trama {
 
 ---
 
+## Estructuras con payload variable: *flexible array members*
+
+Este patrón se estudia recién acá porque combina arreglos, estructuras, `sizeof`, punteros y layout.
+Desde C99, el **último** miembro de una estructura puede ser un arreglo **sin tamaño**. Sirve para
+representar una cabecera seguida de un payload de longitud variable, algo frecuente en tramas de
+comunicación:
+
+```c
+typedef struct {
+    uint8_t id;
+    uint8_t len;
+    uint8_t datos[];   // flexible array member: ocupa 0 bytes en sizeof
+} Mensaje;
+
+// sizeof(Mensaje) == 2 (no cuenta datos)
+```
+
+El miembro `datos` no reserva espacio propio dentro de `Mensaje`: representa los bytes ubicados
+**inmediatamente después** de la cabecera. En embebido se usa para interpretar un buffer recibido
+como una cabecera seguida por su carga útil, sin copiar. Eso exige validar antes que el buffer tenga,
+como mínimo, `sizeof(Mensaje) + mensaje->len` bytes; el tipo por sí solo no conoce ni comprueba la
+longitud disponible.
+
+---
+
 ## Estructuras bit-field
 
 Permiten especificar el ancho en bits de cada campo. Útil para registros de hardware:
@@ -138,7 +146,61 @@ ctrl.speed = 5;    // valores 0-7
 
 > **PRECAUCIÓN: el orden de los bits no está garantizado**
 >
-> El estándar C **no** define si el primer campo del bit-field cae en el bit menos significativo o en el más significativo: depende del compilador y de la arquitectura. La mayoría de los compiladores en ARM ubican el primer campo en los bits bajos (como esperás), pero el estándar no obliga. Por eso, para **registros reales de hardware** muchos prefieren máscaras y desplazamientos (`reg |= (1 << 3)`) antes que bit-fields, que son portables a cualquier compilador. Tratamos esta disyuntiva en detalle en el módulo [14 - `static`, `inline` y campos de bits](./14-static-const-inline-y-bitfields.md).
+> El estándar C **no** define si el primer campo del bit-field cae en el bit menos significativo o en el más significativo: depende del compilador y de la arquitectura. La mayoría de los compiladores en ARM ubican el primer campo en los bits bajos (como esperás), pero el estándar no obliga. Por eso, para **registros reales de hardware** muchos prefieren máscaras y desplazamientos (`reg |= (1 << 3)`) antes que bit-fields, que son portables a cualquier compilador. El análisis con código generado y operaciones read-modify-write aparece en la sección siguiente.
+
+---
+
+## De los bitfields al acceso verificable
+
+C12 presenta el layout y la portabilidad de los campos de bits. Esta comparación completa la
+decisión práctica entre representar un campo con la sintaxis del lenguaje o con máscaras explícitas.
+
+## Bitfields contra máscaras: por qué CMSIS eligió máscaras
+
+Los campos de bits se presentaron en la
+[sección anterior](#estructuras-bit-field), con la advertencia
+de que **el orden de los bits no está garantizado por el estándar**. Esa sola razón ya alcanzaría para
+descartarlos en registros de hardware, pero hay una segunda que no se suele mencionar y que se ve
+mejor con el desensamblado al lado.
+
+Tomemos el registro de control del SysTick, y prendamos dos bits de las dos maneras:
+
+```c
+void con_bitfield(void) { R->ENABLE = 1; R->CLKSOURCE = 1; }
+void con_mascara(void)  { *M |= (1u << 0) | (1u << 2); }
+```
+
+Compilá con `-O2` y mirá lo que sale:
+
+```asm
+con_bitfield:              con_mascara:
+    ldr  r3, [r3]              ldr  r3, [r2]
+    ldr  r2, [r3]      <-      orr  r3, r3, #5
+    orr  r2, r2, #1            str  r3, [r2]
+    str  r2, [r3]      <-
+    ldr  r2, [r3]      <-
+    orr  r2, r2, #4
+    str  r2, [r3]      <-
+```
+
+La versión con máscara hace **un** ciclo leer-modificar-escribir. La de bitfields hace **dos**, uno
+por campo, porque cada asignación es una sentencia independiente y el compilador no las puede fusionar.
+
+En una `struct` tuya en RAM eso sería solo un poco más lento. En un **registro de hardware** puede
+romperte el programa, y por dos motivos:
+
+- Si el registro tiene bits que se limpian al leerlos (como `U0LSR`, que viste en el
+  [C11](./11-c-para-hardware.md#const-volatile-registros-de-solo-lectura)),
+  leerlo dos veces en lugar de una **pierde información**.
+- Entre la primera escritura y la segunda hay una ventana en la que el registro quedó con un valor
+  intermedio que vos nunca quisiste. Si en el medio entra una interrupción, o si el periférico
+  reacciona al primer cambio, el resultado no es el que pediste.
+
+> **Conclusión práctica:** los *bitfields* son cómodos y legibles para **tus propias** estructuras de
+> datos, donde el orden de los bits no le importa a nadie más que a vos. Para **registros de
+> hardware**, usá **máscaras** (`|=`, `&= ~`, `<<`): son portables, generan el acceso mínimo y te
+> dejan controlar exactamente cuántas escrituras ocurren. Por eso son las que usa CMSIS y las que
+> enseñamos en todo el curso. Conocé las dos, y sabé por qué elegís cada una.
 
 ---
 
@@ -429,5 +491,5 @@ void procesar_lectura(SensorReading *reading) {
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [12 - `volatile`, `const` y tipos propios](./12-volatile-y-tipos-para-hardware.md) ·
-**Siguiente:** [14 - `static`, `inline` y campos de bits](./14-static-const-inline-y-bitfields.md)
+**Anterior:** [C11 - C para hardware](./11-c-para-hardware.md) ·
+**Siguiente:** [C13 - `static`, `const`, `inline` e interfaces](./13-static-const-inline-e-interfaces.md)

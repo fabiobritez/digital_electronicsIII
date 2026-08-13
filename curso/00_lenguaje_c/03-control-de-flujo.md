@@ -1,4 +1,4 @@
-# Control de Flujo en C
+# Control de flujo en C
 
 El control de flujo permite que un programa tome decisiones y repita tareas. En C tenemos:
 
@@ -130,7 +130,7 @@ línea. Es la recomendación de [la sección 8](#usar-llaves--siempre) y esta es
 ### Operador ternario (`? :`): cuándo usarlo en lugar de `if-else`
 
 La sintaxis y la precedencia del ternario ya las vimos en
-[03 - Operadores](./03-operadores.md#operador-ternario-condicional). Acá interesa la pregunta de
+[C2 - Operadores](./02-expresiones-operadores-conversiones.md#operador-ternario-condicional). Acá interesa la pregunta de
 control de flujo: **cuándo conviene y cuándo no.**
 
 La diferencia de fondo es que `if-else` es una **sentencia** y `? :` es una **expresión**: produce un
@@ -143,14 +143,9 @@ const uint32_t divisor = usar_alta_velocidad ? DIV_RAPIDO : DIV_LENTO;
 // 2) Dentro de una llamada, sin variable temporal
 UART_Enviar(exito ? "OK\r\n" : "ERROR\r\n");
 
-// 3) En un inicializador de arreglo o struct, donde no podés poner un if
-uint8_t config[2] = { modo_pwm ? 0x0F : 0x00, 0x20 };
 ```
 
-> Ojo con el caso 3: eso vale porque `config` es una variable **local**. Si le agregaras `static` (o
-> fuera global), el inicializador tendría que ser una **expresión constante**.
-
-En el caso 1, con `if-else` tendrías que sacarle el `const` a la variable para poder asignarla
+En el primer caso, con `if-else` tendrías que sacarle el `const` a la variable para poder asignarla
 después, y perdés la garantía. Ese es el argumento fuerte a favor del ternario.
 
 **Cuándo NO usarlo:** si las dos ramas son *acciones* en vez de *valores*, usá `if-else`. Esto es
@@ -167,7 +162,7 @@ Y no lo anides: `a ? b : c ? d : e` es legal (el `? :` asocia de derecha a izqui
 > [!IMPORTANT]
 > **Las dos ramas tienen que dar tipos compatibles, y el tipo del resultado sale de las dos.** Igual
 > que en cualquier operación, se aplican las conversiones aritméticas usuales de
-> [02 - Conversiones](./02-arreglos-conversiones-y-promociones.md#conversión-de-tipos). Esto sorprende:
+> [C2 - Conversiones](./02-expresiones-operadores-conversiones.md#conversión-de-tipos). Esto sorprende:
 >
 > ```c
 > uint8_t a = 1;
@@ -224,7 +219,7 @@ switch (expresión) {
 > ```
 >
 > Para etiquetas de `case` usá `#define` o, mejor, `enum`. El tema completo está en
-> [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#3-calificador-de-tipo).
+> [C1 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#3-calificador-de-tipo).
 
 ---
 
@@ -322,84 +317,10 @@ switch (estado) {
 
 ---
 
-### Uso en sistemas embebidos: máquina de estados
+### Aplicación posterior: estados
 
-```c
-enum State { IDLE, RUNNING, PAUSED, ERROR };
-enum State estado = IDLE;
-
-switch (estado) {
-    case IDLE:
-        // inicializar sistema
-        if (start_button_pressed()) {
-            estado = RUNNING;
-        }
-        break;
-
-    case RUNNING:
-        // ejecutar tarea principal
-        if (pause_button_pressed()) {
-            estado = PAUSED;
-        } else if (error_detected()) {
-            estado = ERROR;
-        }
-        break;
-
-    case PAUSED:
-        // esperar
-        if (resume_button_pressed()) {
-            estado = RUNNING;
-        }
-        break;
-
-    case ERROR:
-        // manejar error
-        LED_Error();
-        estado = IDLE;
-        break;
-
-    default:
-        // estado no reconocido → reiniciar
-        estado = IDLE;
-        break;
-}
-```
-
-> `switch` es ideal para **máquinas de estados**, muy comunes en firmware embebido.
-
-El patrón es siempre el mismo: un `enum` con los estados posibles, una variable que guarda el estado actual, y un `switch` que en cada vuelta del bucle principal decide qué hacer y a qué estado pasar. Las ventajas de usar un `enum` (en vez de números mágicos `0`, `1`, `2`) son que el código se lee solo y que el compilador puede avisarte si te olvidás de manejar algún estado. Este patrón se profundiza en [Máquinas de estado](./18-maquinas-de-estado.md), donde vas a ver cómo estructurar firmware entero alrededor de esta idea.
-
-> [!WARNING]
-> **Ojo: `default` y `-Wswitch` se pelean, y nadie te lo dice.**
->
-> `-Wswitch` (incluido en `-Wall`) avisa cuando a un `switch` sobre un `enum` le falta manejar algún
-> valor. Es la red de seguridad que hace que agregar un estado nuevo al `enum` no pase inadvertido.
-> El problema es que **agregar un `default` la desactiva por completo**: para GCC, un `default` ya
-> cubre "todo lo demás", así que deja de contar los casos que faltan.
->
-> ```c
-> enum State { IDLE, RUNNING, PAUSED, ERR };
->
-> void a(enum State s) { switch (s) { case IDLE: break; case RUNNING: break; } }
-> void b(enum State s) { switch (s) { case IDLE: break; case RUNNING: break;
->                                     default: break; } }
-> ```
-> ```console
-> $ arm-none-eabi-gcc -mcpu=cortex-m3 -Wall -c estados.c
-> warning: enumeration value 'PAUSED' not handled in switch [-Wswitch]
-> warning: enumeration value 'ERR' not handled in switch [-Wswitch]
-> ```
->
-> Los dos warnings son de `a()`. Sobre `b()`, que tiene el mismo agujero, **GCC no dice nada**.
->
-> Y las dos cosas las querés: el `default` para sobrevivir a un valor corrupto en ejecución, y el
-> aviso para no olvidarte de un estado al compilar. La forma de tener las dos es pedir
-> **`-Wswitch-enum`**, que cuenta los valores faltantes *aunque haya `default`*. Con esa flag el
-> ejemplo de arriba tira los cuatro warnings, dos por cada función.
->
-> ```make
-> CFLAGS += -Wall -Wextra -Wswitch-enum
-> ```
+En C3 alcanza con dominar la mecánica de `switch` sobre valores enteros. C6 introduce `enum` y
+retoma este patrón con estados nombrados, `-Wswitch-enum` y transición a una máquina de estados.
 
 ---
 
@@ -462,7 +383,7 @@ char dato = UART_Read();
 > Sin `volatile`, el compilador ve que nadie modifica `dato_listo` dentro del bucle, lee la variable
 > una sola vez, la deja en un registro y arma un bucle infinito. Lo peor: con `-O0` funciona igual, y
 > se rompe recién cuando compilás la versión final con `-O2`. El detalle completo está en
-> [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#3-calificador-de-tipo).
+> [C1 - Declaraciones y tipos](./01-declaraciones-y-tipos.md#3-calificador-de-tipo).
 
 **Toda espera activa necesita un timeout.** Un `while` que espera a un periférico que no responde
 cuelga el micro para siempre, y sin sistema operativo no hay nadie que lo rescate. En firmware de
@@ -480,12 +401,12 @@ while (!UART_DataReady()) {
 
 > La resta `millis() - inicio` funciona incluso cuando el contador da la vuelta, porque el
 > desbordamiento de un `unsigned` está definido. El porqué está en
-> [02 - Overflow](./02-arreglos-conversiones-y-promociones.md#overflow-unsigned-da-la-vuelta-signed-es-comportamiento-indefinido).
+> [C2 - Overflow](./02-expresiones-operadores-conversiones.md#overflow-unsigned-da-la-vuelta-signed-es-comportamiento-indefinido).
 
 > Mejor todavía que esperar con timeout es **no esperar**: dejar que una interrupción avise cuando el
 > dato llegó y usar el tiempo de CPU en otra cosa. Eso se ve en
 > [07 - Interrupciones](../07_interrupciones/) y en
-> [Superloop no bloqueante](./17-superloop-y-codigo-no-bloqueante.md).
+> [Superloop no bloqueante](./arquitectura/17-superloop-y-codigo-no-bloqueante.md).
 
 ---
 
@@ -563,7 +484,7 @@ Esto asegura pedir entrada al menos una vez.
 
 ### El idioma `do { ... } while(0)` (anticipo de macros)
 
-Hay un uso muy particular de `do-while` que **no es un bucle**: corre exactamente una vez. Parece inútil, pero es la forma estándar de escribir **macros de varias sentencias** que se comporten como una sola instrucción. Lo vas a ver mucho en headers de firmware. Esto se desarrolla en [07 - El preprocesador](./07-preprocesador.md); acá te dejo la intuición.
+Hay un uso muy particular de `do-while` que **no es un bucle**: corre exactamente una vez. Parece inútil, pero es la forma estándar de escribir **macros de varias sentencias** que se comporten como una sola instrucción. Lo vas a ver mucho en headers de firmware. Esto se desarrolla en [C7 - El preprocesador](./07-preprocesador.md); acá te dejo la intuición.
 
 Si definís una macro con varias líneas así:
 
@@ -633,18 +554,6 @@ while (i < 10) {
 
 ---
 
-### Recorrer un arreglo
-
-```c
-int numeros[5] = {10, 20, 30, 40, 50};
-
-for (int i = 0; i < 5; i++) {
-    printf("numeros[%d] = %d\n", i, numeros[i]);
-}
-```
-
----
-
 ### Variantes del `for`
 
 Podés omitir cualquier parte (pero los `;` deben estar):
@@ -667,43 +576,6 @@ for (;;) {
 
 ---
 
-### Ejemplo embebido: inicializar buffer
-
-```c
-uint8_t buffer[256];
-for (size_t i = 0; i < sizeof buffer; i++) {
-    buffer[i] = 0;
-}
-```
-
-La misma idea con aritmética de punteros, que vas a ver escrita así en mucho código:
-
-```c
-uint8_t *ptr = buffer;
-for (size_t i = 0; i < sizeof buffer; i++) {
-    *ptr++ = 0;
-}
-```
-
-> **Las dos versiones no se diferencian en velocidad.** Es común leer que la de punteros "es más
-> eficiente"; era cierto con los compiladores de los años 80. Hoy GCC con `-O2` genera para las dos
-> un lazo con una sola instrucción de escritura:
->
-> ```console
-> $ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -O2 -S limpiar.c -o -
-> con índice:   strb  r1, [r3, #1]!
-> con puntero:  strb  r2, [r0], #1
-> ```
->
-> Elegí la que se lea mejor, que casi siempre es la del índice. Y para el caso puntual de llenar un
-> buffer, lo más claro y lo más rápido es no escribir el bucle: `memset(buffer, 0, sizeof buffer);`
-> de `<string.h>`, que el compilador reemplaza por una rutina optimizada.
-
-> Fijate el `sizeof buffer` en vez del `256` repetido: si mañana cambiás el tamaño del arreglo, el
-> bucle se ajusta solo. Un `256` escrito a mano en dos lugares es un desbordamiento esperando a pasar.
-
----
-
 ## 6. Instrucciones de salto
 
 ### `break`
@@ -720,27 +592,6 @@ for (int i = 0; i < 10; i++) {
 // imprime 0, 1, 2, 3, 4
 ```
 
-Uso en embebidos:
-
-```c
-char buffer[64];
-size_t index = 0;
-
-while (1) {
-    if (UART_DataReady()) {
-        char c = UART_Read();
-        if (c == '\n' || index == sizeof buffer - 1) {
-            break;  // termina al recibir nueva línea, o si se llenó el buffer
-        }
-        buffer[index++] = c;
-    }
-}
-buffer[index] = '\0';
-```
-
-> Fijate la segunda condición del `break`: sin ella, una línea más larga que el buffer lo desborda y
-> te pisa memoria vecina. En firmware, **todo bucle que escribe en un arreglo tiene que tener un
-> límite además de su condición "natural"**.
 
 ---
 
@@ -835,26 +686,8 @@ colgado. En un `for` no pasa, porque la actualización va en el encabezado y `co
 
 ### `return`
 
-Sale de la función actual y opcionalmente devuelve un valor.
-
-```c
-#include <stddef.h>
-
-// devuelve el índice, o -1 si no está
-int encontrar(const int arr[], size_t cantidad, int valor) {
-    for (size_t i = 0; i < cantidad; i++) {
-        if (arr[i] == valor) {
-            return (int) i;  // devuelve el índice y sale
-        }
-    }
-    return -1;  // no encontrado
-}
-```
-
-> El arreglo va `const` porque la función no lo modifica, y la cantidad va en `size_t`, que es el
-> tipo para tamaños: las dos convenciones vienen de
-> [02 - Arreglos](./02-arreglos-conversiones-y-promociones.md#pasar-arreglos-a-funciones). El cast en
-> el `return` es porque la función devuelve `int` para poder usar el -1 como "no encontrado".
+`return` termina la función actual y, si su tipo no es `void`, entrega un valor. C4 desarrolla
+sus contratos, tipos de retorno, caminos de error y ejemplos completos.
 
 ---
 
@@ -878,90 +711,10 @@ inicio:
 > Este ejemplo es solo para mostrar la mecánica: un `while` hace lo mismo y se lee mejor. El `goto`
 > se justifica en los dos casos de abajo, no acá.
 
----
-
-### ¿Cuándo usar `goto`?
-
-**Casi nunca**. Hace el código difícil de seguir ("código espagueti").
-
-**Casos legítimos**:
-
-1. **Limpieza de recursos en funciones con múltiples puntos de salida**
-
-La idea es tener **un solo camino de salida** que deshaga lo que se hizo, en orden inverso, sin repetir
-la limpieza en cada `return`. Fijate que cada etiqueta libera solo lo que ya se había conseguido:
-
-```c
-int procesar_archivo(const char *path) {
-    int resultado = -1;                 // pesimista: solo pasa a 0 si todo salió bien
-
-    FILE *f = fopen(path, "r");
-    if (!f) {
-        return resultado;               // nada que limpiar todavía
-    }
-
-    char *buffer = malloc(1024);
-    if (!buffer) {
-        goto cerrar_archivo;
-    }
-
-    int *data = malloc(sizeof(int) * 100);
-    if (!data) {
-        goto liberar_buffer;
-    }
-
-    // procesar...
-    resultado = 0;                      // éxito
-
-    free(data);
-liberar_buffer:
-    free(buffer);
-cerrar_archivo:
-    fclose(f);
-    return resultado;
-}
-```
-
-> **La clave está en la variable `resultado`.** Arranca en error y solo se pone en 0 cuando todo
-> funcionó. Si en cambio hacés que la función termine con `return 0;` fijo, los caminos de error
-> devuelven "éxito" y el llamador nunca se entera del problema: es el bug más común al copiar este
-> patrón.
->
-> En firmware sin sistema operativo casi no vas a usar `malloc` (ver
-> [11 - Asignación dinámica](./11-asignacion-dinamica.md)), pero el patrón es idéntico cuando lo que
-> hay que deshacer es apagar un periférico, liberar un pin o volver a habilitar interrupciones.
-
-2. **Salir de bucles anidados**
-
-`break` sale de **un solo** nivel, así que para cortar dos `for` de una vez hace falta una bandera y
-dos `break`, o un `goto`:
-
-```c
-int encontrado = 0;
-
-for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 10; j++) {
-        if (matriz[i][j] == buscado) {
-            encontrado = 1;
-            goto salir;      // sale de los DOS bucles de una
-        }
-    }
-}
-salir:
-    if (!encontrado) {
-        manejar_no_encontrado();
-    }
-```
-
-> [!WARNING]
-> **Una etiqueta no detiene la ejecución.** Si los bucles terminan sin saltar, el programa **sigue
-> igual** hacia la etiqueta y ejecuta lo que haya debajo. Una etiqueta llamada `error:` con el manejo
-> de error abajo y nada que la saltee corre también en el camino feliz, que es exactamente el bug que
-> se quería evitar. Por eso el ejemplo de arriba usa una bandera que distingue los dos casos; la
-> alternativa es poner un `return` o un `goto fin` justo antes de la etiqueta.
-
-> En la mayoría de casos, `break`, `continue` o reestructurar el código (por ejemplo, sacando los
-> bucles anidados a una función aparte y usando `return`) es mejor que `goto`.
+El uso más defendible de `goto` aparece cuando una función adquiere varios recursos y debe liberarlos
+en orden inverso si algo falla. Ese patrón se muestra junto con la
+[asignación dinámica](./10b-asignacion-dinamica.md); para los bucles normales, `while`, `for` y
+`break` se leen mejor.
 
 ---
 
@@ -1113,7 +866,7 @@ if (fabsf(suma - 1.0f) < EPSILON) { ... }
 > Fijate el sufijo `f` en todas las constantes y `fabsf()` en lugar de `fabs()`. Sin eso, cada
 > constante es un `double` y arrastra la cuenta entera a 64 bits: en el Cortex-M3, que **no tiene
 > FPU**, eso significa llamar a rutinas de punto flotante por software y pagar una barbaridad de
-> ciclos. Es el tema de [15 - Punto fijo vs punto flotante](./15-punto-fijo-vs-flotante.md), y el
+> ciclos. Es el tema de [C14 - Punto fijo vs punto flotante](./14-punto-fijo-vs-flotante.md), y el
 > motivo por el que en firmware conviene directamente **evitar los flotantes**: si podés, trabajá con
 > enteros o punto fijo y el problema no existe.
 
@@ -1180,11 +933,11 @@ switch (estado) {
 
 **Sobre los temas puntuales**
 
-- [Máquinas de estado](./18-maquinas-de-estado.md). El patrón `enum` + `switch` de este capítulo, llevado a la arquitectura de un firmware completo.
-- [Superloop no bloqueante](./17-superloop-y-codigo-no-bloqueante.md). Cómo reemplazar las esperas activas de este capítulo por un bucle principal que no bloquea.
+- [Máquinas de estado](./arquitectura/18-maquinas-de-estado.md). El patrón `enum` + `switch` de este capítulo, llevado a la arquitectura de un firmware completo.
+- [Superloop no bloqueante](./arquitectura/17-superloop-y-codigo-no-bloqueante.md). Cómo reemplazar las esperas activas de este capítulo por un bucle principal que no bloquea.
 
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [03 - Operadores](./03-operadores.md) ·
-**Siguiente:** [05 - Estructuras y enumeraciones](./05-estructuras-y-enums.md)
+**Anterior:** [C2 - Expresiones, operadores y conversiones](./02-expresiones-operadores-conversiones.md) ·
+**Siguiente:** [C4 - Funciones](./04-funciones.md)

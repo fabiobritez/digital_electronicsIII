@@ -403,4 +403,4 @@ del curso, RTT permite reutilizar el acceso SWD disponible.
 [Medición del Debug Framework](../../curso/ejemplos/uart/debug_framework/) ·
 [Debug Framework mejorado](../../curso/ejemplos/uart/debug_framework_mejorado/) ·
 [Cómo reproducir las mediciones](../../curso/ejemplos/uart/MEDICIONES.md) ·
-[Módulo 0, capítulo 16 - printf a la UART](../../curso/00_lenguaje_c/16-redirigir-printf-a-uart.md)
+[05 - Redirigir `printf` a la UART](./05-redirigir-printf-a-uart.md)

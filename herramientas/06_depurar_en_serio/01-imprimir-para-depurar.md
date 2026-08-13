@@ -29,7 +29,7 @@ variables y resultados de los periféricos:
 UART_Send(LPC_UART0, (uint8_t*)"Entrando a main\r\n", 17, BLOCKING);
 ```
 
-Y si redirigís `printf` a la UART ([módulo 0, cap. 16](../../curso/00_lenguaje_c/16-redirigir-printf-a-uart.md)),
+Y si redirigís `printf` a la UART ([práctica 05](./05-redirigir-printf-a-uart.md)),
 tenés mensajes con formato:
 
 ```c

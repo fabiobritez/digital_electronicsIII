@@ -69,7 +69,7 @@ uint8_t button_pressed(void)
 }
 ```
 
-Llamás a `button_pressed()` en el superloop ([módulo 0, cap. 17](../00_lenguaje_c/17-superloop-y-codigo-no-bloqueante.md)) y solo devuelve 1 **una vez** por pulsación
+Llamás a `button_pressed()` en el superloop ([módulo 0, cap. 17](../00_lenguaje_c/arquitectura/17-superloop-y-codigo-no-bloqueante.md)) y solo devuelve 1 **una vez** por pulsación
 real. No bloquea, no usa `delay`, y el rebote desaparece porque exige estabilidad sostenida.
 
 ## Solución 2: debounce por conteo (muestreo periódico)

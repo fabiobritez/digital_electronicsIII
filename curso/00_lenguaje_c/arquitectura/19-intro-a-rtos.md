@@ -1,11 +1,10 @@
-# Cuando el superloop no alcanza: intro a RTOS
+# Cuando el superloop no alcanza: introducción a RTOS
 
 El superloop con tareas no bloqueantes y máquinas de estado resuelve la enorme mayoría de los
 proyectos de la materia. Pero tiene un límite, y conviene saber cuál es y qué hay del otro lado.
 
-Este capítulo cierra el módulo. Es una intro **conceptual**: no vas a configurar FreeRTOS acá. La idea
-es que sepas qué es un RTOS, qué problema resuelve, qué cuesta, y sobre todo **cuándo no lo
-necesitás**, que es casi siempre al principio.
+Acá no vamos a configurar FreeRTOS. Primero importa entender qué problema resuelve un RTOS, cuánto
+cuesta y, sobre todo, cuándo no hace falta usarlo.
 
 ---
 
@@ -70,7 +69,7 @@ kernel y a la sincronización entre ellas.
 
 ## Qué es, físicamente, un cambio de tarea
 
-Vale la pena bajarlo a tierra, porque con el [capítulo 10](./10-donde-vive-cada-variable.md) ya tenés
+Vale la pena bajarlo a tierra, porque con [C10](../10-donde-vive-cada-variable.md) ya tenés
 todas las piezas.
 
 Una tarea "que corre" es, en el fondo, **un stack y un juego de registros**. El estado completo de una
@@ -86,7 +85,7 @@ A eso se le llama **cambio de contexto** (*context switch*). En Cortex-M el hard
 maneras que ya viste de refilón:
 
 - **Hay dos stack pointers**, `MSP` y `PSP`
-  ([capítulo 10, "para los curiosos"](./10-donde-vive-cada-variable.md#para-los-curiosos-avanzado)).
+  ([C10, "para los curiosos"](../10-donde-vive-cada-variable.md#para-los-curiosos-avanzado)).
   El RTOS corre las tareas sobre `PSP` y deja `MSP` para el kernel y las interrupciones. Así cada
   tarea tiene su propio stack sin pisar al de nadie.
 - **La excepción `PendSV`** existe justamente para esto: es de prioridad mínima y se dispara "cuando
@@ -99,7 +98,7 @@ usabas para `g_millis`, ahora usada por el kernel para decidir si toca cambiar d
 > **Consecuencia directa en RAM:** cada tarea necesita **su propio stack**, dimensionado para su peor
 > caso. Diez tareas con 512 bytes cada una son 5 KB de los 32 KB de SRAM principal del LPC1769, más lo
 > que ocupen el kernel y las colas. Todo lo del
-> [capítulo 10](./10-donde-vive-cada-variable.md#cuánto-stack-usa-tu-programa-y-cómo-saberlo) sobre
+> [C10](../10-donde-vive-cada-variable.md#cuánto-stack-usa-tu-programa-y-cómo-saberlo) sobre
 > medir el stack deja de ser una curiosidad y pasa a ser obligatorio: ahora tenés que medirlo N veces.
 
 ---
@@ -123,7 +122,7 @@ Esa es la diferencia de fondo con el superloop:
 Esa última fila es la que más cuesta. En un superloop, una tarea sabe que mientras corre nadie más va
 a tocar sus datos (salvo las ISRs). Con desalojo, **cualquier línea puede ser interrumpida por otra
 tarea**, así que todo dato compartido necesita protección explícita. Es el problema de las
-[secciones críticas](../07_interrupciones/03-secciones-criticas-y-atomicidad.md), ahora entre tareas y
+[secciones críticas](../../07_interrupciones/03-secciones-criticas-y-atomicidad.md), ahora entre tareas y
 no solo contra interrupciones.
 
 ---
@@ -202,15 +201,15 @@ LPC1769. Los conceptos que verías, todos apoyados en lo que ya sabés:
 
 | Concepto de FreeRTOS | Lo que ya viste que lo explica |
 |---|---|
-| `xTaskCreate` y el stack por tarea | [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md) |
+| `xTaskCreate` y el stack por tarea | [C10 - Dónde vive cada variable](../10-donde-vive-cada-variable.md) |
 | `vTaskDelay` contra `delay_ms` | [17 - El superloop](./17-superloop-y-codigo-no-bloqueante.md) |
-| El tick del planificador | [SysTick](../06_systick/) |
-| `PendSV` y el cambio de contexto | [Interrupciones y NVIC](../07_interrupciones/) |
-| Colas, semáforos y mutex | [secciones críticas](../07_interrupciones/03-secciones-criticas-y-atomicidad.md) |
-| `configTOTAL_HEAP_SIZE` y los esquemas `heap_1`..`heap_5` | [11 - Asignación dinámica](./11-asignacion-dinamica.md) |
+| El tick del planificador | [SysTick](../../06_systick/) |
+| `PendSV` y el cambio de contexto | [Interrupciones y NVIC](../../07_interrupciones/) |
+| Colas, semáforos y mutex | [secciones críticas](../../07_interrupciones/03-secciones-criticas-y-atomicidad.md) |
+| `configTOTAL_HEAP_SIZE` y los esquemas `heap_1`..`heap_5` | [C10B - Asignación dinámica](../10b-asignacion-dinamica.md) |
 
 Esa última fila es linda: FreeRTOS trae **cinco** implementaciones distintas de asignador, y elegir
-entre ellas es exactamente la discusión del capítulo 11 (`heap_1` no libera nunca, `heap_4` fusiona
+entre ellas es exactamente la discusión de C10B (`heap_1` no libera nunca, `heap_4` fusiona
 bloques libres, `heap_5` maneja regiones separadas). Que un kernel de tiempo real dedique cinco
 archivos a eso te dice cuánto importa el tema.
 
@@ -227,7 +226,7 @@ La progresión completa de cómo estructurar firmware, que es lo que cierra esto
 
 Y con eso cierra el módulo 0 entero. Empezaste declarando un `int` y terminás sabiendo cómo se ordena
 un programa que atiende cinco cosas a la vez sobre un solo CPU. Lo que sigue es el
-[módulo 01](../01_arquitectura_y_acceso_a_registros/), donde ese lenguaje se aplica a lo único que
+[módulo 01](../../01_arquitectura_y_acceso_a_registros/), donde ese lenguaje se aplica a lo único que
 importa en un micro: **una dirección de memoria que es un registro de hardware**.
 
 ---
@@ -267,13 +266,13 @@ importa en un micro: **una dirección de memoria que es un registro de hardware*
 
 **Del curso**
 
-- [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md): el stack, los dos stack pointers
+- [C10 - Dónde vive cada variable](../10-donde-vive-cada-variable.md): el stack, los dos stack pointers
   y cómo medir cuánto usa cada tarea. Es el capítulo que hay que tener fresco antes de tocar un RTOS.
-- [Interrupciones](../07_interrupciones/): el NVIC, las prioridades y las secciones críticas.
-- [SysTick](../06_systick/): el tick sobre el que corre cualquier planificador.
+- [Interrupciones](../../07_interrupciones/): el NVIC, las prioridades y las secciones críticas.
+- [SysTick](../../06_systick/): el tick sobre el que corre cualquier planificador.
 
 ---
 
-**Módulo:** [Lenguaje C](./README.md) ·
+**Trayecto:** [Arquitectura de firmware](./README.md) ·
 **Anterior:** [18 - Máquinas de estado](./18-maquinas-de-estado.md) ·
-**Siguiente módulo:** [01 - Arquitectura y acceso a registros](../01_arquitectura_y_acceso_a_registros/)
+**Siguiente módulo:** [01 - Arquitectura y acceso a registros](../../01_arquitectura_y_acceso_a_registros/)

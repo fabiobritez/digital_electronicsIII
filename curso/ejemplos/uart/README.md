@@ -29,7 +29,7 @@ P0.2/P0.3), abrí una terminal serie con el baudrate correcto y escribí: cada t
 volver como eco.
 
 Teoría y explicación paso a paso: [módulo 9: UART](../../09_uart/). El retargeting de `printf`,
-en [módulo 0, capítulo 16](../../00_lenguaje_c/16-redirigir-printf-a-uart.md).
+en [Herramientas 06 - Redirigir `printf` a UART](../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md).
 
 > ¿Por qué el de registro usa 9600 y los otros dos 115200? Porque a 115200 con PCLK de 25 MHz
 > el divisor entero no alcanza (error > 3%) y hace falta el divisor fraccional. El de driver deja

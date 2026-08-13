@@ -1,29 +1,13 @@
-# `volatile`, `const` y tipos propios: el C que toca el hardware
+# C para hardware: `volatile`, MMIO, `uintptr_t` y ancho fijo
 
-Este capítulo es el **puente entre el C "de PC" y el C embebido**. Todo lo anterior sigue valiendo,
-pero al programar un microcontrolador aparecen dos necesidades que en una PC casi no se notan:
+Todo lo que vimos hasta ahora también vale al programar un microcontrolador. La diferencia es que en
+firmware aparecen dos necesidades que en una aplicación de escritorio casi no se notan:
 
 1. **Decirle al compilador que una variable puede cambiar sola**, por fuera del programa, porque la
    cambia el hardware. Para eso está `volatile`, y es la palabra más importante y peor entendida del
    C embebido.
 2. **Ponerle nombre propio a los tipos** y poder tratar una dirección de memoria como número y como
    puntero indistintamente. Para eso están `typedef` y `uintptr_t`.
-
-> [!NOTE]
-> **Lo que este capítulo da por sabido.** Los tipos de ancho fijo (`uint8_t`, `uint32_t`, la tabla de
-> `<stdint.h>`, `UINT32_C`, `PRIu32`, `size_t`) ya están en
-> [01 - Declaraciones, tipos y constantes](./01-declaraciones-y-tipos.md#conclusión-práctica-tipos-de-ancho-fijo-stdinth),
-> junto con los tamaños reales en el Cortex-M3 y el porqué de que `uint8_t` no siempre sea más barato
-> que `uint32_t`. Las promociones enteras y el problema de `signed` contra `unsigned` en máscaras están
-> en [02](./02-arreglos-conversiones-y-promociones.md#promociones-enteras-el-bug-silencioso-de-los-tipos-chicos)
-> y [03](./03-operadores.md#cuidados-con-los-desplazamientos-importante-en-embebido). Si algo de eso
-> no te suena, volvé un rato allá: acá arrancamos desde ahí.
-
-> Si entendés bien lo de este capítulo, el salto a "escribir registros del LPC1769" deja de ser un
-> misterio. De hecho, el módulo
-> [01 - Arquitectura y acceso a registros](../01_arquitectura_y_acceso_a_registros/) se apoya 100% en
-> esto, y el capítulo siguiente ([13 - Structs para hardware](./13-structs-para-hardware.md)) usa
-> `volatile uint32_t` en cada línea para mapear periféricos.
 
 ---
 
@@ -85,9 +69,9 @@ Los mismos `typedef` se usan para los tipos compuestos, y esos ya los viste o lo
 | Qué querés nombrar | Cómo | Dónde se explica |
 |---|---|---|
 | Un entero con otro nombre | `typedef uint16_t milivolts_t;` | acá |
-| Una `struct` | `typedef struct { ... } sensor_t;` | [05 - Estructuras](./05-estructuras-y-enums.md#declaración-con-typedef) |
-| Un `enum` | `typedef enum { ROJO, VERDE } color_t;` | [05 - Enums](./05-estructuras-y-enums.md#uso-con-typedef) |
-| Un puntero a función | `typedef void (*RxCallback)(uint8_t);` | [09 - Punteros avanzados](./09-punteros-avanzado.md) |
+| Una `struct` | `typedef struct { ... } sensor_t;` | [C6 - Estructuras](./06-estructuras-y-enums.md#declaración-con-typedef) |
+| Un `enum` | `typedef enum { ROJO, VERDE } color_t;` | [C6 - Enums](./06-estructuras-y-enums.md#uso-con-typedef) |
+| Un puntero a función | `typedef void (*RxCallback)(uint8_t);` | [C9 - Punteros avanzados](./09-punteros-avanzado.md) |
 
 > **Sobre el sufijo:** el estándar de C se **reserva** los nombres `intN_t`, `uintN_t`,
 > `int_fastN_t` y compañía para futuras versiones de `<stdint.h>`, y POSIX se reserva el sufijo
@@ -98,7 +82,7 @@ Los mismos `typedef` se usan para los tipos compuestos, y esos ya los viste o lo
 ### `uintptr_t`: la dirección como número y como puntero
 
 De las familias de `<stdint.h>` que viste en el
-[capítulo 01](./01-declaraciones-y-tipos.md#conclusión-práctica-tipos-de-ancho-fijo-stdinth), hay una
+[C1](./01-declaraciones-y-tipos.md#conclusión-práctica-tipos-de-ancho-fijo-stdinth), hay una
 que recién ahora cobra sentido, porque solo aparece cuando empezás a tocar hardware.
 
 **`uintptr_t`.** Es el entero en el que garantizadamente entra una dirección. Es el tipo correcto
@@ -123,7 +107,7 @@ La diferencia aparece al portar: en un micro de 64 bits, un puntero **no entra**
 
 ### Qué ancho elegir para *tus* variables
 
-En el [capítulo 01](./01-declaraciones-y-tipos.md#tamaño-real-de-los-tipos-en-el-cortex-m3-lpc1769)
+En [C1](./01-declaraciones-y-tipos.md#tamaño-real-de-los-tipos-en-el-cortex-m3-lpc1769)
 viste, con el desensamblado al lado, que en un núcleo de 32 bits `uint8_t` **no** es más barato: el
 compilador tiene que recortar el resultado con un `uxtb` después de cada operación. Ahora que vamos a
 empezar a tocar registros conviene tener el criterio completo en una tabla, porque son dos decisiones
@@ -205,7 +189,7 @@ Conviene tenerlo clarísimo.
    garantiza que las tres van a memoria, **no** que ocurran sin interrupción.
 2. **NO es una barrera de memoria completa.** El compilador puede reordenar libremente accesos
    **no volatiles** alrededor de uno volatile. Y el `volatile` no emite instrucciones de barrera de
-   hardware (`DMB`/`DSB`): esas son otra cosa (las ves en el bloque para curiosos del cap. 14).
+   hardware (`DMB`/`DSB`): esas son otra cosa (se ven en el bloque para curiosos de C13).
 
 > Para datos compartidos entre el `main` y una ISR, `volatile` es **necesario pero no suficiente**.
 > Si la operación no es atómica (un `++`, leer dos campos que deben ser coherentes, un dato de más de
@@ -309,7 +293,7 @@ Tres cosas que importan:
 1. **El `const` de la izquierda y el de la derecha son distintos.** El de antes del `*` califica el
    **dato apuntado**; el de después, el **puntero**. Se lee de derecha a izquierda: *"`U0LSR` es un
    puntero `const` a un `uint32_t` `const volatile`"* (la regla completa está en
-   [08 - Punteros](./08-punteros.md#const-y-punteros-const-correctness)). Los dos errores que tira
+   [C8 - Punteros](./08-punteros.md#const-y-punteros-const-correctness)). Los dos errores que tira
    `arm-none-eabi-gcc` usan **palabras distintas**, y esa diferencia te dice cuál de los dos tocaste:
    ```console
    *U0LSR = 0;              error: assignment of read-only location '*(const volatile uint32_t *)U0LSR'
@@ -408,7 +392,7 @@ es pura documentación. La única que sí tiene efecto real es `__I`, porque el 
 escribirlo no compile.
 
 Cómo se construye un header así, campo por campo, es el capítulo siguiente
-([13 - Structs para hardware](./13-structs-para-hardware.md)) y el módulo
+([C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md)) y el módulo
 [02 - Armá tu propia librería](../02_arma_tu_propia_libreria/).
 
 ---
@@ -429,14 +413,14 @@ Y las tres cosas que `volatile` **no** hace, que son las que causan los bugs:
 | No hace | Qué necesitás en su lugar |
 |---|---|
 | No da atomicidad | Una sección crítica ([módulo 07](../07_interrupciones/03-secciones-criticas-y-atomicidad.md)) |
-| No es una barrera de memoria | `DMB`/`DSB` ([capítulo 14](./14-static-const-inline-y-bitfields.md)) |
+| No es una barrera de memoria | `DMB`/`DSB` ([C13](./13-static-const-inline-e-interfaces.md)) |
 | No ordena los accesos **no** volátiles a su alrededor | Marcar volátil todo lo que el hardware toca |
 
 ### Lo que viene
 
 Con esto ya tenés el C que necesitás para el paso siguiente: entender que **un registro de hardware
 es, literalmente, una dirección de memoria con un `volatile uint32_t *` apuntándola**. El
-[capítulo 13](./13-structs-para-hardware.md) agrupa esos punteros en una `struct` para mapear un
+[C12](./12-layout-alineacion-unions-y-bitfields.md) agrupa esos punteros en una `struct` para mapear un
 periférico entero de una vez, y el módulo
 [01 - Arquitectura y acceso a registros](../01_arquitectura_y_acceso_a_registros/) lo lleva al micro.
 
@@ -462,5 +446,5 @@ periférico entero de una vez, y el módulo
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [11 - Asignación dinámica](./11-asignacion-dinamica.md) ·
-**Siguiente:** [13 - Structs para hardware](./13-structs-para-hardware.md)
+**Anterior:** [C10B - Asignación dinámica](./10b-asignacion-dinamica.md) ·
+**Siguiente:** [C12 - Layout, alineación, uniones y bitfields](./12-layout-alineacion-unions-y-bitfields.md)

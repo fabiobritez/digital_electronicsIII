@@ -1,7 +1,7 @@
-# Punto fijo vs punto flotante (el Cortex-M3 no tiene FPU)
+# Punto fijo, punto flotante y presupuesto de recursos
 
-Este capítulo te ahorra un problema de rendimiento que muerde a casi todos al principio: **usar
-`float` sin saber lo que cuesta** en el LPC1769.
+En el LPC1769 se puede usar `float`, pero conviene entender cuánto cuesta antes de ponerlo dentro de
+un lazo rápido o de una interrupción.
 
 ## El dato clave: el Cortex-M3 no tiene FPU
 
@@ -214,5 +214,5 @@ de `float`. Sabiendo esto, lo reescribís con enteros y vuela.
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [14 - `static`, `inline` y campos de bits](./14-static-const-inline-y-bitfields.md) ·
-**Siguiente:** [16 - Redirigir `printf` a la UART](./16-redirigir-printf-a-uart.md)
+**Anterior:** [C13 - `static`, `const`, `inline` e interfaces](./13-static-const-inline-e-interfaces.md) ·
+**Módulo:** [volver al índice de Lenguaje C](./README.md)

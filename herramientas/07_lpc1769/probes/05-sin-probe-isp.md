@@ -134,7 +134,7 @@ Es la limitación real de este camino. Las alternativas, en orden de utilidad:
 
 1. **`printf` por la misma UART0.** Cerrá lpc21isp, liberá P2.10 y reseteá para ejecutar la
    aplicación. Después el mismo adaptador puede funcionar como consola. Está explicado en el
-   [módulo 0, capítulo 16](../../../curso/00_lenguaje_c/16-redirigir-printf-a-uart.md), y la
+   [práctica de `printf` por UART](../../06_depurar_en_serio/05-redirigir-printf-a-uart.md), y la
    plantilla ya deja el lugar preparado en
    [`src/syscalls.c`](../../../plantilla/src/syscalls.c): alcanza con definir
    `__io_putchar()`.

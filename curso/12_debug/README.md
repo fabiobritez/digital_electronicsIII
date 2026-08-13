@@ -31,7 +31,7 @@ La mayoría de los "no funciona" de esta materia son **una de seis cosas**:
 3. los **pines** mal configurados (`PINSEL`, [módulo 4](../04_pinsel/)),
 4. una **bandera de interrupción sin limpiar** ([módulo 7](../07_interrupciones/)),
 5. una variable compartida con una ISR **sin `volatile`**
-   ([módulo 0, cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)),
+   ([módulo 0, cap. 12](../00_lenguaje_c/11-c-para-hardware.md)),
 6. una **cuenta de tiempo o de baudrate** mal hecha.
 
 El checklist desarrollado está en

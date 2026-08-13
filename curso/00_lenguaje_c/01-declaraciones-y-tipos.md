@@ -2,7 +2,8 @@
 
 ## Declaraciones de variables
 
-Indican qué variables vamos a usar, qué tipo tienen y (opcionalmente) su valor inicial.
+Una declaración le dice al compilador qué variable vamos a usar, qué tipo tiene y, si corresponde,
+cuál es su valor inicial.
 
 Tienen el siguiente formato:
 
@@ -115,13 +116,13 @@ Afectan cómo el compilador **trata el contenido de la variable**.
 | Calificador | ¿Qué hace?                                                                     | Ejemplo embebido            |
 | ----------- | ------------------------------------------------------------------------------ | --------------------------- |
 | `const`     | El valor no se puede modificar **a través de ese nombre**                      | `const float PI = 3.14f;`   |
-| `volatile`  | Puede cambiar fuera del programa (por hardware)                                | `volatile uint32_t *port;`  |
-| `restrict`  | Promesa de **no aliasing**: a ese dato se accede *solo* por este puntero (C99) | `void f(int * restrict a);` |
+| `volatile`  | Puede cambiar fuera del programa (por hardware)                                | `volatile uint32_t ticks;`  |
 
 
 > En sistemas embebidos, `volatile` es **crítico** para registros de periféricos.
 
-**Sobre `restrict`:** no es "la única forma de acceder es un puntero". Es una **promesa que le hacés al compilador**: durante la vida de ese puntero, al objeto apuntado se accede únicamente a través de él (o de punteros derivados de él). Con esa garantía el compilador puede mantener valores en registros en vez de releer memoria. Si le mentís (si dos punteros `restrict` apuntan a lo mismo y escribís por ambos), es **comportamiento indefinido** (*undefined behavior*, **UB**: el estándar no define qué pasa, así que el compilador puede hacer cualquier cosa). Por eso `memcpy()` declara sus dos punteros `restrict` (las regiones no se pueden solapar) y `memmove()` **no** (sí se pueden solapar).
+El tercer calificador de C99, `restrict`, solo tiene sentido sobre punteros y contratos de aliasing.
+Se desarrolla en C13, después de punteros, buffers y compilación separada.
 
 > [!WARNING]
 > **`const` en C no es una constante de compilación.** `const int N = 8;` no crea "el número 8": crea una **variable** que vale 8 y que prometés no modificar. El compilador la trata como variable, y hay tres lugares donde eso importa porque el compilador necesita el valor **antes** de que el programa exista: el tamaño de un arreglo, las etiquetas `case` y las directivas `#if`.
@@ -146,19 +147,17 @@ Afectan cómo el compilador **trata el contenido de la variable**.
 > #endif                   //     Se ve con -Wundef: warning: "N" is not defined, evaluates to 0
 > ```
 >
-> El caso (2) es el que más confunde, porque **no da error**: al estar dentro de una función, C99 lo acepta como **VLA** (*variable length array*, arreglo de tamaño variable). Un VLA es un arreglo cuyo tamaño se calcula **al ejecutar**, y se reserva en el stack en ese momento. Para el compilador es lo mismo que `int buf[x];` con `x` viniendo de un parámetro: no sabe cuánto va a medir. Anda, pero en firmware **conviene evitarlos**: si el tamaño llega a ser grande te comés el stack y el micro se cuelga, y no hay forma de saber de antemano cuánta RAM necesita tu programa (ver [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md)). Compilá con `-Wvla` y el compilador te avisa cuando aparece uno sin querer.
+> El caso (2) es el que más confunde, porque **no da error**: al estar dentro de una función, C99 lo acepta como **VLA** (*variable length array*, arreglo de tamaño variable). Un VLA es un arreglo cuyo tamaño se calcula **al ejecutar**, y se reserva en el stack en ese momento. Para el compilador es lo mismo que `int buf[x];` con `x` viniendo de un parámetro: no sabe cuánto va a medir. Anda, pero en firmware **conviene evitarlos**: si el tamaño llega a ser grande te comés el stack y el micro se cuelga, y no hay forma de saber de antemano cuánta RAM necesita tu programa (ver [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md)). Compilá con `-Wvla` y el compilador te avisa cuando aparece uno sin querer.
 >
-> **Entonces, para tamaños de arreglo, `case` y `#if`, usá `#define` o `enum`:**
+> **Entonces, para tamaños de arreglo, `case` y `#if`, usá una constante entera de compilación:**
 >
 > ```c
 > #define    N2   8
 > int buf2[N2];        // OK: el preprocesador reemplaza por 8 antes de compilar
->
-> enum { N3 = 8 };
-> int buf3[N3];        // OK, y además es un símbolo real (lo ve el debugger, tiene tipo)
 > ```
 >
-> Un último detalle: `const` significa "prometo no escribirlo **por este nombre**", **no** "está en memoria de solo lectura". Si otro alias sin `const` lo modifica, es comportamiento indefinido. Y ojo que ese alias (`*(uint32_t *)&CLOCK_HZ = ...`) compila **sin un solo warning** con `-Wall -Wextra`: hace falta agregar `-Wcast-qual` para que GCC avise `cast discards 'const' qualifier`, y aun así es warning, no error.
+> La interacción de `const` con aliases requiere punteros: C8 demuestra por qué sacar el
+> calificador mediante un cast no vuelve modificable al objeto y presenta `-Wcast-qual`.
 
 #### ¿Cuál es la diferencia entre poner `volatile` y no ponerlo?
 
@@ -197,7 +196,7 @@ volatile uint8_t flag = 0;   // ahora el compilador relee la memoria en cada ite
 > [!CAUTION]
 > Este bug es **traicionero** porque **depende del nivel de optimización**. Compilado con `-O0` (sin optimizar) el programa "funciona", porque GCC releé la variable de memoria de todas formas. Recién cuando pasás a `-O1`/`-O2`/`-Os`, o sea cuando compilás la versión final, el compilador saca la lectura del lazo y el programa se cuelga. Poné `volatile` desde el principio en toda variable compartida con una ISR o con un periférico, no cuando "aparezca" el problema.
 
-> `volatile` resuelve la **visibilidad** de la variable, no la **atomicidad**. Si la ISR y el `main` hacen lectura-modificación-escritura sobre la misma variable (por ejemplo `contador++`), `volatile` no te salva: sigue habiendo una condición de carrera. Eso se ve en [12 - `volatile` y tipos para hardware](./12-volatile-y-tipos-para-hardware.md).
+> `volatile` resuelve la **visibilidad** de la variable, no la **atomicidad**. Si la ISR y el `main` hacen lectura-modificación-escritura sobre la misma variable (por ejemplo `contador++`), `volatile` no te salva: sigue habiendo una condición de carrera. Eso se ve en [C11 - `volatile` y tipos para hardware](./11-c-para-hardware.md).
 
 ---
 
@@ -285,7 +284,7 @@ La segunda cambia **una sola palabra** y con eso cambia todo: `const` en lugar d
 
 **Todo junto, la primera se lee así:** *"`ticks_ms` es una variable privada de este archivo (`static`), que existe durante todo el programa, guarda un entero de 32 bits sin signo (`uint32_t`), arranca valiendo 0, y puede cambiar en cualquier momento por fuera del flujo normal del programa (`volatile`), así que hay que ir a buscarla a memoria cada vez que se la lee."*
 
-Fijate que los dos calificadores responden preguntas **distintas e independientes**: `const` dice *qué puede escribir tu código*; `volatile` dice *si se puede confiar en un valor ya leído*. Tanto es así que existe `const volatile`, y es exactamente lo que se usa para un **registro de hardware de solo lectura**: no lo podés escribir, y cambia solo. Ese caso necesita punteros, así que lo vemos en [12 - `volatile`, `const` y tipos propios](./12-volatile-y-tipos-para-hardware.md#const-volatile-registros-de-solo-lectura).
+Fijate que los dos calificadores responden preguntas **distintas e independientes**: `const` dice *qué puede escribir tu código*; `volatile` dice *si se puede confiar en un valor ya leído*. Tanto es así que existe `const volatile`, y es exactamente lo que se usa para un **registro de hardware de solo lectura**: no lo podés escribir, y cambia solo. Ese caso necesita punteros, así que lo vemos en [C11 - `volatile`, `const` y tipos propios](./11-c-para-hardware.md#const-volatile-registros-de-solo-lectura).
 
 ## Tamaños de los tipos
 
@@ -415,7 +414,7 @@ int16_t temperatura = -120;
 uint32_t contador = 100000;
 ```
 
-Las ventajas son el ancho explícito, la portabilidad entre arquitecturas y que el lector del código no tiene que adivinar nada. **Es fundamental usarlos en sistemas embebidos**: de acá en adelante los usamos en todo el curso, y en [12 - `volatile`, `const` y tipos propios](./12-volatile-y-tipos-para-hardware.md) vas a ver cómo se combinan con `volatile` para llegar a un registro del micro.
+Las ventajas son el ancho explícito, la portabilidad entre arquitecturas y que el lector del código no tiene que adivinar nada. **Es fundamental usarlos en sistemas embebidos**: de acá en adelante los usamos en todo el curso, y en [C11 - `volatile`, `const` y tipos propios](./11-c-para-hardware.md) vas a ver cómo se combinan con `volatile` para llegar a un registro del micro.
 
 **Detalles que conviene saber:**
 
@@ -451,7 +450,7 @@ Las ventajas son el ancho explícito, la portabilidad entre arquitecturas y que 
 
 > Estos archivos existen de verdad y los podés abrir: los provee el compilador, y la ruta te la dice
 > él mismo con `arm-none-eabi-gcc -print-file-name=include`. Dónde vive cada header y por qué unos los
-> da GCC y otros newlib, en [07 - El preprocesador](./07-preprocesador.md#y-dónde-están-físicamente).
+> da GCC y otros newlib, en [C7 - El preprocesador](./07-preprocesador.md#y-dónde-están-físicamente).
 
 ## Constantes en C (también llamadas literales)
 
@@ -555,59 +554,14 @@ Es una razón más para escribir el sufijo siempre, en vez de confiar en que alg
 - Secuencia entre comillas dobles: `"Hola mundo"`
 - `"Hola," "mundo"` se concatena automáticamente como `"Hola, mundo"`
 - Siempre terminan con `'\0'` (carácter nulo). Por eso `"Hola"` ocupa **5** bytes, no 4.
-- Técnicamente, son **arreglos de caracteres** de tipo `char[N]` (los arreglos se ven en [02 - Arreglos](./02-arreglos-conversiones-y-promociones.md#arreglos-arrays)).
-- La función `strlen()` (de `<string.h>`) devuelve la longitud (sin contar el `'\0'`).
+- Técnicamente, son **arreglos de caracteres** de tipo `char[N]` (se desarrollan en [C5 - Arreglos y strings](./05-arreglos-y-strings.md#arreglos-arrays)).
+- La función `strlen()` (de `<string.h>`) devuelve la longitud sin contar el `'\0'`.
 
-Así se implementaría a mano. Le ponemos otro nombre porque redefinir una función de la librería estándar es comportamiento indefinido:
-
-```c
-#include <stddef.h>
-
-size_t mi_strlen(const char s[]) {
-    size_t i = 0;
-    while (s[i] != '\0')
-        i++;
-    return i;
-}
-```
-
-> Fijate en los tipos: la real devuelve `size_t` (sin signo) y toma `const char *`, porque no modifica la cadena. El `const` permite pasarle también literales.
-
-> [!WARNING]
-> **Un literal de cadena no se puede modificar.** `char *p = "Hola"; p[0] = 'h';` es **comportamiento indefinido**: los literales viven en `.rodata`, que en el LPC1769 está en **Flash**, así que la escritura simplemente no tiene efecto (o falla). Si necesitás modificarla, copiala a un arreglo: `char buf[] = "Hola";`, que sí es un arreglo propio en RAM. Compilá con `-Wwrite-strings` para que el compilador te avise.
+En C1 alcanza con reconocer el literal y su tamaño. C5 lo recorre por índice; C9 implementa una
+versión de `strlen`, explica su parámetro puntero y muestra por qué modificar un literal es
+comportamiento indefinido.
 
 ---
-
-### Constantes de enumeración (`enum`)
-
-- Lista de identificadores con valores enteros constantes:
-
-```c
-enum boolean { NO, YES };      // NO = 0, YES = 1
-enum months { ENE = 1, FEB, MAR };  // FEB = 2, MAR = 3
-enum escapes { BELL = '\a', BACKSPACE = '\b', TAB = '\t' , NEWLINE = '\n', RETURN = '\r'};
-```
-
-- Si no se da valor explícito, continúan desde el anterior (el primero arranca en 0).
-- Se usan como alternativa a `#define`.
-- Los `enum` hacen que el compilador pueda verificar su uso, lo cual es más seguro. Además el depurador te muestra el **nombre** (`YES`) en vez del número, algo que con `#define` perdés.
-- Los valores pueden repetirse: `enum { A = 1, B = 1 };` es válido.
-- **Cada constante de enumeración tiene tipo `int`** (en C17 y anteriores). O sea que `NO` y `YES` son `int`, y `sizeof(YES)` da 4 en el M3.
-- El *tipo enumerado* en sí (`enum boolean`) es otra cosa: el compilador elige por vos un tipo entero compatible, y esa elección es **definida por la implementación**.
-
-> [!IMPORTANT]
-> **En el LPC1769 el `sizeof` de un `enum` no es 4.** El ABI de ARM manda usar el tipo más chico que alcance, y `arm-none-eabi-gcc` viene con `-fshort-enums` **activado por defecto**. Comprobado con el toolchain del repo:
->
-> ```c
-> enum big { X = 300 };   // sizeof(enum big) == 2   (¡dos bytes!)
-> enum sm  { Y = 1   };   // sizeof(enum sm)  == 1   (¡un byte!)
-> ```
->
-> El mismo código en tu PC (x86) da **4 en los dos casos**. 
->
-> **Nunca asumas el tamaño de un `enum`** en un `struct` que mapea un registro, una trama de protocolo o algo que se guarde en memoria. Si necesitás un ancho exacto, poné `uint8_t`/`uint32_t` en el campo y usá las constantes del `enum` aparte.
-
-> En **C23** el tipo subyacente se puede fijar explícitamente y el problema desaparece: `enum estado : uint8_t { OFF, ON };`
 
 ### Secuencias de escape
 
@@ -622,7 +576,7 @@ Sirven para escribir caracteres especiales dentro de `'` o `"`, o sea dentro de 
 | `\ooo` | valor octal (1 a 3 dígitos octales)                                       |
 | `\xhh` | valor hexadecimal (1 o más dígitos hexa)                                  |
 
-**La que más vas a usar es `\r\n`, y siempre las dos juntas.** Una terminal serie espera *retorno de carro* **y** *avance de línea* para empezar un renglón nuevo. Si mandás solo `\n`, el texto sale en escalera: cada línea arranca donde terminó la anterior. Es el primer tropiezo de cualquiera que conecta el micro a la PC, y se resuelve en [16 - Redirigir `printf` a la UART](./16-redirigir-printf-a-uart.md).
+**La que más vas a usar es `\r\n`, y siempre las dos juntas.** Una terminal serie espera *retorno de carro* **y** *avance de línea* para empezar un renglón nuevo. Si mandás solo `\n`, el texto sale en escalera: cada línea arranca donde terminó la anterior. La práctica se realiza después de UART en [Herramientas 06 - Redirigir `printf`](../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md).
 
 Dos trampas con estas secuencias:
 
@@ -676,4 +630,5 @@ Dos trampas con estas secuencias:
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Siguiente:** [02 - Arreglos, conversiones y promociones](./02-arreglos-conversiones-y-promociones.md)
+**Anterior:** [C0 - Introducción y compilación](./00-introduccion-y-compilacion.md) ·
+**Siguiente:** [C2 - Expresiones, operadores y conversiones](./02-expresiones-operadores-conversiones.md)

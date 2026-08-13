@@ -1,8 +1,9 @@
 # El superloop y el código no bloqueante
 
-Hasta acá el módulo te dio **el lenguaje**: tipos, punteros, dónde vive cada variable, `volatile`,
-structs de hardware. Los tres capítulos que cierran el módulo responden la pregunta que sigue, y que
-no es sobre C sino sobre **cómo se ordena un programa entero**:
+Un programa que lee un botón y controla un LED puede resolverse con unas pocas líneas. El problema
+aparece cuando el mismo micro tiene que leer sensores, recibir datos, actualizar salidas y respetar
+varios tiempos sin dejar de atender nada. Entonces la pregunta ya no es cómo escribir cada función,
+sino cómo ordenar el programa completo:
 
 > **¿Cómo hago que el micro atienda muchas cosas "al mismo tiempo" sin que se vuelva un caos?**
 
@@ -10,12 +11,6 @@ Es, probablemente, el salto más grande entre "hacer andar un ejemplo" y "hacer 
 lugar donde todo lo del módulo se junta: `static` para el estado que sobrevive entre llamadas,
 `volatile` para lo que comparte con una interrupción, `enum` + `switch` para modelar comportamiento,
 punteros a función para las tablas de tareas.
-
-> [!NOTE]
-> **Cuándo leer estos tres capítulos.** Se entienden mejor si ya viste **GPIO** (módulo 5),
-> **SysTick** (módulo 6) e **interrupciones** (módulo 7): los ejemplos usan un contador de
-> milisegundos y hablan de ISRs. Si venís derecho desde el capítulo 16, leelos igual para tener el
-> mapa, y volvé después de los periféricos: van a cerrar del todo.
 
 ---
 
@@ -49,7 +44,7 @@ espera al bucle: lo atienden las **interrupciones**.
 ```
 
 Fijate que `main()` **nunca retorna**: en un micro no hay sistema operativo al que volver. Es la
-misma observación del [capítulo 02](./02-arreglos-conversiones-y-promociones.md#pasar-arreglos-a-funciones),
+misma observación de [C9](../09-punteros-avanzado.md#arreglos-como-parámetros-el-decay-en-acción),
 ahora con su razón arquitectónica.
 
 Esto ya lo venías usando sin nombrarlo. La clave que falta es una regla, y es toda la clase:
@@ -103,7 +98,7 @@ para todo lo demás, lo que sigue.
 ## La solución: tiempo no bloqueante
 
 En vez de "esperar 500 ms", preguntás "¿ya pasaron 500 ms?" y, si no, seguís de largo. La base de
-tiempo la da el [SysTick](../06_systick/): una interrupción cada 1 ms que incrementa un contador.
+tiempo la da el [SysTick](../../06_systick/): una interrupción cada 1 ms que incrementa un contador.
 
 ```c
 volatile uint32_t g_millis = 0;          // la incrementa la ISR: por eso es volatile
@@ -145,14 +140,14 @@ bloqueante.
 Esas nueve líneas apoyan en tres cosas del módulo, y vale la pena verlas explícitas:
 
 **1. `static` es lo que le da memoria a la tarea.** `t_prev` vive en `.bss` durante todo el programa,
-pero solo esta función la puede tocar ([capítulo 14](./14-static-const-inline-y-bitfields.md#static-los-dos-patrones-que-vas-a-escribir)).
+pero solo esta función la puede tocar ([C13](../13-static-const-inline-e-interfaces.md#static-los-dos-patrones-que-vas-a-escribir)).
 Sin `static` sería una local que muere en cada llamada y la tarea no recordaría nada. Con una global
 funcionaría, pero cualquiera podría pisarla.
 
 **2. `volatile` en `g_millis` no es opcional.** La modifica una ISR, así que sin `volatile` el
 compilador puede leerla una sola vez y cachearla en un registro: el `if` nunca se cumple y el LED no
 parpadea nunca. Y es el caso traicionero de siempre: **con `-O0` anda y con `-O2` se rompe**
-([capítulo 12](./12-volatile-y-tipos-para-hardware.md)).
+([C11](../11-c-para-hardware.md)).
 
 **3. La resta está escrita así a propósito.** `g_millis - t_prev >= 500` y **no**
 `g_millis >= t_prev + 500`. La primera sobrevive al desbordamiento del contador; la segunda no.
@@ -167,7 +162,7 @@ g_millis >= t_prev + 500     // 0x100 >= 0xFFFFF0F4  ->  falso: la tarea se cuel
 
 El desbordamiento de un `unsigned` está **definido** como aritmética módulo 2³², y por eso la resta da
 el intervalo real aunque el contador haya dado la vuelta en el medio. Es exactamente el motivo por el
-que el [capítulo 02](./02-arreglos-conversiones-y-promociones.md#overflow-unsigned-da-la-vuelta-signed-es-comportamiento-indefinido)
+que [C2](../02-expresiones-operadores-conversiones.md#overflow-unsigned-da-la-vuelta-signed-es-comportamiento-indefinido)
 insiste en usar `unsigned` para contadores que dan la vuelta. Con `int32_t` esto sería
 **comportamiento indefinido** y el compilador podría hacer cualquier cosa.
 
@@ -254,8 +249,8 @@ void tarea_procesar(void) {
 > bandera de "hay algo que mirar" no suele importar; con un **contador** de eventos
 > (`eventos++` en la ISR, `eventos--` en la tarea) sí importa, porque `eventos--` no es atómico.
 > `volatile` resuelve la **visibilidad**, nunca la **atomicidad**: eso son las
-> [secciones críticas](../07_interrupciones/03-secciones-criticas-y-atomicidad.md), y el
-> [capítulo 12](./12-volatile-y-tipos-para-hardware.md#qué-garantiza-volatile-y-qué-no) lo dice con
+> [secciones críticas](../../07_interrupciones/03-secciones-criticas-y-atomicidad.md), y el
+> [C11](../11-c-para-hardware.md#qué-garantiza-volatile-y-qué-no) lo dice con
 > todas las letras.
 
 ---
@@ -273,8 +268,8 @@ Una arquitectura sana separa así:
 > el superloop hace el trabajo.**
 
 Lo que **nunca** va en una ISR: `printf` (lento, y encima no es reentrante), `malloc`
-([capítulo 11](./11-asignacion-dinamica.md)), esperas activas, cuentas con `float`
-([capítulo 15](./15-punto-fijo-vs-flotante.md): sin FPU, cada operación es una llamada a software).
+([C10B](../10b-asignacion-dinamica.md)), esperas activas, cuentas con `float`
+([C14](../14-punto-fijo-vs-flotante.md): sin FPU, cada operación es una llamada a software).
 
 ---
 
@@ -299,7 +294,7 @@ while (1) {
 
 Es la técnica más barata de instrumentación que existe en firmware, cuesta dos instrucciones y no
 depende de ningún debugger. Los instrumentos están en el
-[módulo 17 - Hardware y placa](../17_hardware_y_placa/03-instrumentos-de-medicion.md).
+[módulo 17 - Hardware y placa](../../17_hardware_y_placa/03-instrumentos-de-medicion.md).
 
 Si una tarea puntual es larga y no la podés partir, la salida es **partirla vos**: convertirla en una
 máquina de estados que haga un pedacito por vuelta. Ese es justo el tema del
@@ -311,7 +306,7 @@ máquina de estados que haga un pedacito por vuelta. Ese es justo el tema del
 
 Cuando las tareas son muchas, llamarlas a mano en el `while(1)` se vuelve incómodo: los períodos
 quedan desparramados dentro de cada función y no hay un lugar donde ver el sistema entero. Con lo que
-ya sabés de **punteros a función** ([capítulo 09](./09-punteros-avanzado.md#punteros-a-función-y-callbacks))
+ya sabés de **punteros a función** ([C9](../09-punteros-avanzado.md#punteros-a-función-y-callbacks))
 podés escribir un planificador cooperativo de quince líneas:
 
 ```c
@@ -348,7 +343,7 @@ int main(void) {
 Lo que ganás no es velocidad, es **poder ver el sistema**: los períodos de todas las tareas están en
 una tabla, agregar una es una línea, y el planificador es un solo lugar donde instrumentar,
 cronometrar o depurar. La tabla es candidata natural a `static const` en la parte que no cambia, así
-que se va a Flash ([capítulo 01](./01-declaraciones-y-tipos.md#2-especificador-de-almacenamiento)).
+que se va a Flash ([C1](../01-declaraciones-y-tipos.md#2-especificador-de-almacenamiento)).
 
 Sigue siendo **cooperativo**: si una tarea se cuelga, se cuelgan todas. Ese es exactamente el límite
 que empuja hacia un RTOS, y es el tema del [capítulo 19](./19-intro-a-rtos.md).
@@ -389,21 +384,20 @@ que empuja hacia un RTOS, y es el tema del [capítulo 19](./19-intro-a-rtos.md).
 
 - [Jack Ganssle: A Guide to Debouncing](http://www.ganssle.com/debouncing.htm). El estudio con
   osciloscopio de cuánto rebota un pulsador de verdad, y por qué el antirrebote se hace no bloqueante.
-  Se aplica en el [módulo 5](../05_gpio/03-debounce-y-filtrado-de-entradas.md).
+  Se aplica en el [módulo 5](../../05_gpio/03-debounce-y-filtrado-de-entradas.md).
 - [Arduino: BlinkWithoutDelay](https://docs.arduino.cc/built-in-examples/digital/BlinkWithoutDelay/).
   El ejemplo que le enseñó el patrón a una generación entera. Es exactamente `millis() - t_prev >= T`.
 
 **Del curso**
 
-- [SysTick](../06_systick/): de dónde sale el contador de milisegundos que usa todo este capítulo.
-- [Interrupciones](../07_interrupciones/): el NVIC, y las
-  [secciones críticas](../07_interrupciones/03-secciones-criticas-y-atomicidad.md) para cuando la
+- [SysTick](../../06_systick/): de dónde sale el contador de milisegundos que usa todo este capítulo.
+- [Interrupciones](../../07_interrupciones/): el NVIC, y las
+  [secciones críticas](../../07_interrupciones/03-secciones-criticas-y-atomicidad.md) para cuando la
   bandera compartida no alcanza.
-- [Módulo 17 - Instrumentos de medición](../17_hardware_y_placa/03-instrumentos-de-medicion.md): cómo
+- [Módulo 17 - Instrumentos de medición](../../17_hardware_y_placa/03-instrumentos-de-medicion.md): cómo
   medir con el osciloscopio el tiempo de vuelta del superloop.
 
 ---
 
-**Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [16 - Redirigir `printf` a la UART](./16-redirigir-printf-a-uart.md) ·
+**Trayecto:** [Arquitectura de firmware](./README.md) ·
 **Siguiente:** [18 - Máquinas de estado](./18-maquinas-de-estado.md)

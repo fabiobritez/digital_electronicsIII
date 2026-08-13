@@ -1,6 +1,6 @@
 # Cómo reproducir las mediciones
 
-Todos los números que aparecen en [el capítulo 16](../../00_lenguaje_c/16-redirigir-printf-a-uart.md)
+Todos los números que aparecen en [la práctica de `printf` por UART](../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md)
 y en los README de esta carpeta salieron de correr los comandos de acá, en una **LPCXpresso LPC1769
 (OM13085)** con su sonda CMSIS-DAP de a bordo y un conversor USB-serie CP2102 en P0.2/P0.3.
 
@@ -91,7 +91,7 @@ Cuidado con dos cosas al leer esa salida:
   arm-none-eabi-nm -S build/firmware.elf | grep cola
   ```
 
-Comparar dos configuraciones (la tabla de la sección 6.1 del capítulo 16):
+Comparar dos configuraciones (la tabla de la sección 6.1 de la práctica de `printf` por UART):
 
 ```bash
 make clean && make USE_CMSIS=1                                   # newlib-nano (por defecto)
@@ -448,7 +448,7 @@ El procedimiento con GDB y la tabla de las seis combinaciones están en el
 
 ## Ver también
 
-- [Capítulo 16 §6](../../00_lenguaje_c/16-redirigir-printf-a-uart.md): la tabla completa de costos
+- [Herramientas 06, `printf` por UART §6](../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md): la tabla completa de costos
 - [`printf_retarget.c`](./printf_retarget.c) · [`debug_framework/`](./debug_framework/) ·
   [`debug_framework_mejorado/`](./debug_framework_mejorado/) ·
   [`printf_dma/`](./printf_dma/) ·

@@ -1,4 +1,4 @@
-# Operadores
+# Expresiones, operadores, promociones y conversiones
 
 Los operadores son los verbos del lenguaje: con ellos se calcula, se compara y se decide. La mayoría
 te va a resultar familiar de la matemática, pero prestá especial atención a los **operadores bitwise**
@@ -118,7 +118,7 @@ int z = ++x; // z = 12, x = 12
 >
 > ```c
 > i = i++ + 1;        // comportamiento INDEFINIDO
-> arr[i] = i++;       // comportamiento INDEFINIDO
+> int y = i++ + i;    // comportamiento INDEFINIDO: modifica y lee i sin orden
 > func(i++, i++);     // comportamiento INDEFINIDO: dos modificaciones de i sin
 >                     // orden entre ellas (el orden de evaluación de los
 >                     // argumentos, además, no está especificado)
@@ -147,7 +147,7 @@ El operador bitwise AND `&` se usa a menudo para enmascarar un conjunto de bits;
 
 ```c
 n = 0b11001100; // n = 1100 1100
-c = n & 0x0F ;  // c = n & 0000 1111 = 0000 1100 
+c = n & 0x0F ;  // c = n & 0000 1111 = 0000 1100
 ```
 
 Este ejemplo establece en cero todos los bits excepto los 4 bits menos significativos de la variable n.
@@ -188,7 +188,7 @@ numeran desde 0, así que `0x10` es el bit 4, no el 5).
 > ```
 >
 > Es un error clásico de quien viene de lenguajes donde toda línea termina en `;`. Más sobre esto en
-> [07 - El preprocesador](./07-preprocesador.md).
+> [C7 - El preprocesador](./07-preprocesador.md).
 
 ### Operador `^` (XOR)
 
@@ -265,7 +265,7 @@ uint8_t y = ~x;          // y = 0b00000000 = 0
 > a `int`, así que la cuenta real fue `~0x000000FF == 0xFFFFFF00`, y recién al guardar en `y` se
 > truncó a `0x00`. Con otras máscaras el resultado intermedio de 32 bits se te escapa, sobre todo si
 > lo comparás en vez de guardarlo. Es la trampa que se explica en
-> [02 - Promociones enteras](./02-arreglos-conversiones-y-promociones.md#trampa-1-el-complemento--de-un-tipo-chico):
+> [Promociones enteras](#trampa-1-el-complemento--de-un-tipo-chico):
 > cuando uses `~` sobre tipos chicos, escribí el ancho que querés con un cast.
 
 ---
@@ -319,11 +319,12 @@ Ejemplos:
 ```c
 size_t tamaño_int = sizeof(int);           // típicamente 4
 size_t tamaño_char = sizeof(char);         // siempre 1
-size_t tamaño_array = sizeof(int[10]);     // 40 (10 * 4)
-
-int arr[5];
-size_t elementos = sizeof(arr) / sizeof(arr[0]);  // 5
+size_t bytes_int = sizeof(int);       // 4 en el ABI del Cortex-M3
+size_t bytes_double = sizeof(double); // 8 en este toolchain
 ```
+
+La aplicación de `sizeof` para calcular el tamaño y la cantidad de elementos de un arreglo se hace
+en C5, una vez definido ese tipo compuesto.
 
 > `sizeof` es un operador, no una función. Se resuelve en tiempo de compilación y **no evalúa su
 > operando**: `sizeof(i++)` no incrementa `i`, porque al compilador solo le interesa el *tipo* de la
@@ -477,25 +478,9 @@ int resultado = temp | c;
 
 ## Operadores de acceso
 
-### Operador `.` (punto)
-
-Accede a miembros de estructuras y uniones. Todavía no vimos qué es una estructura (viene en
-[05 - Estructuras y enumeraciones](./05-estructuras-y-enums.md)), pero conviene que el operador
-aparezca acá, junto con el resto:
-
-```c
-struct Punto {
-    int x;
-    int y;
-};
-
-struct Punto p = {10, 20};
-int valor_x = p.x;  // acceso con punto
-```
-
-> Existe un segundo operador de acceso, la flecha `->`, para llegar a los miembros de una estructura
-> **a través de un puntero**. Como necesita punteros, se ve en
-> [09 - Punteros avanzados](./09-punteros-avanzado.md#acceso-a-miembros-de-estructura-con-punteros).
+Los operadores `.` y `->` también pertenecen a este nivel de precedencia, pero se presentan junto
+con los tipos sobre los que trabajan: `.` en C6 (`struct` y `union`) y `->` en C9 (puntero a
+estructura).
 
 ### Operador `,` (coma)
 
@@ -514,6 +499,235 @@ for (i = 0, j = 10; i < j; i++, j--) {
 ```
 
 ---
+
+## Conversión de tipos
+
+- Se puede convertir un tipo a otro usando **operadores de conversión** o **funciones de conversión**. Se puede hacer de forma implícita (automática) o explícita(manual).
+- Ejemplo:
+  ```c
+  int   x = 10;
+  float y = 3.14f;
+
+  int z = x + y;    // DOS conversiones: x pasa a float (13.14f), y el
+                    // resultado se trunca al asignarlo a int → z == 13
+  int w = (int) y;  // conversión explícita: trunca hacia cero → w == 3
+  ```
+
+> Notá que en `float y = 3.14f;` el sufijo `f` importa: `3.14` sin sufijo es un **`double`**, que después se convierte a `float` al asignarlo. En el LPC1769, que no tiene FPU, dejar constantes `double` sueltas puede arrastrar toda la aritmética a 64 bits por software sin que te des cuenta. Escribí siempre el `f` en constantes de `float`.
+
+Reglas generales:
+
+- C promociona tipos más pequeños a más grandes. Ej: Los `int` se convierten a `float` si hay un `float` en la operación.
+- Los `char` y `short` se convierten a `int` antes de operar.
+- Se puede convertir un tipo a uno más pequeño manualmente, pero se puede perder información (truncamiento).
+- **La conversión de flotante a entero trunca hacia cero, no redondea:** `(int)3.9` da 3 y `(int)-3.9` da **-3** (no -4). Para redondear usá `roundf()` de `<math.h>`, o el truco entero `(int)(x + 0.5f)` si `x` es positivo.
+- **Convertir un flotante a entero cuando el valor no cabe en el destino es comportamiento indefinido**, no un truncamiento prolijo: `(uint8_t)300.0f` no te garantiza 44. La regla del módulo 2^N solo vale entre tipos **enteros**.
+
+Ejemplo en un sistema embebido:
+
+```c
+uint16_t valor = (uint16_t)(sensor_raw & 0xFFFF);
+uint8_t dato = (uint8_t)(ADC_Read() >> 2);
+```
+
+### Posibles errores
+
+
+| Problema                              | Ejemplo                                                      |
+| ------------------------------------- | ------------------------------------------------------------ |
+| **Pérdida de datos**                  | `(uint8_t)300 → 44`                                          |
+| **Truncamiento**                      | `(int)3.9 → 3`                                               |
+| **Conversión entre signo/sin signo**  | `int a = -1; uint32_t b = a;` → `b` es enorme                |
+
+
+---
+
+## Promociones enteras: el bug silencioso de los tipos chicos
+
+Esta es **la** fuente de errores sutiles más común cuando se programa un micro. Leela con atención.
+
+En C, **antes de operar, todo tipo entero más chico que `int` se convierte (promociona) a `int`.** Esto incluye `char`, `signed char`, `unsigned char`, `short`, `uint8_t`, `uint16_t`, etc. Como en el Cortex-M3 `int` es de **32 bits**, cuando vos escribís una cuenta entre `uint8_t`, internamente se calcula con 32 bits.
+
+Casi siempre eso es inofensivo. Pero a veces cambia el resultado de formas inesperadas:
+
+### Trampa 1: el complemento (`~`) de un tipo chico
+
+```c
+uint8_t  reg  = 0x0F;
+uint8_t  mask = 0x01;
+
+// Intención: apagar el bit 0 de reg
+reg = reg & ~mask;
+```
+
+Acá `mask` (un `uint8_t` con valor `0x01`) se promociona a `int`, queda `0x00000001`. Al aplicar `~` obtenés `0xFFFFFFFE` (32 bits, **no** `0xFE`). Como después hacés `& reg` y `reg` solo tiene 8 bits útiles, el resultado en este caso sale bien (`0x0E`). **Pero** mirá este otro:
+
+```c
+uint16_t valor = 0x1234;
+uint8_t  byte_alto = ~valor >> 8;   // ¿qué da?
+```
+
+`valor` se promociona a `int`: `0x00001234`. `~` da `0xFFFFEDCB`, que como `int` es un número **negativo**. Y acá aparece la segunda trampa escondida: el `>> 8` de un `int` negativo es un **desplazamiento aritmético**, que replica el bit de signo. Así que el resultado es `0xFFFFFFED`, **no** `0x00FFFFED`. Al asignarlo a `uint8_t byte_alto` se trunca a `0xED`.
+
+Comprobalo:
+
+```c
+uint16_t valor = 0x1234;
+printf("%08X %08X\n", (unsigned)~valor, (unsigned)(~valor >> 8));
+// imprime: FFFFEDCB FFFFFFED
+```
+
+Si esperabas el complemento del byte alto de un valor de 16 bits (`~0x12 = 0xED`)... acá tuviste suerte y dio lo mismo, pero el camino fue por 32 bits **con signo**. Y la suerte se acaba en cuanto usás el valor sin guardarlo primero en un `uint8_t`:
+
+```c
+if ((~valor >> 8) == 0xED)             // FALSO: comparás 0xFFFFFFED contra 0xED
+if ((uint8_t)(~valor >> 8) == 0xED)    // verdadero
+```
+
+**Regla:** cuando uses `~` sobre tipos chicos, enmascará explícitamente el resultado al ancho que querés:
+
+```c
+reg = reg & (uint8_t)~mask;          // forzás 8 bits
+byte_alto = (uint8_t)(~valor >> 8);  // el cast no cambia el número que se guarda,
+                                     // pero deja el ancho escrito en el código
+```
+
+Ese último cast es la clave del asunto: **no arregla un valor mal calculado**, hace explícito el ancho al que querés truncar, y por eso sigue valiendo lo mismo si mañana movés la expresión a un `if` o a una comparación, que es justo donde el problema aparece.
+
+> **Lección extra:** para desplazar a la derecha, trabajá siempre con tipos **sin signo**. `>>` sobre un valor negativo es un desplazamiento aritmético en GCC/ARM, pero el estándar lo declara *definido por la implementación*. Con `unsigned` siempre es un desplazamiento lógico (rellena con ceros) y está garantizado. Otro motivo para usar `uint32_t` en manipulación de bits.
+
+### Trampa 2: máscara de registro que se "desborda" hacia arriba
+
+```c
+uint8_t flags = 0xF0;
+uint8_t resultado = (flags << 4);   // ¿0x00?
+```
+
+Uno esperaría que correr `0xF0` cuatro lugares a la izquierda en 8 bits "tire" los unos y quede `0x00`. Pero `flags` se promociona a `int`, el `<< 4` produce `0x00000F00`, **no se pierde nada en el cálculo**, y recién al asignar a `uint8_t` se trunca a `0x00`. El resultado final coincide acá, pero si en el medio comparás o usás el valor intermedio, vas a ver `0xF00`, no `0x00`. Por eso, en manipulación de registros, conviene **operar en el ancho del registro** (típicamente `uint32_t` en el LPC1769) y enmascarar al final.
+
+### Trampa 3: la comparación que nunca se cumple
+
+```c
+uint8_t a = 200;
+uint8_t b = 100;
+if (a + b > 255) {        // a+b se calcula en int: 300 > 255 → ¡verdadero!
+    // entra acá
+}
+```
+
+Como `a + b` se hace en `int` (300, no 44), la comparación da verdadero aunque "en 8 bits" la suma se hubiera desbordado a 44. No está mal, pero hay que **saberlo**: la suma no se desborda durante el cálculo, solo cuando la guardás de vuelta en un `uint8_t`.
+
+> **Conclusión:** los tipos `uint8_t`/`uint16_t` son geniales para **almacenar**, pero recordá que **se calculan en `int` (32 bits)**. El truncamiento ocurre al **asignar** de vuelta a un tipo chico, no durante la cuenta. Cuando el ancho importa (máscaras, shifts, complementos), poné un cast explícito al ancho deseado.
+
+---
+
+## `signed` vs `unsigned`: bugs clásicos
+
+### El bucle que nunca termina
+
+```c
+// ¡BUG! Bucle infinito
+for (uint8_t i = 9; i >= 0; i--) {
+    procesar(i);
+}
+```
+
+Un `unsigned` **nunca** es negativo. Cuando `i` vale 0 y hacés `i--`, da la vuelta a 255 (en `uint8_t`) o a 4 294 967 295 (en `uint32_t`): jamás se cumple `i < 0`, así que `i >= 0` es **siempre verdadero**. Soluciones:
+
+```c
+// Opción A: usar un tipo con signo
+for (int i = 9; i >= 0; i--) { ... }
+
+// Opción B: condición con "mayor que" y otra forma de contar
+for (uint8_t i = 10; i-- > 0; ) { ... }   // truco: post-decremento
+
+// Opción C: contar al revés
+for (uint8_t i = 0; i < 10; i++) {
+    uint8_t j = 9 - i;
+    ...
+}
+```
+
+La opción B es el idiom estándar y vale la pena entenderla: `i-- > 0` primero **compara** `i` con 0 y después lo decrementa. Con `i = 10` entra al cuerpo con `i == 9`; en la última vuelta compara `1 > 0` (verdadero) y entra con `i == 0`; después compara `0 > 0` (falso) y sale. Recorre 9, 8, ..., 1, 0 y nunca decrementa por debajo de cero.
+
+> **Este bug también lo detecta el compilador, pero solo con `-Wextra`.** Con `-Wall` solo, GCC no dice nada:
+>
+> ```console
+> $ gcc -Wall -c bucle.c          # silencio total
+> $ gcc -Wall -Wextra -c bucle.c
+> warning: comparison is always true due to limited range of data type [-Wtype-limits]
+> ```
+>
+> Otra razón para no compilar nunca sin `-Wextra`.
+
+### Comparaciones mixtas signed/unsigned
+
+Si comparás un `signed` con un `unsigned`, C convierte **el operando con signo a sin signo** (regla de conversiones aritméticas usuales). Esto da resultados absurdos:
+
+```c
+int a = -1;
+unsigned int b = 1;
+if (a < b) {
+    // NO entra: -1 se convierte a 0xFFFFFFFF (4294967295), que NO es < 1
+}
+```
+
+Compilá con `-Wsign-compare` y el compilador te avisa de estas comparaciones. **Cuidado con un detalle:** en **C** ese warning **no** viene con `-Wall`, viene con **`-Wextra`** (en C++ sí está en `-Wall`, de ahí la confusión). O sea que compilar solo con `-Wall` te deja pasar este bug en silencio. Usá siempre las dos:
+
+```make
+CFLAGS += -Wall -Wextra
+```
+
+**Regla práctica:** no mezcles signo en comparaciones; elegí un signo y mantenelo.
+
+> Ojo que el problema aparece cuando el `unsigned` tiene rango **mayor o igual** al del `signed`. Comparar `int` con `uint8_t` **no** tiene este problema: el `uint8_t` se promociona a `int` y la comparación se hace con signo, como esperás. El bug vive cuando comparás `int` contra `unsigned int`, `uint32_t` o `size_t`. Y `size_t` está por todas partes (`strlen()`, `sizeof`), así que este caso es el más frecuente en la práctica:
+>
+> ```c
+> for (int i = 0; i < strlen(s); i++)   // -Wextra avisa: int vs size_t
+> for (size_t i = 0; i < strlen(s); i++) // así está bien
+> ```
+
+### Overflow: `unsigned` da la vuelta, `signed` es comportamiento indefinido
+
+
+| Tipo       | Qué pasa al desbordar                                                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsigned` | Da la vuelta de forma **definida**: aritmética módulo 2^N. `0xFF + 1 == 0x00` en `uint8_t`. Esto está **garantizado**.                                                       |
+| `signed`   | Es **comportamiento indefinido (UB)**. `INT_MAX + 1` no "da la vuelta a INT_MIN"; el compilador puede asumir que nunca pasa y optimizar de formas que te rompen el programa. |
+
+
+Por eso, para **contadores que dan la vuelta** (timestamps, índices circulares, CRC, hashes) usá siempre tipos `unsigned`. El cálculo de diferencias de tiempo con `uint32_t` que dan la vuelta funciona justamente porque el overflow unsigned está definido:
+
+```c
+uint32_t t0 = millis();
+// ... pasa el tiempo, incluso si el contador da la vuelta ...
+uint32_t transcurrido = millis() - t0;   // correcto aun con wraparound
+```
+
+> ### Para los curiosos (avanzado): reglas exactas de conversión
+>
+> Las reglas que usé arriba tienen nombre formal en el estándar:
+>
+> - **Promoción entera (integer promotion):** todo tipo entero de rango menor que `int` se convierte a `int` (o a `unsigned int` si `int` no puede representar todos sus valores). En el M3, `uint16_t` cabe en `int`, así que se promociona a `int` (con signo), no a `unsigned`.
+> - **Conversiones aritméticas usuales (usual arithmetic conversions):** cuando los dos operandos son de tipos distintos tras la promoción, se llevan a un "tipo común" siguiendo un ranking (`int` < `unsigned int` < `long` < ...). Si uno es `unsigned` y tiene rango mayor o igual, el otro se convierte a `unsigned`. De ahí sale el bug de comparar `int` con `unsigned int`.
+> - **Truncamiento:** al convertir a un tipo entero **sin signo** más chico, se conservan los bits de menor orden (módulo 2^N) y está **garantizado**. Para destino **con signo** y un valor fuera de rango, en C99/C11/C17 el resultado es *definido por la implementación* (en GCC/ARM, complemento a dos sin sorpresas); **en C23 pasó a estar definido** como módulo 2^N, porque C23 obliga a que los enteros con signo sean complemento a dos y eliminó los formatos exóticos (complemento a uno, signo-magnitud).
+> - El cast explícito **no** elimina estas reglas; solo te deja controlar **cuándo** ocurre la conversión (y le dice al compilador y al lector que la pérdida es intencional, lo que además calla el warning).
+> - **`sizeof` no evalúa su operando.** `sizeof(i++)` no incrementa `i`: el compilador solo mira el *tipo*. Es un operador de tiempo de compilación (salvo con VLAs), y su resultado es de tipo `size_t`.
+
+---
+
+
+### Reglas de conversión que conviene conservar
+
+- Los tipos enteros menores que `int` se promocionan antes de operar.
+- No mezcles signo en comparaciones sin justificar el tipo común.
+- El overflow `unsigned` es módulo 2^N; el overflow `signed` es comportamiento indefinido.
+- Un cast hace explícito cuándo convertís, pero no vuelve segura una operación que ya era inválida.
+- Usá `-Wall -Wextra`: `-Wsign-compare` y `-Wtype-limits` son parte de `-Wextra` en C.
+
+Fuentes específicas: [C17 N2176](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2176.pdf),
+cláusulas 6.3.1.1, 6.3.1.3 y 6.3.1.4; y
+[GCC Warning Options](https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html).
 
 ## Resumen
 
@@ -559,5 +773,5 @@ C ofrece un conjunto rico de operadores que permiten:
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [02 - Arreglos, conversiones y promociones](./02-arreglos-conversiones-y-promociones.md) ·
-**Siguiente:** [04 - Control de flujo](./04-control-de-flujo.md)
+**Anterior:** [C1 - Declaraciones, tipos y constantes](./01-declaraciones-y-tipos.md) ·
+**Siguiente:** [C3 - Control de flujo](./03-control-de-flujo.md)

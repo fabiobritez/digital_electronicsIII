@@ -71,7 +71,7 @@ setvbuf(stdout, buf_stdout, _IOLBF, sizeof buf_stdout);
 ```
 
 El buffer se lo damos nosotros a propósito: si le pasás `NULL`, el primer `printf` reserva 1032
-bytes con `malloc` (ver [módulo 0, capítulo 16 §6.2](../../../00_lenguaje_c/16-redirigir-printf-a-uart.md)).
+bytes con `malloc` (ver [Herramientas 06, `printf` por UART §6.2](../../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md)).
 
 ### 3. Cuando la cola se llena, se descarta (y se cuenta)
 
@@ -163,12 +163,12 @@ existe. Verificado en placa saturando la cola a propósito: de las líneas que l
 truncadas**, todas en orden creciente.
 
 Cuánto podés imprimir sin llegar a ese punto está en
-[módulo 0, capítulo 16 §10](../../../00_lenguaje_c/16-redirigir-printf-a-uart.md).
+[Herramientas 06, `printf` por UART §10](../../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md).
 
 ## Ver también
 
 - [Módulo 11 - DMA](../../../11_dma/) · [Módulo 09 - UART](../../../09_uart/)
-- [Módulo 0, capítulo 16 §6](../../../00_lenguaje_c/16-redirigir-printf-a-uart.md) — de dónde salen
+- [Herramientas 06, `printf` por UART §6](../../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md) — de dónde salen
   los 4091 µs y por qué el costo de `printf` no es `printf`
 - [`../printf_retarget.c`](../printf_retarget.c) — la versión por polling, que es de donde conviene
   arrancar para entender esta

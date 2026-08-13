@@ -1,9 +1,4 @@
-# Redirigir printf a la UART (clase práctica)
-
-> **Objetivo de la clase.** Entender cómo la librería estándar de C se conecta con el hardware, y
-> usar ese conocimiento para que `printf("ADC=%d\r\n", v)` salga por el cable serie y te sirva como
-> consola de depuración. Al final vas a tener un archivo `syscalls.c` propio que podés copiar a
-> cualquier proyecto del LPC1769.
+# Redirigir `printf` a la UART
 
 Esta es una de las prácticas más lindas del curso porque toca un punto que casi nunca se explica:
 *¿cómo sabe `printf` a dónde mandar los caracteres?* Spoiler: no lo sabe. Lo decidís vos.
@@ -184,7 +179,7 @@ void _exit(int code)            { (void)code; while (1) { } }   /* no hay a dón
 > **Si usás la plantilla del repo, no copies este archivo tal cual.** `plantilla/src/syscalls.c` ya
 > trae un `_write` (y todos los demás stubs) listo para usar. Está declarado `weak`, así que podés
 > pisarlo con el tuyo, pero el camino corto y recomendado ahí es el gancho `__io_putchar` de la
-> [sección 5a](#a-el-gancho-__io_putchar): son cinco líneas y no tenés que escribir ningún stub.
+> [sección 5a](#a-el-gancho-ioputchar): son cinco líneas y no tenés que escribir ningún stub.
 > El `_write` completo de acá es para cuando armás el proyecto desde cero, sin esa plantilla.
 
 Y el `main` de prueba. Asumimos que `uart0_init()` es la inicialización del módulo 9 (driver,
@@ -218,7 +213,7 @@ int main(void)
 ```
 
 Compilás y linkeás `syscalls.c` **junto con** tu `main.c`, el startup, el driver de UART y el linker
-script ([herramientas 05](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md)). Como definiste `_write` propio, el linker usa **el tuyo** en vez del de
+script ([herramientas 05](../05_del_codigo_al_binario/02-linker-y-startup.md)). Como definiste `_write` propio, el linker usa **el tuyo** en vez del de
 `nosys.specs`. Abrís la terminal a 115200 y ves `ADC=0`, `ADC=1`, ... saliendo solos.
 
 > **Antes de buscar el bug en otro lado: mirá el clock.** Los 115200 de este capítulo (y los del
@@ -227,12 +222,12 @@ script ([herramientas 05](../../herramientas/05_del_codigo_al_binario/02-linker-
 > baudrate más alto que el hardware puede generar es `1e6 / 16 = 62500`. **A 4 MHz, 115200 no es un
 > error de redondeo: es inalcanzable**, y lo único que vas a ver en la terminal es basura. Hay que
 > subir el clock antes de inicializar la UART: llamando a `SystemInit()` de CMSIS (en la plantilla,
-> `make USE_CMSIS=1`) o configurando la PLL a mano ([módulo 3](../03_clock_y_power/)). Si por lo que
+> `make USE_CMSIS=1`) o configurando la PLL a mano ([módulo 3](../../curso/03_clock_y_power/)). Si por lo que
 > sea tenés que quedarte a 4 MHz, usá un baudrate bajo: 4800 sale con `DL = 13` y 0.16% de error.
 
 > Coherencia con el módulo 9: notá el caste `(LPC_UART_TypeDef *)LPC_UART0`. UART0 tiene su propio
 > tipo `LPC_UART0_TypeDef`, idéntico en layout a `LPC_UART_TypeDef`; el caste solo calla el warning.
-> Está explicado en [módulo 09 - UART con driver](../09_uart/02-uart-con-driver.md).
+> Está explicado en [módulo 09 - UART con driver](../../curso/09_uart/02-uart-con-driver.md).
 
 ---
 
@@ -301,15 +296,15 @@ void uart_put_int(int32_t n)
 }
 ```
 
-(El debug framework de NXP de [herramientas 06-01](../../herramientas/06_depurar_en_serio/01-imprimir-para-depurar.md) ya hace exactamente esto con macros como
+(El debug framework de NXP de [herramientas 06-01](./01-imprimir-para-depurar.md) ya hace exactamente esto con macros como
 `_DBG`/`_DBD32`; mirálo como referencia.)
 
 Medido con una línea idéntica de 48 bytes, `_DBG` tardó 4005 µs y `printf` redirigido a la misma
 UART, 4014 µs. El ahorro temporal fue de solo 0,24 % porque ambos esperan al mismo periférico. El
-[banco reproducible](../ejemplos/uart/debug_framework/) muestra también la comparación al convertir
+[banco reproducible](../../curso/ejemplos/uart/debug_framework/) muestra también la comparación al convertir
 un entero.
 
-La [versión mejorada](../ejemplos/uart/debug_framework_mejorado/) conserva esas macros, pero permite
+La [versión mejorada](../../curso/ejemplos/uart/debug_framework_mejorado/) conserva esas macros, pero permite
 usar una cola atendida por interrupciones o DMA. Con DMA, el mismo literal devuelve el control en
 5,90 µs a 115200 y mantiene el caudal físico de la UART.
 
@@ -409,7 +404,7 @@ Si el problema es **tiempo** (el caso normal en este chip):
 3. **Mandá por interrupción o DMA con una cola circular.** `printf` deja los bytes en la cola y
    vuelve en microsegundos; el tiempo de línea sigue existiendo pero ya no lo paga el CPU. Es la
    única solución de fondo. **Está implementado y medido** en
-   [`ejemplos/uart/printf_dma/`](../ejemplos/uart/printf_dma/): los 4091 µs de CPU bloqueado de una
+   [`ejemplos/uart/printf_dma/`](../../curso/ejemplos/uart/printf_dma/): los 4091 µs de CPU bloqueado de una
    línea de 48 caracteres bajan a 36 µs, a cambio de 360 bytes de Flash y un canal de GPDMA. Ahí
    vas a ver además que, con DMA, `setvbuf(_IONBF)` pasa a ser **contraproducente**, justo al revés
    que en la sección 7.
@@ -420,7 +415,7 @@ Si el problema es **espacio**:
    +232 B de heap contra hacer la cuenta en punto fijo. En el Cortex-M3 no hay FPU: todo el float es
    por software. En vez de `printf("%f V\n", 3.3f*adc/4096)`, calculá en `int` y mandá
    `printf("%d.%03d V\n", mv/1000, mv%1000)`. Desarrollado en
-   [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md).
+   [C14 - Punto fijo vs flotante](../../curso/00_lenguaje_c/14-punto-fijo-vs-flotante.md).
 5. **Usá newlib-nano** (`--specs=nano.specs`, la plantilla ya lo trae): la newlib completa se lleva
    4× más Flash para el mismo `printf`.
 6. **`setvbuf(stdout, NULL, _IONBF, 0)`**: una línea, 1032 bytes de heap.
@@ -452,7 +447,7 @@ Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de 
 **lo último que ves es lo último que pasó**).
 
 > **Esto vale mientras la salida sea por polling.** Si algún día pasás a mandar por DMA
-> ([`ejemplos/uart/printf_dma/`](../ejemplos/uart/printf_dma/)), la recomendación **se da vuelta**:
+> ([`ejemplos/uart/printf_dma/`](../../curso/ejemplos/uart/printf_dma/)), la recomendación **se da vuelta**:
 > sin buffer, newlib llama a `_write` una vez por carácter y cada llamada arranca su propia
 > transferencia con su propia interrupción. Medido, eso triplica el costo de un `printf`. Ahí
 > conviene buffering de línea, dándole vos el buffer para que no lo pida al heap:
@@ -467,13 +462,13 @@ Para depurar, la salida inmediata casi siempre vale la pena (perdés un poco de 
   llama mientras el `main` también lo está usando, corrompés ese estado. (2) Es **lentísimo para una
   ISR**: 874 µs para diez caracteres, o sea 86.800 ciclos con el CPU parado. (3) Se come **376 bytes
   de stack**, el 18% de lo que el linker reserva, encima de lo que ya venía usando la cadena de
-  llamadas interrumpida. Regla de [herramientas 06](../../herramientas/06_depurar_en_serio/): la ISR **levanta una bandera**, y el
+  llamadas interrumpida. Regla de [herramientas 06](./): la ISR **levanta una bandera**, y el
   `main` imprime.
 - **El `_write` por polling bloquea, y ese es el costo dominante.** `UART_SendByte` espera con
   `while` a que `THRE` esté libre (módulo 9), un bit por vez. El 98% del tiempo de un `printf` se va
   ahí, no en formatear. A 9600 baud es doce veces peor todavía. Si necesitás imprimir sin bloquear,
   hay que mandar por interrupción/DMA con una cola: más complejo, pero es lo único que ataca el
-  problema real ([módulo 11](../11_dma/)).
+  problema real ([módulo 11](../../curso/11_dma/)).
 - **Reentrancia y RTOS.** Si en el futuro usás un RTOS con varias tareas, dos tareas llamando
   `printf` a la vez chocan. Ahí se usa newlib con soporte de reentrancia (`_REENT`) o se protege con
   un mutex. Para programas bare-metal de un solo hilo (como los del curso) no es problema.
@@ -511,9 +506,9 @@ que pasa **en la placa del curso**:
   corre**, sin frenarlo, aprovechando que la unidad de debug accede a memoria en paralelo al CPU.
   No usa pines ni periféricos, funciona **con la sonda que ya tenés**, y medido en placa cuesta
   **17 µs** por línea de 48 caracteres, contra 4091 µs de la UART por polling. Está implementado y
-  probado en [`ejemplos/uart/printf_rtt/`](../ejemplos/uart/printf_rtt/), con la guía de uso completa,
+  probado en [`ejemplos/uart/printf_rtt/`](../../curso/ejemplos/uart/printf_rtt/), con la guía de uso completa,
   incluida la puesta a punto en Ubuntu 24 y qué pasa si además usás MCUXpresso, en
-  [herramientas 06-04](../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md).
+  [herramientas 06-04](./04-consola-por-el-debugger-rtt.md).
 
 ### ¿Cuál usar?
 
@@ -536,7 +531,7 @@ saca bits solo a un ritmo fijo, y ese ritmo lo subís vos.
 
 En el laboratorio, con el debugger enchufado, RTT es lo más cómodo. Para un equipo que va a
 funcionar solo, o para volcar volumen, la UART sigue siendo la opción. Están comparadas en detalle
-en [herramientas 06-04 §8](../../herramientas/06_depurar_en_serio/04-consola-por-el-debugger-rtt.md).
+en [herramientas 06-04 §8](./04-consola-por-el-debugger-rtt.md).
 
 ---
 
@@ -686,7 +681,7 @@ Agregar un `printf` **cambia los tiempos que estás tratando de medir**. Con la 
 
 Eso no es magia: el `printf` estaba tapando una condición de carrera, o dándole tiempo a un
 periférico a terminar. Es la razón principal por la que **el debugger y los contadores de ciclos son
-mejores herramientas que `printf`** para problemas de temporización ([herramientas 06](../../herramientas/06_depurar_en_serio/)). `printf` es
+mejores herramientas que `printf`** para problemas de temporización ([herramientas 06](./)). `printf` es
 excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 
 ### Las seis reglas, resumidas
@@ -735,7 +730,7 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
    tiempo. Repetilo a 9600 baud: ¿cuál de los dos números cambia?
 
 > **Verificación del código.** El camino de `__io_putchar` de la sección 5a está **probado en placa**:
-> [`curso/ejemplos/uart/printf_retarget.c`](../ejemplos/uart/printf_retarget.c) se compiló sobre la
+> [`curso/ejemplos/uart/printf_retarget.c`](../../curso/ejemplos/uart/printf_retarget.c) se compiló sobre la
 > plantilla con `make USE_CMSIS=1`, se grabó en una LPCXpresso LPC1769 por CMSIS-DAP y su salida se
 > leyó a 115200 8N1 desde un conversor USB-serie en P0.2/P0.3, en los dos sentidos.
 >
@@ -744,13 +739,8 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 > heap leyendo `_sbrk(0)`; tiempo con `DWT->CYCCNT` a 100 MHz. Los ejercicios 5 y 6 son exactamente
 > esos experimentos, para que los reproduzcas.
 
----
-
-**Anterior:** [15 - Punto fijo vs flotante](./15-punto-fijo-vs-flotante.md) ·
-**Módulo:** [Lenguaje C](./README.md)
-
-**Ver también:** [Módulo 09 - UART](../09_uart/) · [Herramientas 06 - Depurar en serio](../../herramientas/06_depurar_en_serio/) ·
-[Ejemplo probado en placa: `ejemplos/uart/printf_retarget.c`](../ejemplos/uart/printf_retarget.c)
+**Ver también:** [Módulo 09 - UART](../../curso/09_uart/) · [Herramientas 06 - Depurar en serio](./) ·
+[Ejemplo probado en placa: `ejemplos/uart/printf_retarget.c`](../../curso/ejemplos/uart/printf_retarget.c)
 
 ---
 
@@ -775,10 +765,10 @@ excelente para saber *qué pasó*; es malo para saber *cuándo pasó*.
 
 - [UM10360: LPC176x/5x User Manual](../../UM10360.pdf), Capítulo 14 (UART0/2/3). Los registros `THR`, `LSR` y el divisor de baudios que usa `UART_SendByte`.
 - [Semihosting (Arm)](https://developer.arm.com/documentation/dui0471/latest/what-is-semihosting-). La alternativa que se menciona al final: imprimir a través del debugger, sin cable serie, a costa de que el micro se frene en cada carácter.
-- De dónde sale el heap que necesita `_sbrk`, en [Build, linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
+- De dónde sale el heap que necesita `_sbrk`, en [Build, linker y startup](../05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ---
 
-**Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [15 - Punto fijo vs punto flotante](./15-punto-fijo-vs-flotante.md) ·
-**Siguiente:** [17 - El superloop y el código no bloqueante](./17-superloop-y-codigo-no-bloqueante.md)
+**Unidad:** [06 - Depurar en serio](./README.md) ·
+**Anterior:** [04 - Consola por el debugger (RTT)](./04-consola-por-el-debugger-rtt.md) ·
+**Prerrequisito:** [09 - UART](../../curso/09_uart/)

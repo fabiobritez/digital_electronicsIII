@@ -1,6 +1,6 @@
-# Asignación dinámica de memoria (y por qué casi no vas a usarla)
+# C10B - Asignación dinámica de memoria (y por qué casi no vas a usarla)
 
-En este capítulo se junta todo lo anterior: punteros, dónde vive cada variable y qué pasa cuando la RAM
+Acá se juntan los punteros, la vida útil de las variables y el problema de qué pasa cuando la RAM
 se acaba. La conclusión va adelante, porque es la parte importante:
 
 > **En firmware para un micro como el LPC1769, la respuesta por defecto es no usar `malloc`.** No es una
@@ -79,7 +79,7 @@ un bloque del heap, o al revés, y el sistema falla de una manera que no se pare
 > Cómo se escribe uno bien, y de dónde salen `_end` y los demás símbolos, está en
 > [16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md#el-linker-script-ld-el-mapa-de-memoria).
 > El panorama de las cuatro zonas de memoria está en
-> [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap).
+> [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap).
 
 **Conclusión de esta sección:** en embebido el heap no "viene con el sistema". Es RAM que vos separaste,
 gestionada por código que vos enlazaste, con una función de crecimiento que vos escribiste. Todo lo que
@@ -131,7 +131,7 @@ int main(void) {
 > escribirlo no sirve para nada y lo borraría entero: medirías cero y sacarías la conclusión
 > equivocada. Es un detalle a tener siempre en cuenta al medir código optimizado, y de paso es
 > `volatile` haciendo exactamente su trabajo, que es el tema del
-> [capítulo 12](./12-volatile-y-tipos-para-hardware.md).
+> [C11 - C para hardware](./11-c-para-hardware.md).
 
 Compilalos los dos igual (mismo `-O2`, misma eliminación de secciones muertas) y comparalos con
 `arm-none-eabi-size`, que te dice cuánto ocupa cada sección del binario:
@@ -543,6 +543,96 @@ algo que el build **hace cumplir**, en lugar de un comentario que alguien va a i
 
 ---
 
+## Limpieza ordenada cuando se adquieren varios recursos
+
+Este patrón se presentó históricamente con control de flujo. Se entiende mejor acá, cuando ya se
+conocen punteros, propiedad de recursos y asignación dinámica.
+
+### ¿Cuándo usar `goto`?
+
+**Casi nunca**. Hace el código difícil de seguir ("código espagueti").
+
+**Casos legítimos**:
+
+1. **Limpieza de recursos en funciones con múltiples puntos de salida**
+
+La idea es tener **un solo camino de salida** que deshaga lo que se hizo, en orden inverso, sin repetir
+la limpieza en cada `return`. Fijate que cada etiqueta libera solo lo que ya se había conseguido:
+
+```c
+int procesar_archivo(const char *path) {
+    int resultado = -1;                 // pesimista: solo pasa a 0 si todo salió bien
+
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        return resultado;               // nada que limpiar todavía
+    }
+
+    char *buffer = malloc(1024);
+    if (!buffer) {
+        goto cerrar_archivo;
+    }
+
+    int *data = malloc(sizeof(int) * 100);
+    if (!data) {
+        goto liberar_buffer;
+    }
+
+    // procesar...
+    resultado = 0;                      // éxito
+
+    free(data);
+liberar_buffer:
+    free(buffer);
+cerrar_archivo:
+    fclose(f);
+    return resultado;
+}
+```
+
+> **La clave está en la variable `resultado`.** Arranca en error y solo se pone en 0 cuando todo
+> funcionó. Si en cambio hacés que la función termine con `return 0;` fijo, los caminos de error
+> devuelven "éxito" y el llamador nunca se entera del problema: es el bug más común al copiar este
+> patrón.
+>
+> En firmware sin sistema operativo casi no vas a usar `malloc` (ver
+> [C10B - Asignación dinámica](./10b-asignacion-dinamica.md)), pero el patrón es idéntico cuando lo que
+> hay que deshacer es apagar un periférico, liberar un pin o volver a habilitar interrupciones.
+
+2. **Salir de bucles anidados**
+
+`break` sale de **un solo** nivel, así que para cortar dos `for` de una vez hace falta una bandera y
+dos `break`, o un `goto`:
+
+```c
+int encontrado = 0;
+
+for (int i = 0; i < 10; i++) {
+    for (int j = 0; j < 10; j++) {
+        if (matriz[i][j] == buscado) {
+            encontrado = 1;
+            goto salir;      // sale de los DOS bucles de una
+        }
+    }
+}
+salir:
+    if (!encontrado) {
+        manejar_no_encontrado();
+    }
+```
+
+> [!WARNING]
+> **Una etiqueta no detiene la ejecución.** Si los bucles terminan sin saltar, el programa **sigue
+> igual** hacia la etiqueta y ejecuta lo que haya debajo. Una etiqueta llamada `error:` con el manejo
+> de error abajo y nada que la saltee corre también en el camino feliz, que es exactamente el bug que
+> se quería evitar. Por eso el ejemplo de arriba usa una bandera que distingue los dos casos; la
+> alternativa es poner un `return` o un `goto fin` justo antes de la etiqueta.
+
+> En la mayoría de casos, `break`, `continue` o reestructurar el código (por ejemplo, sacando los
+> bucles anidados a una función aparte y usando `return`) es mejor que `goto`.
+
+---
+
 ## 9. Resumen de reglas
 
 
@@ -595,12 +685,12 @@ resultados, y entender **por qué** los cambian es la mitad del aprendizaje.
 
 **En este curso**
 
-- [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap): las cuatro zonas de memoria y el choque stack/heap.
+- [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#zona-3-el-heap): las cuatro zonas de memoria y el choque stack/heap.
 - [16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md): de dónde sale el heap en el `.ld` y cómo se escribe `_sbrk`.
-- [Superloop no bloqueante](./17-superloop-y-codigo-no-bloqueante.md): cómo estructurar el firmware con buffers estáticos y sin asignación en operación.
+- [Superloop no bloqueante](./arquitectura/17-superloop-y-codigo-no-bloqueante.md): cómo estructurar el firmware con buffers estáticos y sin asignación en operación.
 
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md) ·
-**Siguiente:** [13 - Structs para hardware](./13-structs-para-hardware.md)
+**Anterior:** [C10A - Dónde vive cada variable](./10-donde-vive-cada-variable.md) ·
+**Siguiente:** [C11 - C para hardware](./11-c-para-hardware.md)

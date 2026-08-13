@@ -69,7 +69,7 @@ este orden; en otro micro, buscá los registros equivalentes en su manual:
 5. **¿La comunicación entre la ISR y el `main` es correcta?**
    `volatile` evita ciertas optimizaciones, pero no vuelve atómico un acceso ni reemplaza un
    mecanismo de sincronización
-   ([módulo 0, cap. 12](../../curso/00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)).
+   ([módulo 0, cap. 12](../../curso/00_lenguaje_c/11-c-para-hardware.md)).
 
 6. **¿La cuenta de tiempo o de baudrate da bien?**
    Rehacé el cálculo con el `PCLK` correcto.
