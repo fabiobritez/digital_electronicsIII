@@ -1,9 +1,7 @@
 # El preprocesador de C
 
-## ¿Qué es el preprocesador en C?
-
-Antes de que el código en C se compile, **pasa por una etapa llamada "preprocesamiento"**.
-Esta etapa maneja las **instrucciones que empiezan con `#`**, llamadas **directivas del preprocesador**.
+Antes de compilar, el archivo fuente pasa por una etapa llamada **preprocesamiento**. En esa etapa se
+resuelven las instrucciones que empiezan con `#`, conocidas como **directivas del preprocesador**.
 
 ### El preprocesador:
 
@@ -106,10 +104,10 @@ $ echo '#include <limits.h>' | arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -E - | 
 
 Leerlos vale la pena: abrí `limits.h` y vas a encontrar los valores reales de **esta** placa. Por
 ejemplo, ahí se ve que `CHAR_BIT` es 8 y que `CHAR_MIN` es **0**, no `-128`, que es la comprobación
-de que en ARM el `char` es `unsigned` (ver [01 - Declaraciones y tipos](./01-declaraciones-y-tipos.md)).
+de que en ARM el `char` es `unsigned` (ver [C1 - Declaraciones y tipos](./01-declaraciones-y-tipos.md)).
 
 > Qué hay en cada carpeta del toolchain, por qué pesa 710 MB y qué es el *multilib*, en
-> [18 - Adentro de la carpeta del toolchain](../anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md).
+> [18 - Adentro de la carpeta del toolchain](../../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md).
 
 ### Por qué existen los `.h`: cada `.c` se compila solo
 
@@ -190,7 +188,7 @@ uint16_t sensor_leer(void) { ... }
 > memoria, se puede repetir en muchos archivos): eso va en el `.h`. *Definir* es crearlo de verdad
 > (reserva memoria o genera código, y tiene que pasar **exactamente una vez** en todo el programa):
 > eso va en el `.c`. Es la misma idea de
-> [prototipo vs cuerpo de función](./06-funciones.md#declaración-vs-definición), ahora repartida
+> [prototipo vs cuerpo de función](./04-funciones.md#declaración-vs-definición), ahora repartida
 > entre dos archivos.
 
 ### Los dos errores que vas a ver, y qué significan
@@ -266,7 +264,7 @@ int m = MAX(leer_adc(), 100);    // ¡leer_adc() se llama DOS veces! (una en la 
 int n = MAX(i++, 10);            // i se incrementa una o dos veces, según cuál rama gane
 ```
 
-Una función `inline` (cap. 14) no tiene este problema: evalúa cada argumento una sola vez. Por eso,
+Una función `inline` (C13) no tiene este problema: evalúa cada argumento una sola vez. Por eso,
 para algo que no necesita ser macro, **preferí `static inline`**.
 
 ### El idiom `do { ... } while(0)`
@@ -275,7 +273,7 @@ para algo que no necesita ser macro, **preferí `static inline`**.
 intento ingenuo se rompe con `if`/`else`:
 
 ```c
-#define LED_ON()  LPC_GPIO0->FIODIR |= M;  LPC_GPIO0->FIOSET = M   // MAL
+#define LED_ON()  configurar_salida(); encender_led()   // MAL
 
 if (cond) LED_ON();   // solo la primera línea queda dentro del if; la segunda corre SIEMPRE
 ```
@@ -284,9 +282,9 @@ La solución estándar es envolver el cuerpo en `do { ... } while(0)`. Es un ún
 una vez, y admite el `;` final sin romper el `if`/`else`:
 
 ```c
-#define LED_ON()  do {                       \
-        LPC_GPIO0->FIODIR |= M;               \
-        LPC_GPIO0->FIOSET  = M;               \
+#define LED_ON()  do {                \
+        configurar_salida();          \
+        encender_led();                \
     } while (0)
 
 if (cond) LED_ON();   // ahora SÍ: ambas sentencias quedan dentro del if
@@ -310,8 +308,11 @@ IMPRIMIR_VAR(temperatura);   // imprime:  temperatura = 25     (útil para depur
 ```
 
 ```c
-#define REG_PUERTO(n)   LPC_GPIO##n           //  ##  pega "LPC_GPIO" + n
-REG_PUERTO(0)->FIOSET = M;                    //  ->  LPC_GPIO0->FIOSET = M
+#define PIN_LED_0       22u
+#define PIN_LED_1       15u
+#define PIN_LED(n)      PIN_LED_##n       // ## pega "PIN_LED_" + n
+
+uint32_t pin = PIN_LED(0);                // se expande a PIN_LED_0, es decir, 22u
 ```
 
 `##` es el motor que hace posibles las **X-macros**, que vemos al final del capítulo.
@@ -425,11 +426,11 @@ Su nombre viene de "pragmatic information". Cada compilador tiene sus propios #p
 
 ---
 
-### Ejemplo 1: `#pragma pack` 
+### Ejemplo 1: `#pragma pack`
 Con el objetivo de evitar relleno ("padding") automático que el compilador pone en estructuras para alinearlas.
 
 > El *padding*, por qué existe, qué cuesta sacarlo en un Cortex-M3 y cuándo conviene de verdad se
-> ven en [13 - Structs para hardware](./13-structs-para-hardware.md#padding-y-alineación). Acá solo
+> ven en [C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md#padding-y-alineación). Acá solo
 > nos interesa la directiva.
 
 #### Sin `#pragma`:
@@ -455,11 +456,11 @@ struct SensorData {
 ```
 
 Esto **desactiva el relleno automático**, y ahora la estructura ocupa **solo 5 bytes**.
- 
+
 ---
 
 ### Ejemplo 2: Desactivar advertencias
- 
+
 En GCC:
 
 ```c
@@ -468,7 +469,7 @@ En GCC:
 
 ---
 
-### Ejemplo 3: Controlar sección de memoria  
+### Ejemplo 3: Controlar sección de memoria
 
 En el caso de que una función se ubique en una región de memoria específica (útil en **bootloaders**, por ejemplo):
 
@@ -480,7 +481,7 @@ const uint8_t firmware_version[] = { 1, 0, 3 };
 Este `#pragma` (dependiendo del compilador, por ejemplo IAR) indica que `firmware_version` debe ir **exactamente** en esa dirección de memoria.
 
 ---
- 
+
 ## X-macros: generar tablas y enums desde una sola lista
 
 > Las dos secciones que siguen son **opcionales**: ya viste todas las directivas. Son las dos
@@ -619,10 +620,10 @@ _Static_assert(sizeof(int) == 4, "este codigo asume int de 32 bits (Cortex-M3)")
 **Sobre los temas puntuales**
 
 - [X-Macros (Randy Meyers, Dr. Dobb's)](https://www.drdobbs.com/the-new-c-x-macros/184401387). El artículo que popularizó la técnica.
-- [Dónde vive cada header del toolchain](../anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md). Qué es cada carpeta del compilador y por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib.
+- [Dónde vive cada header del toolchain](../../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md). Qué es cada carpeta del compilador y por qué `stdint.h` lo da GCC y `stdio.h` lo da newlib.
 
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [06 - Funciones](./06-funciones.md) ·
-**Siguiente:** [08 - Punteros](./08-punteros.md)
+**Anterior:** [C6 - Estructuras, enumeraciones y estado](./06-estructuras-y-enums.md) ·
+**Siguiente:** [C8 - Punteros](./08-punteros.md)

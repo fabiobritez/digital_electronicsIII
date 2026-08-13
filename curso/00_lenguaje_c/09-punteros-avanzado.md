@@ -1,7 +1,7 @@
-# Punteros avanzados: arreglos, cadenas y punteros a función
+# Arreglos, strings, punteros avanzados y callbacks
 
-En [08 - Punteros](./08-punteros.md) viste qué es un puntero, los operadores `&` y `*` y la aritmética
-de punteros. Este capítulo usa todo eso para las tres cosas en las que más se apoya el código real:
+Ya sabemos qué es un puntero y cómo usar los operadores `&` y `*`. Ahora podemos estudiar tres
+aplicaciones que aparecen continuamente en código real:
 
 1. **Arreglos**, y la relación con punteros que hace que pasar un arreglo a una función no copie nada.
 2. **Cadenas**, que en C no son un tipo sino un arreglo de `char` con una convención.
@@ -87,6 +87,36 @@ Evita usar una variable de índice y puede ser muy eficiente.
 
 ---
 
+### Índices contra aritmética de punteros: medir, no adivinar
+
+C5 inicializó un buffer mediante índices. Ahora podemos escribir la alternativa y comparar el código
+generado sin presentar los punteros antes de tiempo.
+
+La misma idea con aritmética de punteros, que vas a ver escrita así en mucho código:
+
+```c
+uint8_t *ptr = buffer;
+for (size_t i = 0; i < sizeof buffer; i++) {
+    *ptr++ = 0;
+}
+```
+
+> **Las dos versiones no se diferencian en velocidad.** Es común leer que la de punteros "es más
+> eficiente"; era cierto con los compiladores de los años 80. Hoy GCC con `-O2` genera para las dos
+> un lazo con una sola instrucción de escritura:
+>
+> ```console
+> $ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -O2 -S limpiar.c -o -
+> con índice:   strb  r1, [r3, #1]!
+> con puntero:  strb  r2, [r0], #1
+> ```
+>
+> Elegí la que se lea mejor, que casi siempre es la del índice. Y para el caso puntual de llenar un
+> buffer, lo más claro y lo más rápido es no escribir el bucle: `memset(buffer, 0, sizeof buffer);`
+> de `<string.h>`, que el compilador reemplaza por una rutina optimizada.
+
+---
+
 ## Arreglos como parámetros: el *decay* en acción
 
 Cuando pasás un arreglo a una función, **no se copia el arreglo**: se copia solo la dirección de su primer elemento (el *decay* que vimos arriba). Por eso estas tres firmas son **exactamente equivalentes**:
@@ -169,10 +199,28 @@ size_t strlen(const char *s);
 ```
 recibe un `const char*` apuntando a la cadena y recorre la memoria hasta encontrar `'\0'`.
 
+Así se implementa el mismo contrato a mano. Usamos otro nombre porque redefinir una función de la
+biblioteca estándar produce comportamiento indefinido:
+
+```c
+#include <stddef.h>
+
+size_t mi_strlen(const char s[]) {
+    size_t i = 0;
+    while (s[i] != '\0') {
+        i++;
+    }
+    return i;
+}
+```
+
+El retorno es `size_t` y el parámetro es `const` porque la función no modifica los caracteres. La
+sintaxis `s[]` en un parámetro se ajusta a `const char *`, como muestra la sección de *decay*.
+
 > **Ojo con el tipo de retorno:** `strlen` devuelve `size_t` (sin signo), **no `int`**. Si la declarás
 > mal, el compilador te frena con *conflicting types*; y si comparás su resultado con un `int`
 > negativo, te comés el bug de comparaciones mixtas de
-> [02 - Conversiones](./02-arreglos-conversiones-y-promociones.md#conversión-de-tipos).
+> [C2 - Conversiones](./02-expresiones-operadores-conversiones.md#conversión-de-tipos).
 
 ---
 
@@ -185,10 +233,13 @@ char *msg = "Hello";
 `msg` apuntará a un **literal de cadena**, que está en una zona de memoria **de solo lectura**.
 Intentar modificarlo (ej., `msg[0] = 'J';`) es **comportamiento indefinido**.
 
+Compilá con `-Wwrite-strings` para que GCC diagnostique desde el principio las asignaciones de un
+literal a un `char *` modificable.
+
 Fijate que hay dos cosas en dos lugares distintos: **el puntero `msg` sí vive en RAM** (es una variable
 como cualquier otra), pero **lo apuntado vive en `.rodata`, o sea en la Flash**. El detalle de qué
 sección es cada cosa está en
-[10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#recorrido-dónde-cae-cada-declaración).
+[C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#recorrido-dónde-cae-cada-declaración).
 
 Si necesitás modificar la cadena, se copia primero a un arreglo (esto sí genera una copia en la RAM):
 ```c
@@ -261,7 +312,7 @@ printf("Largo: %u\n", (unsigned)strlen(destino));  // 7
 
 > Acá va la mecánica: cómo se declara un puntero a `struct` y cómo se accede a sus campos. El uso que
 > le da el firmware (mapear registros del micro, controlar el *padding*, uniones) está en
-> [13 - Structs para hardware](./13-structs-para-hardware.md).
+> [C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md).
 
 Los punteros también pueden apuntar a tipos estructurados (`struct` o `union`).
 Un puntero a una estructura permite:
@@ -295,7 +346,7 @@ En C, para acceder a los miembros de una estructura a través de un puntero se u
 El operador `->` hace el código más legible. Y los paréntesis de `(*pPtr).x` **no son opcionales**:
 como `.` tiene más precedencia que `*`, escribir `*pPtr.x` significa `*(pPtr.x)`, que ni siquiera
 compila. Es la trampa de precedencia de
-[03 - Operadores](./03-operadores.md#mini-tabla-de-precedencia-que-más-muerde-en-embebido).
+[C2 - Operadores](./02-expresiones-operadores-conversiones.md#mini-tabla-de-precedencia-que-más-muerde-en-embebido).
 
 Ejemplo:
 
@@ -372,7 +423,7 @@ printf("%d\n", **pp); // imprime 5
    ```
 
    > En firmware esto casi no se usa: `malloc` se evita (ver
-   > [11 - Asignación dinámica](./11-asignacion-dinamica.md)) y una matriz estática contigua es más
+   > [C10B - Asignación dinámica](./10b-asignacion-dinamica.md)) y una matriz estática contigua es más
    > rápida y predecible. Lo incluimos porque lo vas a ver en código de PC.
 
 2. **Pasar punteros a funciones para modificarlos:**
@@ -416,6 +467,251 @@ Esto demuestra que un puntero a puntero permite **manipular el puntero original*
 
 Podés tener más niveles (`***` para triple puntero, etc.), pero rara vez se necesitan a menos que trabajes con datos muy complejos o arreglos multidimensionales.
 El caso más común en C es el **doble puntero**.
+
+---
+
+## Contratos de error con parámetros de salida
+
+Este desarrollo estaba en C4. Se ubica acá porque el patrón completo combina el valor de retorno con
+un puntero donde la función deja el dato útil.
+
+### Convención 1: la función devuelve un código de estado
+
+La función retorna un `int` (o un `enum`) que indica éxito o el tipo de error, y los datos "útiles" salen por punteros de salida:
+
+```c
+typedef enum {
+    SENSOR_OK = 0,
+    SENSOR_ERR_TIMEOUT,
+    SENSOR_ERR_CRC,
+} sensor_status_t;
+
+// El resultado sale por 'out'; el return informa si salió bien
+sensor_status_t Sensor_Leer(uint16_t *out) {
+    if (!dato_listo())      return SENSOR_ERR_TIMEOUT;
+    uint16_t v = leer_raw();
+    if (!crc_ok(v))         return SENSOR_ERR_CRC;
+    *out = v;
+    return SENSOR_OK;
+}
+
+// Uso
+uint16_t valor;
+if (Sensor_Leer(&valor) != SENSOR_OK) {
+    // manejar el error
+}
+```
+
+Usar `0` para "éxito" es la convención más extendida (permite escribir `if (funcion() != 0)` para "hubo error").
+
+### Convención 2: valor válido + un valor "centinela" para el error
+
+Cuando todos los valores válidos dejan libre alguno (típicamente negativos), se devuelve ese valor centinela para señalar error. La función `encontrar` de
+[C3 - Control de flujo](./03-control-de-flujo.md#return) hace esto: devuelve el índice si lo encuentra, o `-1` si no:
+
+```c
+int encontrar(const int arr[], size_t cantidad, int valor) {
+    for (size_t i = 0; i < cantidad; i++)
+        if (arr[i] == valor) return (int) i;
+    return -1;   // centinela: "no encontrado"
+}
+```
+
+Es compacto, pero solo sirve si tenés un valor que **nunca** es un resultado legítimo. Si todos los valores posibles son válidos, usá la Convención 1.
+
+> **Regla:** elegí una convención por módulo y mantenela. Y **siempre chequeá** el código de retorno: ignorar el error de una función de hardware es una de las causas más comunes de bugs intermitentes en firmware.
+
+---
+
+## Funciones que reciben y devuelven punteros
+
+C4 estableció que C pasa todos los argumentos por valor. Ahora que ya conocemos direcciones, esa
+regla se puede completar sin atajos: una función también recibe **una copia del puntero**, pero a
+través de ella puede leer o modificar el objeto original. Cada interfaz debe declarar además si el
+puntero puede ser `NULL`, qué tamaño tiene el objeto apuntado y quién conserva su propiedad.
+
+### Paso por referencia (simulado con punteros)
+
+Para modificar el valor original, se pasa un **puntero**:
+
+```c
+void incrementar(int *x) {
+    *x = *x + 1;
+    printf("Dentro: %d\n", *x);  // 11
+}
+
+int main(void) {
+    int a = 10;
+    incrementar(&a);  // pasar dirección de a
+    printf("Fuera: %d\n", a);    // 11 (cambió!)
+    return 0;
+}
+```
+
+Ahora la función puede modificar el valor original a través del puntero.
+
+> **En C no existe el "paso por referencia" de verdad.** Lo que ves arriba sigue siendo paso por valor: lo que se copia es el **puntero** (la dirección). La función recibe una copia de esa dirección y, a través de ella, llega a la variable original. Es paso por valor de un puntero. La diferencia con C++ (que sí tiene referencias `&`) es importante: en C, si querés modificar algo del llamador, **siempre** es vía puntero explícito (`&` al pasar, `*` para acceder).
+
+---
+
+### Parámetros `const`: decir qué vas a tocar y qué no
+
+Cuando una función recibe un puntero, quien la llama se queda con una duda razonable: **¿me va a
+modificar el dato?** El `const` en el parámetro responde eso, y el compilador lo hace cumplir.
+
+```c
+// Promete NO modificar el buffer: solo lo lee
+void uart_enviar(const uint8_t *buf, size_t len);
+
+// Sí lo modifica: acá se escribe lo recibido
+void uart_recibir(uint8_t *buf, size_t len);
+```
+
+Las dos firmas se leen distinto de un vistazo, y no es solo documentación: si dentro de
+`uart_enviar` alguien escribe `buf[0] = 0;`, **no compila**. Es una promesa verificada.
+
+La regla práctica es simple: **todo parámetro puntero que la función no modifique va `const`**. Es
+gratis, documenta la intención y permite que el compilador optimice mejor. La mecánica completa de
+`const` con punteros (la diferencia entre `const uint8_t *p` y `uint8_t * const p`) está en
+[C8 - Punteros](./08-punteros.md#const-y-punteros-const-correctness).
+
+> Los parámetros que **no** son punteros no necesitan `const`: como se pasan por copia, modificarlos
+> adentro no afecta a nadie. `void f(const int x)` es válido pero no aporta nada a quien llama.
+
+---
+
+### Retornar punteros
+
+```c
+char *obtener_saludo(void) {
+    static char mensaje[] = "Hola!";  // IMPORTANTE: static
+    return mensaje;
+}
+
+int main(void) {
+    char *msg = obtener_saludo();
+    printf("%s\n", msg);
+    return 0;
+}
+```
+
+> **NUNCA** retornes un puntero a una variable local (no estática):
+
+```c
+// INCORRECTO
+char *obtener_saludo_malo(void) {
+    char mensaje[] = "Hola!";  // local (se destruye al salir)
+    return mensaje;  // ¡PELIGRO! puntero a memoria no válida
+}
+```
+
+---
+
+## Diseño de funciones con buffers
+
+Esta sección aplica el mecanismo anterior al contrato de una función. Un arreglo **nunca se copia** al pasarlo: lo que viaja es un puntero a su primer elemento. Por eso la
+función trabaja sobre el arreglo original del llamador (sigue siendo paso por valor, pero de una
+dirección: lo mismo que vimos recién con `int *`).
+
+```c
+void imprimir_arreglo(const int arr[], size_t cantidad) {
+    for (size_t i = 0; i < cantidad; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+}
+
+void llenar_con_ceros(int arr[], size_t cantidad) {
+    for (size_t i = 0; i < cantidad; i++) {
+        arr[i] = 0;  // modifica el arreglo original
+    }
+}
+
+int main(void) {
+    int numeros[5] = {1, 2, 3, 4, 5};
+    imprimir_arreglo(numeros, 5);
+
+    llenar_con_ceros(numeros, 5);
+    imprimir_arreglo(numeros, 5);  // 0 0 0 0 0
+    return 0;
+}
+```
+
+> Siempre se debe pasar la cantidad como parámetro separado, ya que la función no puede determinarla.
+> Y fijate el `const` en `imprimir_arreglo`: declara que esa función **no toca** el arreglo, mientras
+> que `llenar_con_ceros` sí. Es una diferencia que el compilador verifica; se desarrolla en
+> [Parámetros `const`](#parámetros-const-decir-qué-vas-a-tocar-y-qué-no).
+
+### Por qué el arreglo "decae" a puntero
+
+Cuando pasás un arreglo a una función, **no se copia el arreglo entero**: lo que se pasa es la dirección de su primer elemento. Se dice que el arreglo **decae (decays) a un puntero**. Por eso estos tres prototipos son **idénticos** para el compilador:
+
+```c
+void f(int arr[10]);   // el "10" se ignora por completo
+void f(int arr[]);     // exactamente lo mismo
+void f(int *arr);      // ...y esto también
+```
+
+Consecuencias prácticas que tenés que tener clarísimas en embebido:
+
+1. **Dentro de la función, `sizeof(arr)` te da el tamaño de un puntero (4 bytes en el M3), NO el del arreglo.** El truco `sizeof(arr)/sizeof(arr[0])` para contar elementos **solo funciona en el scope donde se declaró el arreglo**, nunca dentro de una función que lo recibió. Por eso se pasa el tamaño aparte.
+
+   ```c
+   void procesar(uint8_t buf[]) {
+       size_t n = sizeof(buf);   // ¡4, no el tamaño del buffer! BUG clásico
+   }
+   ```
+
+   La buena noticia es que este no te lo tenés que acordar: **`-Wall` lo detecta**.
+
+   ```console
+   $ arm-none-eabi-gcc -mcpu=cortex-m3 -Wall -c procesar.c
+   warning: 'sizeof' on array function parameter 'buf' will return size of 'uint8_t *'
+            [-Wsizeof-array-argument]
+   ```
+
+2. Como la función recibe la dirección real, **puede modificar el contenido del arreglo del llamador** (no una copia). Eso es lo que aprovecha `llenar_con_ceros` más arriba.
+
+---
+
+### Documentar funciones
+
+```c
+/**
+ * @brief Calcula el promedio de un arreglo de enteros
+ * @param arr      Puntero al arreglo (la función no lo modifica)
+ * @param cantidad Número de elementos
+ * @return Promedio como float, o 0.0f si el arreglo está vacío
+ */
+float calcular_promedio(const int arr[], size_t cantidad) {
+    if (cantidad == 0) return 0.0f;
+
+    int suma = 0;
+    for (size_t i = 0; i < cantidad; i++) {
+        suma += arr[i];
+    }
+    return (float)suma / (float)cantidad;
+}
+```
+
+---
+
+### Evitar efectos secundarios ocultos
+
+```c
+// Efecto secundario oculto
+int contador_global = 0;
+int obtener_siguiente(void) {
+    contador_global++;  // modifica estado global
+    return contador_global;
+}
+
+// Mejor: explícito
+int obtener_siguiente(int *contador) {
+    (*contador)++;
+    return *contador;
+}
+```
 
 ---
 
@@ -505,7 +801,7 @@ void ejecutar(uint8_t cmd) {
 
 ### Máquina de estados dirigida por tabla
 
-Combinando enums ([05 - Estructuras y enumeraciones](./05-estructuras-y-enums.md)) con punteros a función podés escribir una máquina de estados sin un `switch` enorme: cada estado es una función que devuelve el próximo estado.
+Combinando enums ([C6 - Estructuras y enumeraciones](./06-estructuras-y-enums.md)) con punteros a función podés escribir una máquina de estados sin un `switch` enorme: cada estado es una función que devuelve el próximo estado.
 
 ```c
 typedef enum { ST_INIT, ST_IDLE, ST_ACTIVE, N_ESTADOS } Estado;
@@ -526,9 +822,9 @@ int main(void) {
 ```
 
 > Es la misma máquina de estados del `switch` de
-> [04 - Control de flujo](./04-control-de-flujo.md#uso-en-sistemas-embebidos-máquina-de-estados),
+> [C6 - `enum`, `switch` y estado](./06-estructuras-y-enums.md#uso-en-sistemas-embebidos-máquina-de-estados),
 > escrita como tabla. Las dos formas se comparan en
-> [Máquinas de estado](./18-maquinas-de-estado.md).
+> [Máquinas de estado](./arquitectura/18-maquinas-de-estado.md).
 
 ### Callbacks en drivers e ISRs (el caso real del embebido)
 
@@ -571,7 +867,7 @@ int main(void) {
 > cambió. La copia local dentro de la ISR es el otro lado del mismo problema: si leyeras `rx_cb` dos
 > veces (una para el `!= NULL` y otra para llamar), podría cambiar entre medio. El detalle de
 > `volatile` y la concurrencia con interrupciones está en
-> [12 - `volatile` y tipos para hardware](./12-volatile-y-tipos-para-hardware.md). Además, muchos
+> [C11 - `volatile` y tipos para hardware](./11-c-para-hardware.md). Además, muchos
 > drivers reales reciben también un `void *contexto` que te devuelven en el callback, para que no
 > tengas que usar variables globales (ahí entra el `void *` del
 > [capítulo anterior](./08-punteros.md#punteros-void--y-casts)).
@@ -579,6 +875,146 @@ int main(void) {
 > **Para los curiosos (avanzado): la tabla de vectores**
 >
 > El propio Cortex-M3 usa esta idea a nivel hardware. Al principio de la Flash hay una **tabla de vectores de interrupción**: un arreglo de punteros a función. Cuando ocurre una interrupción, el procesador toma el puntero correspondiente de esa tabla y salta a tu *handler*. O sea: registrar una ISR es, literalmente, poner un puntero a función en una tabla. Por eso `UART0_IRQHandler` tiene que llamarse exactamente así: el *startup* lo coloca en la posición correcta del vector. Se ve completo en [07 - NVIC y vectores](../07_interrupciones/01-nvic-y-vectores.md).
+
+---
+
+## Callbacks, interrupciones y reentrancia
+
+### Callbacks de interrupciones
+
+```c
+void UART_RxCallback(uint8_t dato) {
+    // se llama cuando llega un byte por UART
+}
+
+void Timer_Callback(void) {
+    // se llama cada vez que el timer expira
+}
+```
+
+---
+
+### Funciones reentrantes: el problema que aparece con las interrupciones
+
+Una interrupción puede caer **en cualquier instrucción**, incluso en el medio de una de tus
+funciones. Si la ISR llama a esa misma función, hay dos ejecuciones vivas a la vez. Una función que
+soporta eso sin romperse se llama **reentrante**.
+
+Lo que rompe la reentrancia es **el estado compartido entre llamadas**: variables globales y
+`static` locales. Las variables locales comunes no dan problema, porque cada llamada tiene su propio
+marco de pila.
+
+```c
+// NO reentrante: las dos ejecuciones se pisan el mismo contador
+static int llamadas = 0;
+int siguiente_id(void) {
+    llamadas++;          // si la ISR entra justo acá, se pierde una cuenta
+    return llamadas;
+}
+
+// Reentrante: todo el estado es local o del llamador
+int siguiente_id_r(int *contador) {
+    return ++(*contador);
+}
+```
+
+Dos consecuencias concretas en firmware:
+
+- **La función que devuelve un puntero a un `static`** (como `obtener_saludo` más arriba) no es
+  reentrante: dos llamadas devuelven **la misma dirección**, así que la segunda pisa el resultado de
+  la primera.
+- **Varias funciones de la biblioteca estándar tampoco lo son.** El caso clásico es `strtok`, que
+  guarda estado interno entre llamadas. Tampoco conviene llamar a `printf` desde una ISR: además de
+  no ser reentrante en todas las implementaciones, se lleva cientos de bytes de pila.
+
+El tema completo —qué pasa cuando la ISR y el `main` comparten una variable, por qué hace falta
+`volatile` y cuándo hay que deshabilitar interrupciones— está en
+[07 - Secciones críticas y atomicidad](../07_interrupciones/03-secciones-criticas-y-atomicidad.md).
+
+---
+
+## Patrones embebidos y casos límite
+
+La mecánica básica ya quedó establecida. Estas son las diferencias que importan al diseñar una API o
+leer código de firmware real.
+
+### Un arreglo no es un puntero
+
+> [!IMPORTANT]
+> **Un arreglo NO es un puntero.** Es una simplificación que se dice mucho pero que induce a error. `arr` es de tipo `int[5]`; lo que pasa es que en la mayoría de las expresiones se convierte a `int *`. Hay **tres excepciones** donde el arreglo *no* decae y se ve la diferencia:
+>
+> ```c
+> int arr[5];
+> int *ptr = arr;
+>
+> // 1) operando de sizeof
+> sizeof(arr);        // 20 → el arreglo entero. sizeof(ptr) daría 4
+>
+> // 2) operando de & (y de _Alignof)
+> &arr;               // tipo int(*)[5] → puntero a arreglo de 5. &ptr es int**
+>
+> // 3) literal de cadena que inicializa un arreglo
+> char s[] = "Hola";  // copia los 5 bytes en s; NO apunta al literal
+> ```
+>
+> Otra diferencia concreta: un puntero es una **variable** que ocupa sus 4 bytes en memoria y podés reasignar (`ptr = otro;`). El nombre del arreglo no es una variable reasignable: `arr = otro;` no compila. De ahí viene la analogía con "puntero constante", pero el arreglo además **no ocupa memoria propia** para guardar la dirección: la dirección *es* dónde está el arreglo.
+
+---
+
+### Uso en sistemas embebidos
+
+El ejemplo combina arreglos con `static`, `const` y `volatile` para representar tablas y registros.
+La sintaxis de punteros ya se desarrolló en C8; C11 precisará las garantías de `volatile` para MMIO.
+
+```c
+// Buffer para UART (en RAM, sin inicializar → va a .bss, arranca en cero)
+static uint8_t rx_buffer[256];
+
+// Tabla de lookup: al ser static const va a .rodata, o sea Flash. No gasta RAM.
+static const uint16_t adc_to_temp[256] = { /* ... */ };
+
+// Arreglo de punteros a los registros FIOxSET de los 5 puertos del LPC1769
+// (UM10360 tabla 106: FIO0SET..FIO4SET, de 0x2009C018 a 0x2009C098, cada
+//  puerto separado 0x20)
+static volatile uint32_t * const gpio_set[5] = {
+    (volatile uint32_t *) 0x2009C018,   // P0
+    (volatile uint32_t *) 0x2009C038,   // P1
+    (volatile uint32_t *) 0x2009C058,   // P2
+    (volatile uint32_t *) 0x2009C078,   // P3
+    (volatile uint32_t *) 0x2009C098    // P4
+};
+
+// Prender el pin `pin` del puerto `puerto`
+void set_pin(uint8_t puerto, uint8_t pin) {
+    *gpio_set[puerto] = (1u << pin);
+}
+```
+
+> [!NOTE]
+> Fijate en el tipo del último arreglo: `volatile uint32_t * const gpio_set[5]` es un **arreglo de punteros constantes a `uint32_t` volátiles**. El `volatile` va sobre el *registro apuntado* (que cambia por hardware), no sobre el arreglo. Declarar `volatile uint32_t gpio_ports[4] = {0x...}` sería un arreglo de *números* volátil, que no es lo que querés: son direcciones fijas, no datos que cambien. Y al ser `const`, el arreglo de punteros también se va a Flash.
+
+---
+
+### Limitaciones importantes
+
+1. **Tamaño fijo**: una vez declarado, no se puede cambiar el tamaño
+2. **No se puede asignar directamente**: `arr1 = arr2;` es **inválido**. Para copiar, `memcpy(arr1, arr2, sizeof arr1);` (de `<string.h>`)
+3. **No se puede retornar un arreglo desde una función**: el lenguaje no admite tipos de retorno de arreglo, ni siquiera se puede escribir. Y si devolvés un *puntero* a un arreglo local, el arreglo ya murió al salir de la función: es **comportamiento indefinido** (GCC avisa con `-Wreturn-local-addr`). Las salidas son pasar un buffer del llamador, o usar `static`
+4. **Sin verificación de límites**: accesos fuera de rango no generan error
+5. **No se comparan con `==`**: `if (arr1 == arr2)` compara *direcciones*, no contenido. Para contenido, `memcmp()`
+
+---
+
+### Cuánto verifica el compilador en un parámetro arreglo
+
+> *Cuánto te ayuda el compilador acá depende de su versión.* Con el `arm-none-eabi-gcc` 9 del repo, pasarle un `int chico[2]` a un parámetro `int arr[5]` pasa **sin un solo warning**. Los GCC modernos (11 en adelante) sí lo miran: usan el tamaño escrito como una promesa y avisan si la llamada no la cumple.
+>
+> ```console
+> $ gcc-13 -Wall -c parametros.c
+> warning: 'g' accessing 20 bytes in a region of size 8 [-Wstringop-overflow=]
+> ```
+>
+> No te confíes igual: el chequeo solo funciona cuando el compilador ve el tamaño del arreglo original en el mismo archivo, y desaparece por completo si escribís `int arr[]` sin número. **Pasar el tamaño como parámetro aparte sigue siendo la única forma robusta.**
 
 ---
 
@@ -621,15 +1057,15 @@ int main(void) {
 
 **Sobre los temas puntuales**
 
-- [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md). Por qué un literal de cadena está
+- [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md). Por qué un literal de cadena está
   en Flash y una copia local en RAM.
-- [13 - Structs para hardware](./13-structs-para-hardware.md). Los punteros a `struct` de este
+- [C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md). Los punteros a `struct` de este
   capítulo, aplicados a mapear los registros del micro.
-- [Máquinas de estado](./18-maquinas-de-estado.md). La tabla de punteros
+- [Máquinas de estado](./arquitectura/18-maquinas-de-estado.md). La tabla de punteros
   a función llevada a la arquitectura de un firmware completo.
 
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [08 - Punteros](./08-punteros.md) ·
-**Siguiente:** [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md)
+**Anterior:** [C8 - Punteros](./08-punteros.md) ·
+**Siguiente:** [C10A - Dónde vive cada variable](./10-donde-vive-cada-variable.md)

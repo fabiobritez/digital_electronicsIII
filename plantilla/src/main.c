@@ -25,7 +25,7 @@
  * accesos. Sin el, el compilador ve que escribis dos veces la misma variable
  * sin leerla y borra una de las escrituras, o cachea una lectura en un
  * registro del CPU y nunca vuelve a mirar la memoria. Con hardware del otro
- * lado, las dos cosas rompen el programa. (Modulo 0, capitulo 8.)
+ * lado, las dos cosas rompen el programa. (Modulo 0, capitulo 12.)
  *
  * Las direcciones salen del capitulo 2 del UM10360 y coinciden con LPC17xx.h.
  * ------------------------------------------------------------------------ */
@@ -48,8 +48,9 @@
  * Un delay cualquiera, a puro quemar ciclos
  * ---------------------------------------------------------------------------
  * Bloqueante y sin precision: es lo que NO hay que hacer en un programa de
- * verdad (modulo 17), pero para el primer arranque alcanza y no depende de
- * ningun periferico. Cuando llegues al modulo 6 esto se reemplaza por SysTick.
+ * verdad (modulo 0, capitulo 17), pero para el primer arranque alcanza y no
+ * depende de ningun periferico. Cuando llegues al modulo 6 esto se reemplaza
+ * por SysTick.
  *
  * El volatile en el contador evita que el compilador borre el lazo entero por
  * considerarlo inutil, que es exactamente lo que haria con -O2.

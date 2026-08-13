@@ -10,7 +10,11 @@
  * significativos (>> 2).
  *
  * Explicado en: curso/10_adc_dac/01-adc-dac-registros.md
- * Supone PCLK_ADC = 25 MHz (valor por defecto).
+ *
+ * Supone PCLK_ADC = 25 MHz, o sea CCLK = 100 MHz dividido 4. El /4 si es el
+ * valor por reset; los 100 MHz no: los deja SystemInit() al enganchar la PLL
+ * con el cristal de 12 MHz. Sin esa llamada el micro corre a 4 MHz y el reloj
+ * del ADC sale 25 veces mas lento.
  */
 
 #include "LPC17xx.h"

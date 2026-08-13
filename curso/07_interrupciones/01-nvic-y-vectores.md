@@ -111,7 +111,7 @@ void TIMER0_IRQHandler(void) { ... }   // se engancha en la tabla por su NOMBRE
 
 Por eso un error de tipeo (`Timer0_IRQHandler`, `TIM0_IRQHandler`) **no da error de compilación** y
 simplemente tu handler nunca corre: el linker dejó el weak default. Es uno de los bugs más
-frustrantes y silenciosos. (Conexión con el anexo A: el startup y la tabla los vas a ver de cerca
+frustrantes y silenciosos. (Conexión con [Herramientas 05](../../herramientas/05_del_codigo_al_binario/): el startup y la tabla los vas a ver de cerca
 ahí.)
 
 ## El stacking automático: por qué un ISR es una función C normal

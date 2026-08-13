@@ -1,6 +1,6 @@
 # Instrumentos de medición
 
-El debugger (módulo 12) te muestra qué hace el **software**. Pero a veces el problema está en el
+El debugger ([herramientas 06](../../herramientas/06_depurar_en_serio/)) te muestra qué hace el **software**. Pero a veces el problema está en el
 **hardware**: ¿la señal sale de verdad? ¿a qué voltaje? ¿con qué forma? Para eso están los
 instrumentos. Saber cuál usar y para qué resuelve problemas que por software son invisibles.
 
@@ -66,11 +66,12 @@ SDA  ──┐ START  [ 0x48 + W ] ACK  [ 0x00 ] ACK ...   <- el analizador te d
 | "El cable / la conexión, ¿está bien?" | **multímetro** (continuidad) |
 | "El PWM / la señal analógica, ¿sale bien?" | **osciloscopio** |
 | "El I2C / SPI / UART no se comunica" | **analizador lógico** (decodifica las tramas) |
-| "El programa hace algo raro" | **debugger** (módulo 12): ese es software |
+| "El programa hace algo raro" | **debugger** ([herramientas 06](../../herramientas/06_depurar_en_serio/)): ese es software |
 
 ## Sin instrumentos: el LED y la UART
 
-Si no tenés ninguno (es lo habitual al empezar), tus instrumentos "de pobre" son los del módulo 12: un
+Si no tenés ninguno (es lo habitual al empezar), tus instrumentos "de pobre" son los de
+[herramientas 06](../../herramientas/06_depurar_en_serio/): un
 **LED** para ver si el código llegó a un punto, y la **UART** para imprimir valores. No reemplazan a un
 analizador para depurar I2C, pero resuelven mucho. Aun así, un **multímetro** es tan barato y tan útil
 que vale la pena tener uno sí o sí.

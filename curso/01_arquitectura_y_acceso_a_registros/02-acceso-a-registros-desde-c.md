@@ -2,7 +2,7 @@
 
 Ya sabemos que un registro es una dirección de memoria. Ahora: **¿cómo escribo una dirección
 concreta desde C?** La respuesta es un puntero. Y como el contenido lo cambia el hardware, ese
-puntero tiene que ser `volatile` (ver [módulo 0, cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)).
+puntero tiene que ser `volatile` (ver [módulo 0, cap. 12](../00_lenguaje_c/11-c-para-hardware.md)).
 
 ## El patrón fundamental
 
@@ -92,7 +92,7 @@ direcciones. Cuando uses el driver `GPIO_SetDir()` / `GPIO_SetValue()`, por dent
 
 Un registro de 32 bits controla 32 cosas a la vez. Casi nunca querés escribir el registro entero:
 querés tocar **un bit** y dejar los otros como estaban. Para eso están las operaciones bitwise
-(repaso del [módulo 0, cap. 03](../00_lenguaje_c/03-operadores.md)), aplicadas a hardware:
+(repaso del [módulo 0, cap. 03](../00_lenguaje_c/02-expresiones-operadores-conversiones.md)), aplicadas a hardware:
 
 | Quiero… | Operación | Idea |
 |---------|-----------|------|
@@ -115,7 +115,7 @@ if (FIO0PIN & (1u << 10)) { /* P0.10 está en alto */ }
 > sin afectar al resto: `|=` para poner, `&= ~` para borrar.
 
 > **¿Por qué `1u` y no `1`?** El sufijo `u` hace la constante `unsigned`. Para corrimientos de
-> bits siempre querés trabajar sin signo (ver [cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)).
+> bits siempre querés trabajar sin signo (ver [cap. 12](../00_lenguaje_c/11-c-para-hardware.md)).
 
 ### El caso especial de SET/CLR (¡no necesitan máscara de lectura-modificación-escritura!)
 

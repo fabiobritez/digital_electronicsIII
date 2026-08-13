@@ -1,19 +1,90 @@
 # Ejemplos de UART
 
-Dos versiones del mismo programa (eco serial: todo lo que llega se devuelve), siguiendo la
-progresión del curso:
+Siete ejemplos, siguiendo la progresión del curso. Los dos primeros son el mismo eco serial, todo lo
+que llega se devuelve, a dos niveles de abstracción. Los cinco restantes comparan distintas formas
+de obtener una consola de diagnóstico:
 
 | Archivo | Nivel | Baudrate |
 |---------|-------|----------|
 | [`uart_eco_registros.c`](./uart_eco_registros.c) | A registro (DLAB, DLL/DLM, LSR, polling) | 9600 |
 | [`uart_eco_driver.c`](./uart_eco_driver.c) | Driver CMSIS (`UART_Init`, `UART_Send/Receive`) | 115200 |
+| [`printf_retarget.c`](./printf_retarget.c) | A registro **con fraccional** + `printf` redirigido por `__io_putchar` | 115200 |
+| [`debug_framework/`](./debug_framework/) | Macros `_DBG` y `_DBD32` de la biblioteca de NXP, con mediciones | 115200 |
+| [`debug_framework_mejorado/`](./debug_framework_mejorado/) | Misma idea, con bloques, interrupciones o DMA seleccionables | 115200 o 921600 |
+| [`printf_dma/`](./printf_dma/) | El mismo `printf`, pero **sin bloquear el CPU**: cola circular + GPDMA | 115200 |
+| [`printf_rtt/`](./printf_rtt/) | `printf` por el **cable del debugger**, sin UART ni pines | no usa UART |
+
+> Medido en placa, imprimir una línea de 48 caracteres le cuesta al CPU **4005 µs** con `_DBG`,
+> **4091 µs** con `printf` por polling, **36 µs** con DMA y **17 µs** con RTT. El framework hace más
+> cómoda la llamada, pero por debajo sigue usando polling bloqueante. La
+> [versión mejorada](./debug_framework_mejorado/) conserva sus macros y devuelve el control en
+> **5,9 µs** con DMA.
+
+**¿Querés comprobar los números vos mismo?** Todos los comandos están en
+[`MEDICIONES.md`](./MEDICIONES.md): cómo medir Flash, stack, heap y ciclos, cómo subir el baudrate y
+hasta dónde aguanta, y cómo levantar el canal RTT con OpenOCD.
 
 Para probarlos: conectá la placa por el puente UART-USB (o el adaptador que tengas en
 P0.2/P0.3), abrí una terminal serie con el baudrate correcto y escribí: cada tecla debería
 volver como eco.
 
-Teoría y explicación paso a paso: [módulo 9: UART](../../09_uart/).
+Teoría y explicación paso a paso: [módulo 9: UART](../../09_uart/). El retargeting de `printf`,
+en [Herramientas 06 - Redirigir `printf` a UART](../../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md).
 
-> ¿Por qué el de registro usa 9600 y el de driver 115200? Porque a 115200 con PCLK de 25 MHz
-> el divisor entero no alcanza (error > 3%) y hace falta el divisor fraccional, que el driver
-> calcula solo. Está explicado en la [página 1 del módulo 9](../../09_uart/01-uart-registros.md).
+> ¿Por qué el de registro usa 9600 y los otros dos 115200? Porque a 115200 con PCLK de 25 MHz
+> el divisor entero no alcanza (error > 3%) y hace falta el divisor fraccional. El de driver deja
+> que `UART_Init` lo calcule; `printf_retarget.c` lo tiene resuelto a mano
+> (`DL = 10, MULVAL = 14, DIVADDVAL = 5`) para que se vea de dónde sale cada número. Está
+> explicado en la [página 1 del módulo 9](../../09_uart/01-uart-registros.md).
+
+> **Los tres suponen `CCLK = 100 MHz`** (y por lo tanto `PCLK_UART0 = 25 MHz`). Eso no es el estado
+> del micro después de un reset: hay que llamar a `SystemInit()`. MCUXpresso lo hace solo; con la
+> plantilla del repo hay que compilar con `make USE_CMSIS=1`. Si no, el micro queda a 4 MHz, ningún
+> baudrate da y solo vas a ver basura en la terminal.
+
+## Si el texto llega cortado o mezclado
+
+Síntoma: se leen palabras enteras y correctas, pero salteadas y entreveradas, como si faltaran
+pedazos al azar.
+
+```
+ 1740
+ttt[rx] 0x0tick 1755t'.'
+tick 1tt
+        k 1765
+```
+
+**Casi seguro tenés dos programas leyendo el mismo puerto.** Un puerto serie entrega cada byte a
+**un solo** lector: si dejaste un `cat /dev/ttyUSB0` de fondo y después abrís minicom, el kernel
+reparte los bytes entre los dos y cada uno recibe la mitad. No se duplica nada, se parte.
+
+Fijate quién lo tiene abierto y cerralo:
+
+```bash
+ls -l /proc/*/fd/* 2>/dev/null | grep ttyUSB0
+```
+
+Lo que distingue este caso de un **error de baudrate** es que acá hay líneas perfectamente
+escritas (`tick 1870`). Con el baudrate mal nunca aparece una palabra bien formada: sale basura
+pareja de punta a punta. Caracteres correctos pero incompletos = alguien más se los está llevando.
+
+Aparte, es normal ver un `[rx] 0x00` suelto justo al abrir la terminal: al conectarse, el programa
+activa DTR/RTS y reconfigura el conversor USB-serie, y en esa transición la línea pega un pulso que
+la UART toma como un byte nulo. Pasa una sola vez y no molesta.
+
+## Probado en placa
+
+`printf_retarget.c` se compiló sobre `plantilla/` con `make USE_CMSIS=1`, se grabó en una
+LPCXpresso LPC1769 por CMSIS-DAP y se verificó su salida a 115200 8N1 con un conversor USB-serie
+en P0.2/P0.3, en ambos sentidos:
+
+```
+=========================================
+  LPC1769 - printf() por UART0
+  115200 8N1, TXD0 = P0.2, RXD0 = P0.3
+=========================================
+SystemCoreClock = 100000000 Hz
+PCLK_UART0      = 25000000 Hz
+con DLAB=0 leo: 0x00 0x00  (no son DLL/DLM: son RBR e IER)
+con DLAB=1 leo: DLL=10 DLM=0 FDR=0xE5 (MULVAL=14 DIVADDVAL=5)
+```

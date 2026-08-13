@@ -70,7 +70,7 @@ publica Arm, bajo licencias libres.
 > con el valor que imprime el script, que además te avisa si te olvidaste.
 
 Qué es cada cosa que se copia y por qué, está explicado en detalle en
-[`curso/anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md`](../curso/anexos/B_toolchain_y_entorno/04-adentro-del-toolchain.md).
+[`herramientas/04_toolchains/03-anatomia-de-la-carpeta.md`](../herramientas/04_toolchains/03-anatomia-de-la-carpeta.md).
 
 ## Manual
 

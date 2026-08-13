@@ -25,9 +25,9 @@ comprobarlo.
    Acceso atómico a bits individuales: cada bit como una dirección propia. Cuándo sirve y cuándo no.
 
 ## Qué necesitás antes
-- Módulo 0, sobre todo [08 - Punteros](../00_lenguaje_c/08-punteros.md),
-  [05 - Structs/unions](../00_lenguaje_c/05-estructuras-y-enums.md) y
-  [12 - `volatile` y tipos para hardware](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md).
+- Módulo 0, sobre todo [C8 - Punteros](../00_lenguaje_c/08-punteros.md),
+  [C6 - Structs y enums](../00_lenguaje_c/06-estructuras-y-enums.md) y
+  [C11 - C para hardware](../00_lenguaje_c/11-c-para-hardware.md).
 
 ## Manual de referencia
 - Mapa de memoria: [`manual/ch02_memory-map.pdf`](../../manual/ch02_memory-map.pdf)

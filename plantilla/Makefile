@@ -438,6 +438,87 @@ else
 	  $(GDB) $(ELF) -x debug.gdb
 endif
 
+# --- Consola por el debugger (RTT) -------------------------------------------
+# Si tu firmware usa rtt.c (curso/ejemplos/uart/printf_rtt/), "make rtt" levanta
+# el servidor y te conecta a la consola en un solo comando: los printf salen por
+# el mismo cable SWD, sin UART y sin gastar pines.
+#
+# Como funciona: OpenOCD busca en la RAM un bloque de control con la marca
+# "SEGGER RTT", y despues lee la cola circular POR SWD mientras el micro corre.
+# No frena el programa ni ocupa un periferico.
+#
+# Se puede seguir depurando al mismo tiempo: el gdbserver del 3333 sigue vivo.
+#
+# Guia completa: ../curso/12_debug/03-consola-por-el-debugger-rtt.md
+
+RTT_PORT   ?= 9090
+
+# Donde buscar el bloque de control: la RAM entera del LPC1769.
+RTT_BUSQ   ?= 0x10000000 0x8000
+
+# Las dos perillas que deciden el caudal. Con los valores por defecto de
+# OpenOCD (polleo de 100 ms) se sacan ~5.5 KB/s, menos que una UART a 115200.
+# Con estos se llega a ~15.7 KB/s, que es el techo que impone la sonda.
+#
+#     make rtt RTT_POLL=100 RTT_SPEED=1000    los valores por defecto de OpenOCD
+#     make rtt RTT_SPEED=500                  si hay errores de comunicacion
+#
+# Medido y explicado en ../curso/ejemplos/uart/printf_rtt/README.md
+#
+# (Y ojo con la advertencia del principio de este archivo: nada de comentarios
+#  al final de estas lineas, o los espacios se van adentro del valor.)
+RTT_SPEED  ?= 4000
+RTT_POLL   ?= 10
+
+.PHONY: rtt
+rtt: $(ELF)
+ifneq ($(FLASHER),openocd)
+	@echo "ERROR: 'make rtt' necesita openocd (FLASHER=$(FLASHER))."
+	@exit 1
+else
+	@mkdir -p $(BUILD_DIR)
+	@echo "  RTT     puerto $(RTT_PORT), SWD $(RTT_SPEED) kHz, polleo $(RTT_POLL) ms; Ctrl-C para salir"
+	@echo ""
+	$(Q)openocd -f $(OPENOCD_CFG) \
+	      -c "adapter speed $(RTT_SPEED)" \
+	      -c "init" -c "reset run" \
+	      -c 'rtt setup $(RTT_BUSQ) "SEGGER RTT"' \
+	      -c "rtt polling_interval $(RTT_POLL)" \
+	      -c "rtt start" \
+	      -c "rtt server start $(RTT_PORT) 0" > $(BUILD_DIR)/rtt.log 2>&1 & \
+	  SRV=$$!; \
+	  trap "kill $$SRV 2>/dev/null" EXIT INT TERM; \
+	  sleep 2; \
+	  if ! grep -q "Control block found" $(BUILD_DIR)/rtt.log 2>/dev/null; then \
+	    echo "ERROR: no encontre el bloque de control. Log:"; echo ""; \
+	    cat $(BUILD_DIR)/rtt.log; \
+	    echo ""; \
+	    echo "Causas tipicas: el firmware no llama a rtt_init(), o no incluye rtt.c."; \
+	    exit 1; \
+	  fi; \
+	  grep "Control block found" $(BUILD_DIR)/rtt.log; \
+	  echo ""; \
+	  if command -v nc >/dev/null 2>&1; then \
+	    nc localhost $(RTT_PORT); \
+	  else \
+	    $(PYTHON) -c "import socket,sys;s=socket.create_connection(('localhost',$(RTT_PORT)));\
+[sys.stdout.write(d.decode('utf-8','replace')) or sys.stdout.flush() for d in iter(lambda:s.recv(4096),b'')]"; \
+	  fi
+endif
+
+# Solo el servidor RTT, sin conectarse. Para usar tu propio cliente, o para
+# tener la consola de un lado y gdb del otro.
+.PHONY: rttserver
+rttserver: $(ELF)
+	@echo "  RTT     servidor en $(RTT_PORT), gdbserver en $(GDB_PORT)"
+	openocd -f $(OPENOCD_CFG) \
+	  -c "adapter speed $(RTT_SPEED)" \
+	  -c "init" -c "reset run" \
+	  -c 'rtt setup $(RTT_BUSQ) "SEGGER RTT"' \
+	  -c "rtt polling_interval $(RTT_POLL)" \
+	  -c "rtt start" \
+	  -c "rtt server start $(RTT_PORT) 0"
+
 # Igual que 'debug' pero sin grabar ni resetear: se engancha a lo que ya esta
 # corriendo en la placa. Sirve para ver donde se colgo un programa.
 .PHONY: attach
@@ -504,6 +585,8 @@ help:
 	@echo "  make flash         graba la placa"
 	@echo "  make debug         graba y abre gdb parado en main"
 	@echo "  make gdbserver     solo el servidor gdb (para VSCode o gdb aparte)"
+	@echo "  make rtt           consola por el cable del debugger (necesita rtt.c)"
+	@echo "  make rttserver     solo el servidor RTT, sin conectarse"
 	@echo "  make erase         borra la FLASH entera"
 	@echo "  make reset         resetea la placa"
 	@echo "  make size          FLASH y RAM que usa el firmware"

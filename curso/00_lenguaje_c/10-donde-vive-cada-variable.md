@@ -5,15 +5,15 @@ gigabytes y un sistema operativo que te avisa cuando te pasás. En el LPC1769 te
 principal** y **nadie te avisa nada**: si te pasás, el programa no falla con un mensaje, falla
 *raro* —se cuelga, se reinicia, o una variable cambia sola.
 
-Este capítulo responde una sola pregunta, pero a fondo:
+La pregunta central es esta:
 
 > Cuando escribís `uint32_t x;`, **¿en qué parte de la memoria termina esa variable, quién elige esa
 > dirección, y hasta cuándo vive?**
 
-Es el capítulo que le da sentido a tres cosas que ya viste: por qué una local
-"arranca con basura" y una global arranca en cero ([01 - Declaraciones](./01-declaraciones-y-tipos.md)),
-por qué la recursión profunda cuelga el micro ([06 - Funciones](./06-funciones.md#el-costo-de-la-recursión-en-la-pila-crítico-en-embebido)),
-y por qué devolver un puntero a una local es un bug ([08 - Punteros](./08-punteros.md)).
+Entender el mapa de memoria explica por qué una variable local
+"arranca con basura" y una global arranca en cero ([C1 - Declaraciones](./01-declaraciones-y-tipos.md)),
+por qué la recursión profunda cuelga el micro ([C4 - Funciones](./04-funciones.md#el-costo-de-la-recursión-en-la-pila-crítico-en-embebido)),
+y por qué devolver un puntero a una local es un bug ([C8 - Punteros](./08-punteros.md)).
 
 ---
 
@@ -121,7 +121,7 @@ uint32_t leer_y_promediar(uint32_t n)
 
 Fijate en el par (D) y (G): **las dos dicen `static` y las dos viven en `.bss`**. La palabra `static`
 no decide *dónde* vive la variable, decide **quién la ve**. Esa distinción está desarrollada en
-[14 - `static`, `inline` y campos de bits](./14-static-const-inline-y-bitfields.md#static-los-dos-patrones-que-vas-a-escribir).
+[C13 - `static`, `inline` y campos de bits](./13-static-const-inline-e-interfaces.md#static-los-dos-patrones-que-vas-a-escribir).
 
 Y fijate en (F): `muestras[8]` **son 32 bytes que aparecen y desaparecen** cada vez que entrás y
 salís de la función. Si esa función se llamara desde dentro de otra que ya tenía su propio buffer, y
@@ -213,8 +213,8 @@ Tres cosas para leer ahí:
 > dirección exacta de cualquier global —algo impensable en una PC—, y por eso el `.ld` es un archivo
 > que sí vas a tener que leer. El recorrido completo `.c → .o → .elf`, con el linker script del
 > LPC1769 comentado línea por línea, está en
-> [Módulo 16 - De código a binario](../anexos/A_build_linker_startup/01-de-codigo-a-binario.md) y
-> [Módulo 16 - El linker script y el startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+> [Módulo 16 - De código a binario](../../herramientas/05_del_codigo_al_binario/01-de-codigo-a-binario.md) y
+> [Módulo 16 - El linker script y el startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ### Dos consecuencias prácticas
 
@@ -272,7 +272,7 @@ for (dst = &_sbss; dst < &_ebss; ) *dst++ = 0;
 ```
 
 Ese código lo desarmamos línea por línea en
-[Anexo A - El linker script y el startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+[Herramientas 05 - El linker script y el startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 La conclusión práctica es esta: **el startup inicializa `.data` y `.bss`, pero no toca el stack.**
 Por eso una global sin inicializar vale 0 garantizado, y una local sin inicializar vale lo que haya
 quedado ahí de antes.
@@ -310,7 +310,7 @@ Y arranca solo: al salir del reset, el núcleo **carga el `SP` leyendo la palabr
 dirección `0x00000000`** —la primera entrada de la tabla de vectores— antes de ejecutar una sola
 instrucción tuya. Es literalmente lo primero que hace el chip. Lo ves en
 [07 - NVIC y vectores](../07_interrupciones/01-nvic-y-vectores.md) y en
-[16 - Linker y startup](../anexos/A_build_linker_startup/02-linker-y-startup.md).
+[16 - Linker y startup](../../herramientas/05_del_codigo_al_binario/02-linker-y-startup.md).
 
 ### El *stack frame*: qué guarda cada llamada
 
@@ -408,7 +408,7 @@ La misma función, con `-O2`:
 nadie) y sus dos variables entraron en `R0` y `R1`. De 24 bytes a 0.
 
 Y hay un caso todavía más llamativo. El `factorial` recursivo de
-[06 - Funciones](./06-funciones.md#funciones-recursivas):
+[C4 - Funciones](./04-funciones.md#funciones-recursivas):
 
 ```c
 uint32_t factorial(uint32_t n)
@@ -464,7 +464,7 @@ void f(void) {
 }
 ```
 
-**2. El puntero colgante.** De [08 - Punteros](./08-punteros.md):
+**2. El puntero colgante.** De [C8 - Punteros](./08-punteros.md):
 
 ```c
 int *mal(void) {
@@ -534,7 +534,7 @@ Es la zona de `malloc()`. La versión corta, porque tiene un capítulo entero:
 
 - **En firmware, la regla es no usarlo**: es no determinista, fragmenta, y no hay MMU que detecte el
   choque. El *por qué* completo y las tres alternativas (estático, bump allocator, memory pool)
-  están en [11 - Asignación dinámica](./11-asignacion-dinamica.md).
+  están en [C10B - Asignación dinámica](./10b-asignacion-dinamica.md).
 
 ---
 
@@ -582,7 +582,7 @@ Los síntomas típicos, y por qué son tan difíciles de diagnosticar:
 - Funciona en debug (`-O0`, frames grandes... o al revés) y falla en release.
 - Cae en `HardFault_Handler`: cuando la corrupción llega a una **dirección de retorno**, el `bx lr`
   salta a una dirección inventada. Ese es el camino más común de "stack overflow" a "hard fault",
-  y está desarrollado en [12 - El debugger y el método](../12_debug/02-debugger-y-metodo.md).
+  y está desarrollado en [12 - El debugger y el método](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md).
 
 Causas concretas, en orden de frecuencia:
 
@@ -691,7 +691,7 @@ esa sección en el `.ld`, `size` te diría "28 bytes de bss" y te dejaría creye
 libres.
 
 Más sobre cómo leer `size` y el `.map`, en
-[16 - De código a binario](../anexos/A_build_linker_startup/01-de-codigo-a-binario.md).
+[16 - De código a binario](../../herramientas/05_del_codigo_al_binario/01-de-codigo-a-binario.md).
 
 ### e) Pintar el stack: la medición empírica (*watermark*)
 
@@ -745,7 +745,7 @@ el peor momento observado. Si devuelve 40, estás a punto de romper todo.
 Frenado en cualquier punto, el debugger te muestra el **call stack** (la cadena de frames vivos) y el
 valor del `SP`. Comparar `SP` contra `_estack` te dice cuánto stack se consumió hasta ese instante.
 Es la forma más rápida de contestar "¿qué me trajo hasta acá?" cuando caés en un hard fault
-([12 - Debug](../12_debug/02-debugger-y-metodo.md)).
+([12 - Debug](../../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md)).
 
 ---
 
@@ -781,7 +781,7 @@ El Cortex-M3 implementa **dos** stacks con punteros independientes (§34.3.1.2):
 ¿Para qué sirve tener dos? Para un **RTOS**: cada tarea tiene su propio stack sobre el `PSP`, mientras
 el kernel y las interrupciones corren sobre el `MSP`. Así el desborde de una tarea no se lleva puesto
 al kernel, y el cambio de contexto es cambiar un puntero. En el superloop de este curso solo usás el
-`MSP`. Lo retomamos en [17 - Intro a RTOS](./19-intro-a-rtos.md).
+`MSP`. Lo retomamos en [17 - Intro a RTOS](./arquitectura/19-intro-a-rtos.md).
 
 ### La alineación a 8 bytes en las excepciones
 
@@ -902,5 +902,5 @@ $ arm-none-eabi-nm --size-sort -S firmware.elf   # qué símbolo se comió la RA
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [09 - Punteros avanzados](./09-punteros-avanzado.md) ·
-**Siguiente:** [11 - Asignación dinámica](./11-asignacion-dinamica.md)
+**Anterior:** [C9 - Arreglos, punteros y callbacks](./09-punteros-avanzado.md) ·
+**Siguiente:** [C10B - Asignación dinámica](./10b-asignacion-dinamica.md)

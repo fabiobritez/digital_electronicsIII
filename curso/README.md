@@ -9,6 +9,11 @@ cada periférico:
 Esa progresión registro → driver acompaña cómo se da la materia: **antes del primer parcial** se
 trabaja a nivel de registros; **después**, con los drivers incluidos en el repositorio.
 
+> **Todo lo que es herramienta y no materia** (compilar, grabar, depurar, las sondas, los
+> protocolos JTAG y SWD, el toolchain) está aparte, en la unidad
+> [**Herramientas**](../herramientas/). Se separó a propósito para que el curso quede solo con el
+> LPC1769 y sus periféricos.
+
 ---
 
 ## Mapa del curso
@@ -16,7 +21,7 @@ trabaja a nivel de registros; **después**, con los drivers incluidos en el repo
 ### Bases (empezá acá)
 | # | Módulo | De qué trata |
 |---|--------|--------------|
-| 0 | [Lenguaje C](./00_lenguaje_c/) | C para embebidos: tipos, punteros, structs, `volatile`, ancho fijo, [dónde vive cada variable](./00_lenguaje_c/10-donde-vive-cada-variable.md) (stack, heap y estáticos) y, para cerrar, [cómo se estructura un firmware entero](./00_lenguaje_c/17-superloop-y-codigo-no-bloqueante.md) |
+| 0 | [Lenguaje C](./00_lenguaje_c/) | Recorrido C0–C14: programa mínimo, tipos, control, funciones, arreglos, módulos, punteros, memoria, MMIO, layout e interfaces; incluye un [trayecto posterior de arquitectura de firmware](./00_lenguaje_c/arquitectura/) |
 | 1 | [Arquitectura y acceso a registros](./01_arquitectura_y_acceso_a_registros/) | **El módulo clave:** un registro es una dirección de memoria |
 | 2 | [Armá tu propia librería](./02_arma_tu_propia_libreria/) | Construí tu mini-CMSIS desde cero, para entender que el hardware es tuyo |
 | 3 | [Clock y Power](./03_clock_y_power/) | PCONP y PCLKSEL: encender y clockear periféricos (el paso que todos olvidan) |
@@ -32,7 +37,7 @@ trabaja a nivel de registros; **después**, con los drivers incluidos en el repo
 | 9 | [UART](./09_uart/) | Comunicación serial |
 | 10 | [ADC / DAC](./10_adc_dac/) | Conversión analógica ↔ digital |
 | 11 | [DMA](./11_dma/) | Transferencias sin CPU (GPDMA) |
-| 12 | [Debug](./12_debug/) | Framework de depuración |
+| 12 | [Debug](./12_debug/) | Se mudó a la unidad [Herramientas](../herramientas/06_depurar_en_serio/) |
 
 ### Periféricos de comunicación (plus)
 | # | Módulo | Periférico |
@@ -48,15 +53,23 @@ trabaja a nivel de registros; **después**, con los drivers incluidos en el repo
 | 17 | [Hardware y placa](./17_hardware_y_placa/) | Leer el esquemático, electrónica mínima (3.3 V, corriente), e instrumentos de medición |
 | 18 | [Periféricos adicionales](./18_perifericos_adicionales/) | RTC, Watchdog, QEI, CAN, I2S y Ethernet: para qué sirven y cómo se encaran (mismo molde registro → driver) |
 
-### [Anexos](./anexos/) (opcionales: solo si armás tu propio entorno)
-Van con **letra en vez de número**, para que se note que están fuera de la secuencia del curso. Nada
-de esto entra en los parciales y **no hace falta para cursar**: con MCUXpresso alcanza. Están acá para
-quien quiera compilar y grabar sin IDE, y para quien quiera destapar la caja negra.
+### Aparte: la unidad [Herramientas](../herramientas/)
 
-| # | Anexo | De qué trata |
+Está **fuera del curso**, en su propia carpeta, para que no se mezcle con los periféricos. Es todo
+lo que rodea al chip: cómo se compila, cómo se graba, cómo se depura y con qué. Nada de esto entra
+en los parciales y **no hace falta para cursar**: con MCUXpresso alcanza. Está para quien quiera
+destapar la caja negra, y porque es lo único de todo el material que te va a servir igual el día
+que te toque otro microcontrolador.
+
+| # | Parte | De qué trata |
 |---|-------|--------------|
-| A | [Build, linker y startup](./anexos/A_build_linker_startup/) | Qué hace MCUXpresso por vos: secciones, linker script, código de arranque (se puede leer junto al módulo 1) |
-| B | [Toolchain y entorno propio](./anexos/B_toolchain_y_entorno/) | [El camino completo de `main.c` al LED](./anexos/B_toolchain_y_entorno/00-el-camino-completo.md), qué hay adentro del compilador, setup en VSCode y en vim, instalación en [Linux](./anexos/B_toolchain_y_entorno/06-instalacion-linux.md) y [Windows](./anexos/B_toolchain_y_entorno/07-instalacion-windows.md), una [guía por cada debug probe](./anexos/B_toolchain_y_entorno/probes/), y cómo compila y graba MCUXpresso por dentro |
+| 01 | [Panorama](../herramientas/01_panorama/) | [El mapa completo de `main.c` al LED](../herramientas/01_panorama/01-el-mapa-completo.md), las dos formas de grabar un micro, y el vocabulario |
+| 02 | [Protocolos y debug en el chip](../herramientas/02_protocolos_y_debug_en_el_chip/) | JTAG, SWD, y el hardware de depuración que el Cortex-M3 trae adentro del núcleo |
+| 03 | [Debug probes](../herramientas/03_debug_probes/) | Que una sonda es **otro micro con su firmware**, qué es CMSIS-DAP y cómo se carga, y cuáles existen |
+| 04 | [Toolchains](../herramientas/04_toolchains/) | Qué es `arm-none-eabi-gcc`, cómo se lee el **triplet**, y qué hay adentro de la carpeta del compilador |
+| 05 | [Del código al binario](../herramientas/05_del_codigo_al_binario/) | Secciones, linker script, startup, y la secuencia de 0 V a `main()` (se puede leer junto al módulo 1) |
+| 06 | [Depurar en serio](../herramientas/06_depurar_en_serio/) | **Acá está el ex módulo 12**: imprimir, el checklist del "no anda", hard faults y la consola por RTT |
+| 07 | [LPC1769](../herramientas/07_lpc1769/) | Todo lo anterior aplicado: instalación en [Linux](../herramientas/07_lpc1769/03-instalacion-linux.md) y [Windows](../herramientas/07_lpc1769/04-instalacion-windows.md), el checksum de la boot ROM, una [guía por cada sonda](../herramientas/07_lpc1769/probes/), y cómo compila y graba MCUXpresso por dentro |
 
 > **Notas:** varios módulos suman páginas extra de profundización: el [módulo 0 (C)](./00_lenguaje_c/)
 > trae C embebido fino (`static`/`const`/`inline`/bitfields y punto fijo vs `float`) y cierra con
@@ -99,9 +112,10 @@ Si algo "no anda", repasá los pasos 1–3: el 90% de los problemas están ahí.
 - **Placa:** LPCXpresso LPC1769 rev D (OM13085), con debug probe CMSIS-DAP a bordo
 - **Entorno recomendado:** el toolchain abierto más la
   [plantilla](../plantilla/). Instalación en
-  [Linux](./anexos/B_toolchain_y_entorno/06-instalacion-linux.md) o
-  [Windows](./anexos/B_toolchain_y_entorno/07-instalacion-windows.md), y una
-  [guía por cada probe](./anexos/B_toolchain_y_entorno/probes/) para el grabado
+  [Linux](../herramientas/07_lpc1769/03-instalacion-linux.md) o
+  [Windows](../herramientas/07_lpc1769/04-instalacion-windows.md), y una
+  [guía por cada sonda](../herramientas/07_lpc1769/probes/) para el grabado
+- **Cómo funciona todo eso por dentro:** la unidad [Herramientas](../herramientas/)
 - **IDE alternativo:** MCUXpresso (gratuito), guía de instalación en
   [`05_gpio/_origen/0-ide.md`](./05_gpio/_origen/0-ide.md)
 - **Librería:** CMSIS v2.00 para LPC17xx (en [`../library/`](../library/))
@@ -114,6 +128,8 @@ Si algo "no anda", repasá los pasos 1–3: el 90% de los problemas están ahí.
   (driver) de cada periférico.
 - El resto de los periféricos (UART, I2C, SPI, USB...) se ve en la materia pero no entra al
   parcial; la UART conviene manejarla igual porque es la herramienta de debug de todos los días.
+- **Si algo no anda:** el checklist de seis puntos está en
+  [Herramientas 06-02](../herramientas/06_depurar_en_serio/02-el-metodo-del-no-anda.md).
 - **Repaso final:** [REFERENCIA_RAPIDA.md](./REFERENCIA_RAPIDA.md), organizada por parcial.
 - **Siempre:** ante una duda de hardware, abrí el capítulo correspondiente en
   [`../manual/INDEX.md`](../manual/INDEX.md).

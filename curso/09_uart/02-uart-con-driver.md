@@ -145,7 +145,7 @@ int __io_putchar(int ch) {           // newlib / arm-none-eabi: a veces es _writ
 // luego: printf("ADC = %d\r\n", valor);  -> sale por la UART
 ```
 
-Esto convierte la UART en tu consola de depuración (ver [módulo 12](../12_debug/)).
+Esto convierte la UART en tu consola de depuración (ver [herramientas 06](../../herramientas/06_depurar_en_serio/)).
 
 ## Errores comunes
 

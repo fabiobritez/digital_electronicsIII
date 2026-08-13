@@ -5,7 +5,13 @@
  * Probalo con una terminal serie (PuTTY, minicom, screen) a 9600 8N1.
  *
  * Explicado paso a paso en: curso/09_uart/01-uart-registros.md
- * Supone PCLK_UART0 = 25 MHz (CCLK 100 MHz / 4, valores por defecto).
+ *
+ * Supone PCLK_UART0 = 25 MHz, que sale de CCLK = 100 MHz dividido 4. Ojo: el
+ * divisor /4 SI es el valor por reset, pero los 100 MHz NO: hay que llamar a
+ * SystemInit() (la PLL con el cristal de 12 MHz). Sin eso el micro queda en los
+ * 4 MHz del RC interno, PCLK_UART0 = 1 MHz y el divisor de abajo da 366 baud en
+ * vez de 9600. MCUXpresso llama a SystemInit() solo; con la plantilla del repo,
+ * compila con "make USE_CMSIS=1".
  */
 
 #include "LPC17xx.h"

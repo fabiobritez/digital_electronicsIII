@@ -1,21 +1,19 @@
 # Punteros
 
+Los punteros suelen ser el primer gran salto al aprender C. En sistemas embebidos son inevitables:
+un registro de hardware ocupa una dirección fija de memoria y se accede a él mediante un puntero.
 
-Los punteros son el tema que define si entendés C o no. Y en esta materia son ineludibles: como vas a
-ver en el módulo 01, **un registro de hardware es literalmente una dirección fija de memoria a la que
-se accede por puntero**, así que cada vez que configures un periférico vas a estar usando esto.
-
-En este capítulo vemos qué es un puntero, los operadores `&` y `*`, la aritmética de punteros y cómo
-se llevan con los distintos tipos de datos, marcando las buenas prácticas y los errores clásicos (que
-en un micro no terminan en un mensaje de error, sino en un *HardFault* o en un bug silencioso). Lo que
-sigue (arreglos y *decay*, cadenas, punteros a función) está en el
-[capítulo 09](./09-punteros-avanzado.md).
+Vamos a empezar por las direcciones, los operadores `&` y `*` y la desreferencia. Después veremos la
+aritmética de punteros, `NULL`, `const` y los errores de vida útil que en un micro pueden terminar en
+un *HardFault* o en un fallo silencioso.
 
 
 ## ¿Qué es un puntero?
 
-Un puntero en C es, fundamentalmente, una variable que almacena la dirección de otra variable.  
-Cada variable en un programa en ejecución se guarda en una ubicación específica de memoria. Esta ubicación tiene una dirección (en general expresada como un número hexadecimal). Un puntero guarda esa dirección.  Esto permite la manipulación de memoria a bajo nivel y más adelante veremos como nos permite un manejo eficiente de arreglos y cadenas de caracteres en C.
+Un puntero en C es, fundamentalmente, una variable que almacena la dirección de otra variable.
+Cada variable de un programa en ejecución ocupa una ubicación de memoria. Esa ubicación tiene una
+dirección, que suele escribirse como un número hexadecimal. Un puntero guarda esa dirección y permite
+acceder al objeto que se encuentra allí.
 
 > **IMPORTANTE**
 >
@@ -62,17 +60,17 @@ El valor al que apunta ptr es: 42
 
 > Las direcciones del ejemplo empiezan en `0x1000_0000` porque es donde arranca la **SRAM** del
 > LPC1769: ahí viven las variables. El mapa completo está en
-> [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#las-dos-memorias-del-micro).
+> [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md#las-dos-memorias-del-micro).
 > Y fijate el cast a `void *` en los `printf`: `%p` espera exactamente ese tipo.
 
-En este fragmento, `int *ptr;` declara `ptr` como un puntero a entero. 
+En este fragmento, `int *ptr;` declara `ptr` como un puntero a entero.
 
 La instrucción `ptr = &num;` asigna a `ptr` la dirección de `num` (usando el operador de dirección `&`). Ahora decimos que “`ptr` apunta a `num`”.
 
 
 Luego imprimimos `ptr` (con el especificador de formato `%p` para direcciones).
 
- 
+
 ### Punteros sin inicializar
 
 Cuando un puntero se declara, no apunta automáticamente a algo significativo. Si simplemente escribimos `int *ptr;` dentro de una función, `ptr` contendrá una dirección basura indefinida hasta que lo inicialicemos.
@@ -145,48 +143,48 @@ En este caso, tanto `num` como `*ptr` se refieren a la misma variable.
 
 
 > **RESUMEN**
-> 
-> Los operadores `&` y `*` son inversos entre sí:  
-> Si `ptr = &var;` ---> entonces `*ptr` es `var`.   
+>
+> Los operadores `&` y `*` son inversos entre sí:
+> Si `ptr = &var;` ---> entonces `*ptr` es `var`.
 
- 
+
 ## Aritmética de punteros
 
-Los punteros no se usan solo para variables individuales; también podés hacer operaciones aritméticas con ellos para moverte por la memoria. Esto es especialmente útil con arreglos (tema que veremos después).  
+Los punteros no se usan solo para variables individuales; también podés hacer operaciones aritméticas con ellos para moverte por la memoria. Esto es especialmente útil con arreglos (tema que veremos después).
 
-En C, la **aritmética de punteros** está definida como operaciones que mueven el puntero para apuntar a otras ubicaciones de memoria relativas a la actual.  
+En C, la **aritmética de punteros** está definida como operaciones que mueven el puntero para apuntar a otras ubicaciones de memoria relativas a la actual.
 Sin embargo, no se comporta como la aritmética de enteros normal: **está escalada por el tamaño del tipo de dato al que apunta el puntero**.
 
-Por ejemplo, supongamos que `ptr` es un `int*` que guarda la dirección `0x1000`.  
+Por ejemplo, supongamos que `ptr` es un `int*` que guarda la dirección `0x1000`.
 En un sistema de 32 bits, un `int` ocupa 4 bytes, así que:
 
-- `ptr + 1` → dirección `0x1004` (siguiente entero en memoria)  
-- `ptr + 2` → dirección `0x1008` (dos enteros adelante)  
+- `ptr + 1` → dirección `0x1004` (siguiente entero en memoria)
+- `ptr + 2` → dirección `0x1008` (dos enteros adelante)
 
 
 <img src="./img/arithmetic_pointers.png" width="70%"/>
 
-- En general, `ptr + n` mueve el puntero hacia adelante **n elementos** (no bytes) de su tipo.  
-- Del mismo modo, `ptr - n` lo mueve hacia atrás **n elementos**.  
+- En general, `ptr + n` mueve el puntero hacia adelante **n elementos** (no bytes) de su tipo.
+- Del mismo modo, `ptr - n` lo mueve hacia atrás **n elementos**.
 - El compilador hace este escalado automáticamente en función del tipo de puntero.
 
 Ejemplos por tipo de dato:
 
-- Si `ptr` es un `char*` (1 byte por elemento), `ptr + 1` avanza 1 byte.  
+- Si `ptr` es un `char*` (1 byte por elemento), `ptr + 1` avanza 1 byte.
 - Si `ptr` es un `double*` (8 bytes por elemento en la mayoría de sistemas), `ptr + 1` salta 8 bytes.
 
 ---
 
 ### Operaciones válidas con punteros
 
-- **Incremento y decremento:**  
-  `p++` o `++p` avanza al siguiente elemento,  
+- **Incremento y decremento:**
+  `p++` o `++p` avanza al siguiente elemento,
   `p--` retrocede al elemento anterior.
 
-- **Suma y resta de un entero:**  
+- **Suma y resta de un entero:**
   `p + n` o `p - n` mueve el puntero **n elementos** hacia adelante o atrás (el desplazamiento se escala por el tamaño del tipo apuntado).
 
-- **Resta entre punteros:**  
+- **Resta entre punteros:**
   La resta entre punteros es válida si ambos son del mismo tipo **y apuntan a elementos del mismo
   arreglo**. El resultado es el número de elementos entre los punteros (no es el número de bytes).
 
@@ -201,7 +199,7 @@ vale **1**: un elemento de distancia.
 > Restar punteros que apuntan a **arreglos distintos** compila sin chistar, pero es **comportamiento
 > indefinido**: el resultado no significa nada.
 
- 
+
 ---
 
 ### Operaciones no permitidas
@@ -222,8 +220,8 @@ printf("%d\n", *p);        // imprime 20 (arr[1])
 printf("%td\n", q - p);    // imprime 2 (cant. de elementos entre arr[1] y arr[3])
 ```
 
- 
-La aritmética de punteros es muy usada en bucles para recorrer arreglos o buffers, a menudo combinada con desreferencia (`*(p + i)` es equivalente a `p[i]`).  
+
+La aritmética de punteros es muy usada en bucles para recorrer arreglos o buffers, a menudo combinada con desreferencia (`*(p + i)` es equivalente a `p[i]`).
 
 > **PRECAUCIÓN**
 >
@@ -326,6 +324,20 @@ const uint32_t * const p = &x;
 p = &y;        // ERROR
 ```
 
+> [!WARNING]
+> `const` significa “no modificar mediante este acceso”, no “un cast concede permiso para
+> escribir”. Si el objeto se definió `const`, quitar el calificador y modificarlo produce
+> comportamiento indefinido:
+>
+> ```c
+> static const uint32_t CLOCK_HZ = 100000000u;
+> *(uint32_t *)&CLOCK_HZ = 12000000u;   // comportamiento indefinido
+> ```
+>
+> Este cast puede pasar con `-Wall -Wextra`; agregá `-Wcast-qual` para obtener
+> `cast discards 'const' qualifier`. El warning detecta la pérdida del contrato, pero no vuelve
+> válida la escritura.
+
 > **¿Por qué importa tanto en embebido?**
 >
 > Por los **registros de hardware**. Un registro de **solo lectura** (por ejemplo, un registro de estado o un buffer de recepción) se modela como puntero a `volatile` **y** `const`:
@@ -335,7 +347,7 @@ p = &y;        // ERROR
 > uint32_t s = *STATUS;   // OK: leer
 > *STATUS = 0;            // ERROR de compilación: es de solo lectura, te frena el compilador
 > ```
-> El `const` (sobre el dato) hace que el compilador **te avise si intentás escribir** un registro que el hardware no deja escribir; el `volatile` hace que **siempre lo lea de memoria** y no lo cachee en un registro de la CPU. Esta combinación `volatile const` la vas a ver mucho en headers de CMSIS. Lo desarrollamos en el módulo [12 - `volatile` y tipos para hardware](./12-volatile-y-tipos-para-hardware.md).
+> El `const` (sobre el dato) hace que el compilador **te avise si intentás escribir** un registro que el hardware no deja escribir; el `volatile` hace que **siempre lo lea de memoria** y no lo cachee en un registro de la CPU. Esta combinación `volatile const` la vas a ver mucho en headers de CMSIS. Lo desarrollamos en el módulo [C11 - `volatile` y tipos para hardware](./11-c-para-hardware.md).
 
 > **Para los curiosos (avanzado)**
 >
@@ -362,11 +374,11 @@ printf("%d\n", *ip);  // OK: imprime 42
 void *memcpy(void *dest, const void *src, size_t n);
 ```
 
-En embebido aparece muchísimo en los **callbacks**: un driver te deja registrar un puntero `void *` con "contexto del usuario" que te devuelve cuando llama tu función, sin que el driver tenga que saber qué tipo es (lo vemos en [09 - Punteros avanzados](./09-punteros-avanzado.md#punteros-a-función-y-callbacks)).
+En embebido aparece muchísimo en los **callbacks**: un driver te deja registrar un puntero `void *` con "contexto del usuario" que te devuelve cuando llama tu función, sin que el driver tenga que saber qué tipo es (lo vemos en [C9 - Punteros avanzados](./09-punteros-avanzado.md#punteros-a-función-y-callbacks)).
 
 > **PRECAUCIÓN**
 >
-> Convertir una dirección a un tipo con requisitos de **alineación** más estrictos es peligroso en Cortex-M3. Por ejemplo, castear un `uint8_t *` que apunta a una dirección impar hacia un `uint32_t *` y desreferenciarlo puede provocar un fallo o una lectura incorrecta. El acceso desalineado, el *padding* y la alineación de estructuras están en [13 - Structs para hardware](./13-structs-para-hardware.md).
+> Convertir una dirección a un tipo con requisitos de **alineación** más estrictos es peligroso en Cortex-M3. Por ejemplo, castear un `uint8_t *` que apunta a una dirección impar hacia un `uint32_t *` y desreferenciarlo puede provocar un fallo o una lectura incorrecta. El acceso desalineado, el *padding* y la alineación de estructuras están en [C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md).
 
 ---
 
@@ -381,7 +393,7 @@ int *funcion_rota(void) {
 }                      // la dirección devuelta apunta a basura (stack reutilizado)
 ```
 
-Cuando la función retorna, su *stack frame* se libera y `local` deja de existir. El puntero devuelto sigue teniendo la dirección, pero esa memoria se reutiliza para la siguiente llamada, así que leerla o escribirla es **comportamiento indefinido**. (El mecanismo completo —qué es un *stack frame*, por qué "liberarlo" es solo mover un puntero y por qué a veces el bug *parece* no existir— está en [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md).)
+Cuando la función retorna, su *stack frame* se libera y `local` deja de existir. El puntero devuelto sigue teniendo la dirección, pero esa memoria se reutiliza para la siguiente llamada, así que leerla o escribirla es **comportamiento indefinido**. (El mecanismo completo —qué es un *stack frame*, por qué "liberarlo" es solo mover un puntero y por qué a veces el bug *parece* no existir— está en [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md).)
 
 Soluciones correctas:
 
@@ -400,7 +412,7 @@ int *funcion_static(void) {
 
 > **IMPORTANTE**
 >
-> Otras formas de quedar con un puntero colgante: usar memoria liberada con `free()` (lo vemos en el módulo [11 - Asignación dinámica](./11-asignacion-dinamica.md)), o guardar un puntero a un elemento de un buffer que después se reutiliza. La regla de oro: **un puntero nunca debe sobrevivir al dato al que apunta**.
+> Otras formas de quedar con un puntero colgante: usar memoria liberada con `free()` (lo vemos en el módulo [C10B - Asignación dinámica](./10b-asignacion-dinamica.md)), o guardar un puntero a un elemento de un buffer que después se reutiliza. La regla de oro: **un puntero nunca debe sobrevivir al dato al que apunta**.
 
 ---
 
@@ -465,17 +477,17 @@ int *funcion_static(void) {
 
 **Sobre los temas puntuales**
 
-- [09 - Punteros avanzados](./09-punteros-avanzado.md). La continuación: arreglos y *decay*, cadenas
+- [C9 - Punteros avanzados](./09-punteros-avanzado.md). La continuación: arreglos y *decay*, cadenas
   y punteros a función.
-- [10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md). Por qué devolver la dirección de
+- [C10 - Dónde vive cada variable](./10-donde-vive-cada-variable.md). Por qué devolver la dirección de
   una local es un bug, con el mecanismo del *stack frame* completo.
-- [12 - `volatile` y tipos para hardware](./12-volatile-y-tipos-para-hardware.md). La combinación
+- [C11 - `volatile` y tipos para hardware](./11-c-para-hardware.md). La combinación
   `volatile const` de los registros de solo lectura.
-- [13 - Structs para hardware](./13-structs-para-hardware.md). Alineación, *padding* y punteros a
+- [C12 - Structs para hardware](./12-layout-alineacion-unions-y-bitfields.md). Alineación, *padding* y punteros a
   `struct` para mapear periféricos.
 
 ---
 
 **Módulo:** [Lenguaje C](./README.md) ·
-**Anterior:** [07 - El preprocesador](./07-preprocesador.md) ·
-**Siguiente:** [09 - Punteros avanzados](./09-punteros-avanzado.md)
+**Anterior:** [C7 - Headers, módulos y preprocesador](./07-preprocesador.md) ·
+**Siguiente:** [C9 - Arreglos, punteros y callbacks](./09-punteros-avanzado.md)

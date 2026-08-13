@@ -127,7 +127,7 @@ Tres cosas para no confundirse:
 > `BOOL_32`… Son alias de los tipos de `<stdint.h>` (`typedef uint32_t UNS_32;`) que quedaron de una
 > librería anterior de NXP. **Existen, los vas a ver si abrís el header, y no hay que usarlos:**
 > escribí `uint32_t`, que es el nombre estándar y portable
-> ([módulo 0, cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)).
+> ([módulo 0, cap. 12](../00_lenguaje_c/11-c-para-hardware.md)).
 
 Esto, de paso, es un buen ejemplo de lo que viene: **estos tipos son una decisión de NXP, no una ley
 de la naturaleza.** Cuando armes tu propia capa 3 podés usar `bool` de `<stdbool.h>` y tus propios

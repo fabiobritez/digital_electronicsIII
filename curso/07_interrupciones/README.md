@@ -27,7 +27,7 @@ Interrupt Controller). Ya lo tocamos sin nombrarlo: `SysTick_Handler` (módulo 6
 
 ## Antes de esto
 Módulos 1 (registros), 5 (GPIO) y 6 (SysTick: ahí viste tu primer handler). El concepto de
-`volatile` ([módulo 0, cap. 12](../00_lenguaje_c/12-volatile-y-tipos-para-hardware.md)) es central:
+`volatile` ([módulo 0, cap. 12](../00_lenguaje_c/11-c-para-hardware.md)) es central:
 las variables compartidas entre la ISR y el `main` **deben** ser `volatile`.
 
 ## Manual
