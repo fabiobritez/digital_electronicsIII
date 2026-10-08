@@ -40,17 +40,17 @@ volatile uint32_t Canal0_Error;
 void DMA_IRQHandler (void)
 {
 	// Verificar interrupción GPDMA en canal 0
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)) {
+	if (GPDMA_IntGetStatus(GPDMA_INT, GPDMA_CH_7)) {
 		// Verificar estado de terminal counter
-		if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, 0)) {
+		if(GPDMA_IntGetStatus(GPDMA_INTTC, GPDMA_CH_7)) {
 			// Limpiar interrupción pendiente de terminal counter
-			GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTTC, GPDMA_CH_7);
 			Canal0_TC++;
 		}
 		// Verificar estado de error
-		if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, 0)) {
+		if (GPDMA_IntGetStatus(GPDMA_INTERR, GPDMA_CH_7)) {
 			// Limpiar interrupción pendiente de error
-			GPDMA_ClearIntPending (GPDMA_STATCLR_INTERR, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_7);
 			Canal0_Error++;
 		}
 	}
@@ -84,8 +84,8 @@ void verificarBuffer(void)
 
 
 int main(void) {
-	GPDMA_Channel_CFG_Type configGPDMA;
-	GPDMA_LLI_Type struct_LLI;
+	GPDMA_Channel_CFG_T configGPDMA = {0};
+	GPDMA_LLI_T struct_LLI;
 
 	// Deshabilitar interrupción GPDMA
 	NVIC_DisableIRQ(DMA_IRQn);
@@ -97,13 +97,13 @@ int main(void) {
 
 	/* Inicializar lista enlazada GPDMA.
 	 * El primer tramo (Buffer1 -> primera mitad del destino) NO necesita descriptor
-	 * en RAM: lo describe configGPDMA y GPDMA_Setup lo carga en los registros del
+	 * en RAM: lo describe configGPDMA y GPDMA_SetupChannel lo carga en los registros del
 	 * canal. El descriptor de abajo es el SEGUNDO tramo, al que el canal salta
 	 * cuando termina el primero. */
-	struct_LLI.SrcAddr = (uint32_t)&DMASrc_Buffer2;
-	struct_LLI.DstAddr = ((uint32_t)&DMADest_Buffer) + (DMA_SIZE/2)*4;
-	struct_LLI.NextLLI = 0; // Último elemento
-	struct_LLI.Control = (DMA_SIZE/2)
+	struct_LLI.srcAddr = (uint32_t)(uintptr_t)&DMASrc_Buffer2;
+	struct_LLI.dstAddr = ((uint32_t)(uintptr_t)&DMADest_Buffer) + (DMA_SIZE/2)*4;
+	struct_LLI.nextLLI = 0; // Último elemento
+	struct_LLI.control = (DMA_SIZE/2)
 								| (2<<18) // Ancho fuente 32 bits
 								| (2<<21) // Ancho destino 32 bits
 								| (1<<26) // Incremento fuente
@@ -112,35 +112,34 @@ int main(void) {
 								;
 
 	// Configurar canal GPDMA (esto describe el PRIMER tramo)
-	configGPDMA.ChannelNum = 0;                          // Canal 0
-	configGPDMA.SrcMemAddr = (uint32_t)DMASrc_Buffer1;   // Dirección memoria fuente
-	configGPDMA.DstMemAddr = (uint32_t)DMADest_Buffer;   // Dirección memoria destino
-	configGPDMA.TransferSize = DMA_SIZE/2;               // Tamaño del PRIMER tramo, en elementos
-	configGPDMA.TransferWidth = GPDMA_WIDTH_WORD;        // Ancho de transferencia
-	configGPDMA.TransferType = GPDMA_TRANSFERTYPE_M2M;   // Tipo: Memoria a Memoria
-	configGPDMA.SrcConn = 0;                             // Conexión fuente - no usada
-	configGPDMA.DstConn = 0;                             // Conexión destino - no usada
-	configGPDMA.DMALLI = (uint32_t)&struct_LLI;          // Descriptor del segundo tramo
+	configGPDMA.channelNum = GPDMA_CH_7;                 // M2M: prioridad baja
+	configGPDMA.srcMemAddr = (uint32_t)(uintptr_t)DMASrc_Buffer1;
+	configGPDMA.dstMemAddr = (uint32_t)(uintptr_t)DMADest_Buffer;
+	configGPDMA.transferSize = DMA_SIZE/2;
+	configGPDMA.type = GPDMA_M2M;
+	configGPDMA.srcConn = GPDMA_ADC;                     // ignorado
+	configGPDMA.dstConn = GPDMA_ADC;                     // ignorado
+	configGPDMA.src = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_32, ENABLE};
+	configGPDMA.dst = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_32, ENABLE};
+	configGPDMA.intTC = DISABLE;                         // solo interrumpe la LLI final
+	configGPDMA.intErr = ENABLE;
+	configGPDMA.linkedList = (uint32_t)(uintptr_t)&struct_LLI;
 
 	// Configurar canal con los parámetros dados
-	GPDMA_Setup(&configGPDMA);
+	GPDMA_SetupChannel(&configGPDMA);
 
 	// Resetear contadores
 	Canal0_TC = 0;
 	Canal0_Error = 0;
 
-	// Habilitar canal 0 de GPDMA
-	GPDMA_ChannelCmd(0, ENABLE);
+	// Habilitar canal 7 de GPDMA
+	GPDMA_ChannelStart(GPDMA_CH_7);
 
 	// Habilitar interrupción GPDMA
 	NVIC_EnableIRQ(DMA_IRQn);
 
-	/* Esperar a que complete el procesamiento GPDMA.
-	 * Llegan DOS interrupciones de terminal count: una por el primer tramo
-	 * (el driver siempre habilita el bit I en el Control que arma) y otra por
-	 * el descriptor (que tiene el bit I puesto). La copia completa termina
-	 * con la segunda. */
-	while ((Canal0_TC < 2) && (Canal0_Error == 0));
+	/* Solo el descriptor final tiene I=1. */
+	while ((Canal0_TC == 0) && (Canal0_Error == 0));
 
 	// Verificar buffer
 	verificarBuffer();
@@ -152,4 +151,3 @@ int main(void) {
 	}
 	return 1;
 }
-

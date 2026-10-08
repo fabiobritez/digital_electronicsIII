@@ -35,17 +35,17 @@ void verificarBuffer(void);
 void DMA_IRQHandler(void)
 {
 	/* Verificar interrupción GPDMA en canal 0 */
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)) {
+	if (GPDMA_IntGetStatus(GPDMA_INT, GPDMA_CH_7)) {
 		/* Verificar estado de terminal counter */
-		if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, 0)) {
+		if(GPDMA_IntGetStatus(GPDMA_INTTC, GPDMA_CH_7)) {
 			/* Limpiar interrupción pendiente de terminate counter */
-			GPDMA_ClearIntPending(GPDMA_STATCLR_INTTC, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTTC, GPDMA_CH_7);
 			Canal0_TC++;
 		}
 		/* Verificar estado de error */
-		if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, 0)) {
+		if (GPDMA_IntGetStatus(GPDMA_INTERR, GPDMA_CH_7)) {
 			/* Limpiar interrupción pendiente de error counter */
-			GPDMA_ClearIntPending(GPDMA_STATCLR_INTERR, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_7);
 			Canal0_Err++;
 		}
 	}
@@ -84,7 +84,7 @@ void verificarBuffer(void)
 
 int main(void)
 {
-	GPDMA_Channel_CFG_Type ConfigGPDMA;
+	GPDMA_Channel_CFG_T ConfigGPDMA = {0};
 
 	/* Inicializar buffer */
 	inicializarBuffer();
@@ -99,35 +99,37 @@ int main(void)
 	GPDMA_Init();
 
 	/* Configurar canal GPDMA -------------------------------- */
-	/* Canal 0 */
-	ConfigGPDMA.ChannelNum = 0;
+	/* Canal 7: el manual recomienda prioridad baja para M2M. */
+	ConfigGPDMA.channelNum = GPDMA_CH_7;
 	/* Dirección de memoria origen */
-	ConfigGPDMA.SrcMemAddr = DMA_SRC;
+	ConfigGPDMA.srcMemAddr = DMA_SRC;
 	/* Dirección de memoria destino */
-	ConfigGPDMA.DstMemAddr = DMA_DST;
+	ConfigGPDMA.dstMemAddr = DMA_DST;
 	/* Tamaño de transferencia: en ELEMENTOS (words de 4 bytes), no en bytes */
-	ConfigGPDMA.TransferSize = DMA_SIZE/4;
-	/* Ancho de transferencia: palabra (32 bits) */
-	ConfigGPDMA.TransferWidth = GPDMA_WIDTH_WORD;
+	ConfigGPDMA.transferSize = DMA_SIZE/4;
 	/* Tipo de transferencia: Memoria a Memoria */
-	ConfigGPDMA.TransferType = GPDMA_TRANSFERTYPE_M2M;
+	ConfigGPDMA.type = GPDMA_M2M;
 	/* Conexión de origen - no usado en M2M */
-	ConfigGPDMA.SrcConn = 0;
+	ConfigGPDMA.srcConn = GPDMA_ADC;
 	/* Conexión de destino - no usado en M2M */
-	ConfigGPDMA.DstConn = 0;
+	ConfigGPDMA.dstConn = GPDMA_ADC;
 	/* Lista enlazada - no usada */
-	ConfigGPDMA.DMALLI = 0;
+	ConfigGPDMA.src = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_32, ENABLE};
+	ConfigGPDMA.dst = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_32, ENABLE};
+	ConfigGPDMA.intTC = ENABLE;
+	ConfigGPDMA.intErr = ENABLE;
+	ConfigGPDMA.linkedList = 0;
 
 	/* Configurar canal con los parámetros dados */
-	GPDMA_Setup(&ConfigGPDMA);
+	GPDMA_SetupChannel(&ConfigGPDMA);
 
 	/* Resetear contador terminal */
 	Canal0_TC = 0;
 	/* Resetear contador de errores */
 	Canal0_Err = 0;
 
-	/* Habilitar canal GPDMA 0 */
-	GPDMA_ChannelCmd(0, ENABLE);
+	/* Habilitar canal GPDMA 7 */
+	GPDMA_ChannelStart(GPDMA_CH_7);
 
 	/* Habilitar interrupción GPDMA */
 	NVIC_EnableIRQ(DMA_IRQn);
@@ -144,4 +146,3 @@ int main(void)
 
 	return 1;
 }
-

@@ -31,8 +31,17 @@ Módulos 3 (clock/power), 4 (PINSEL: tri-state para analógico). Para los combos
 11 (DMA).
 
 ## Código listo para probar
-En [`../ejemplos/adc_dac/`](../ejemplos/adc_dac/): el passthrough pote → AOUT a registro, y el
-voltímetro serial (ADC + UART) con drivers.
+En [ejemplos de ADC](../ejemplos/adc_dac/) hay una progresión que no requiere UART ni DAC:
+
+1. [Voltímetro visual](../ejemplos/adc_dac/01_voltimetro_leds/): conversión por software y barra de LEDs.
+2. [Muestreo uniforme](../ejemplos/adc_dac/02_muestreo_uniforme/): Timer0, interrupción del ADC y promedio móvil.
+
+Para introducir el DAC y generar señales **sin DMA**:
+
+1. [Triangular por polling](../ejemplos/adc_dac/03_dac_triangular_polling/): 100 Hz, calculada muestra a muestra.
+2. [Seno por interrupción](../ejemplos/adc_dac/04_dac_seno_interrupcion/): tabla de 50 muestras a 250 Hz.
+
+En la misma carpeta quedan proyectos con UART y DMA para retomar después de estudiar esas unidades.
 
 ## Manual
 ADC Capítulo 29 ([`manual/ch29...`](../../manual/ch29_analog-to-digital-converter.pdf)),

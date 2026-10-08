@@ -1,28 +1,28 @@
-/***********************************************************************//**
- * @file		lpc17xx_systick.c
- * @brief		Contains all functions support for SYSTICK firmware library on LPC17xx
- * @version		2.0
- * @date		21. May. 2010
- * @author		NXP MCU SW Application Team
- **************************************************************************
- * Software that is described herein is for illustrative purposes only
- * which provides customers with programming information regarding the
- * products. This software is supplied "AS IS" without any warranties.
- * NXP Semiconductors assumes no responsibility or liability for the
- * use of the software, conveys no license or title under any patent,
- * copyright, or mask work right to the product. NXP Semiconductors
- * reserves the right to make changes in the software without
- * notification. NXP Semiconductors also make no representation or
- * warranty that such application will be suitable for the specified
- * use without further testing or modification.
- **********************************************************************/
+/**
+ * @file        lpc17xx_systick.c
+ * @brief       Contains all functions support for SYSTICK firmware library on LPC17xx
+ * @version     2.0
+ * @date        21. May. 2010
+ * @author      NXP MCU SW Application Team
+ *
+ * Software that is described herein is for illustrative purposes only which provides customers with
+ * programming information regarding the products. This software is supplied "AS IS" without any
+ * warranties. NXP Semiconductors assumes no responsibility or liability for the use of the
+ * software, conveys no license or title under any patent, copyright, or mask work right to the
+ * product. NXP Semiconductors reserves the right to make changes in the software without
+ * notification. NXP Semiconductors also make no representation or warranty that such application
+ * will be suitable for the specified use without further testing or modification.
+ *
+ * @par Refactor:
+ * Date: 09/07/2025, Author: David Trujillo Medina
+ */
 
-/* Peripheral group ----------------------------------------------------------- */
+/* ---------------------------- Peripheral group ---------------------------- */
 /** @addtogroup SYSTICK
  * @{
  */
 
-/* Includes ------------------------------------------------------------------- */
+/* -------------------------------- Includes -------------------------------- */
 #include "lpc17xx_systick.h"
 #include "lpc17xx_clkpwr.h"
 
@@ -36,136 +36,85 @@
 #include "lpc17xx_libcfg_default.h"
 #endif /* __BUILD_WITH_EXAMPLE__ */
 
-
 #ifdef _SYSTICK
+/* ---------------------- Private Function Prototypes ----------------------- */
+/**
+ * @brief       Configures the pin for external SysTick clock input.
+ *
+ * Sets the appropriate function and mode for the pin used as the external
+ * clock input for the SysTick timer. The pin is set to the correct function
+ * in `PINSEL7` and configured in tristate (no pull-up/pull-down) in `PINMODE7`.
+ */
+static void SYSTICK_PinConfig(void);
+/* ------------------- End of Private Function Prototypes ------------------- */
 
-/* Public Functions ----------------------------------------------------------- */
+/* --------------------------- Private Functions ---------------------------- */
+static void SYSTICK_PinConfig(void) {
+    LPC_PINCON->PINSEL7 &= ~(0x3 << ST_PIN_PCB_POS);
+    LPC_PINCON->PINSEL7 |= (0x1 << ST_PIN_PCB_POS);
+
+    LPC_PINCON->PINMODE7 &= ~(0x3 << ST_PIN_PCB_POS);
+    LPC_PINCON->PINMODE7 |= (0x2 << ST_PIN_PCB_POS);
+}
+/* ------------------------ End of Private Functions ------------------------ */
+
+/* ---------------------------- Public Functions ---------------------------- */
 /** @addtogroup SYSTICK_Public_Functions
  * @{
  */
-/*********************************************************************//**
- * @brief 		Initial System Tick with using internal CPU clock source
- * @param[in]	time	time interval(ms)
- * @return 		None
- **********************************************************************/
-void SYSTICK_InternalInit(uint32_t time)
-{
-	uint32_t cclk;
-	float maxtime;
 
-	cclk = SystemCoreClock;
-	/* With internal CPU clock frequency for LPC17xx is 'SystemCoreClock'
-	 * And limit 24 bit for LOAD value
-	 * So the maximum time can be set:
-	 * 1/SystemCoreClock * (2^24) * 1000 (ms)
-	 */
-	//check time value is available or not
-	maxtime = (1<<24)/(SystemCoreClock / 1000) ;
-	if(time > maxtime)
-		//Error loop
-		while(1);
-	else
-	{
-		//Select CPU clock is System Tick clock source
-		SysTick->CTRL |= ST_CTRL_CLKSOURCE;
-		/* Set RELOAD value
-		 * RELOAD = (SystemCoreClock/1000) * time - 1
-		 * with time base is millisecond
-		 */
-		SysTick->LOAD = (cclk/1000)*time - 1;
-	}
+void SYSTICK_InternalInit(uint32_t time) {
+    const uint32_t ticksPerMs = SystemCoreClock / 1000;
+
+    if (time > (ST_MAX_LOAD / ticksPerMs)) {
+        SysTick->LOAD = ST_MAX_LOAD;
+    } else {
+        SysTick->LOAD = (ticksPerMs * time) - 1;
+    }
+
+    SysTick->VAL = 0;
+    SysTick->CTRL |= ST_CTRL_CLKSOURCE;
 }
 
-/*********************************************************************//**
- * @brief 		Initial System Tick with using external clock source
- * @param[in]	freq	external clock frequency(Hz)
- * @param[in]	time	time interval(ms)
- * @return 		None
- **********************************************************************/
-void SYSTICK_ExternalInit(uint32_t freq, uint32_t time)
-{
-	float maxtime;
+void SYSTICK_ExternalInit(uint32_t extFreq, uint32_t time) {
+    SYSTICK_PinConfig();
 
-	/* With external clock frequency for LPC17xx is 'freq'
-	 * And limit 24 bit for RELOAD value
-	 * So the maximum time can be set:
-	 * 1/freq * (2^24) * 1000 (ms)
-	 */
-	//check time value is available or not
-	maxtime = (1<<24)/(freq / 1000) ;
-	if (time>maxtime)
-		//Error Loop
-		while(1);
-	else
-	{
-		//Select external clock is System Tick clock source
-		SysTick->CTRL &= ~ ST_CTRL_CLKSOURCE;
-		/* Set RELOAD value
-		 * RELOAD = (freq/1000) * time - 1
-		 * with time base is millisecond
-		 */
-		maxtime = (freq/1000)*time - 1;
-		SysTick->LOAD = (freq/1000)*time - 1;
-	}
+    const uint32_t ticksPerMs = extFreq / 1000;
+
+    if (ticksPerMs == 0) {
+        return;  // Avoid division by zero if extFreq is less than 1000 Hz
+    }
+
+    if (time > (ST_MAX_LOAD / ticksPerMs)) {
+        SysTick->LOAD = ST_MAX_LOAD;
+    } else {
+        SysTick->LOAD = (ticksPerMs * time) - 1;
+    }
+
+    SysTick->VAL = 0;
+    SysTick->CTRL &= ~ST_CTRL_CLKSOURCE;
 }
 
-/*********************************************************************//**
- * @brief 		Enable/disable System Tick counter
- * @param[in]	NewState	System Tick counter status, should be:
- * 					- ENABLE
- * 					- DISABLE
- * @return 		None
- **********************************************************************/
-void SYSTICK_Cmd(FunctionalState NewState)
-{
-	CHECK_PARAM(PARAM_FUNCTIONALSTATE(NewState));
+void SYSTICK_Cmd(FunctionalState newState) {
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
 
-	if(NewState == ENABLE)
-		//Enable System Tick counter
-		SysTick->CTRL |= ST_CTRL_ENABLE;
-	else
-		//Disable System Tick counter
-		SysTick->CTRL &= ~ST_CTRL_ENABLE;
+    if (newState == ENABLE) {
+        SysTick->CTRL |= ST_CTRL_ENABLE;
+    } else {
+        SysTick->CTRL &= ~ST_CTRL_ENABLE;
+    }
 }
 
-/*********************************************************************//**
- * @brief 		Enable/disable System Tick interrupt
- * @param[in]	NewState	System Tick interrupt status, should be:
- * 					- ENABLE
- * 					- DISABLE
- * @return 		None
- **********************************************************************/
-void SYSTICK_IntCmd(FunctionalState NewState)
-{
-	CHECK_PARAM(PARAM_FUNCTIONALSTATE(NewState));
+void SYSTICK_IntCmd(FunctionalState newState) {
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
 
-	if(NewState == ENABLE)
-		//Enable System Tick counter
-		SysTick->CTRL |= ST_CTRL_TICKINT;
-	else
-		//Disable System Tick counter
-		SysTick->CTRL &= ~ST_CTRL_TICKINT;
+    if (newState == ENABLE) {
+        SysTick->CTRL |= ST_CTRL_TICKINT;
+    } else {
+        SysTick->CTRL &= ~ST_CTRL_TICKINT;
+    }
 }
 
-/*********************************************************************//**
- * @brief 		Get current value of System Tick counter
- * @param[in]	None
- * @return 		current value of System Tick counter
- **********************************************************************/
-uint32_t SYSTICK_GetCurrentValue(void)
-{
-	return (SysTick->VAL);
-}
-
-/*********************************************************************//**
- * @brief 		Clear Counter flag
- * @param[in]	None
- * @return 		None
- **********************************************************************/
-void SYSTICK_ClearCounterFlag(void)
-{
-	SysTick->CTRL &= ~ST_CTRL_COUNTFLAG;
-}
 /**
  * @}
  */
@@ -176,5 +125,4 @@ void SYSTICK_ClearCounterFlag(void)
  * @}
  */
 
-/* --------------------------------- End Of File ------------------------------ */
-
+/* ------------------------------ End Of File ------------------------------- */

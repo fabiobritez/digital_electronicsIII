@@ -1,28 +1,28 @@
-/***********************************************************************//**
+/**
  * @file        lpc17xx_gpio.c
- * @brief        Contains all functions support for GPIO firmware library on LPC17xx
- * @version        2.0
+ * @brief       Contains all functions support for GPIO firmware library on LPC17xx
+ * @version     2.0
  * @date        21. May. 2010
- * @author        NXP MCU SW Application Team
- **************************************************************************
- * Software that is described herein is for illustrative purposes only
- * which provides customers with programming information regarding the
- * products. This software is supplied "AS IS" without any warranties.
- * NXP Semiconductors assumes no responsibility or liability for the
- * use of the software, conveys no license or title under any patent,
- * copyright, or mask work right to the product. NXP Semiconductors
- * reserves the right to make changes in the software without
- * notification. NXP Semiconductors also make no representation or
- * warranty that such application will be suitable for the specified
- * use without further testing or modification.
- **********************************************************************/
+ * @author      NXP MCU SW Application Team
+ *
+ * Software that is described herein is for illustrative purposes only which provides customers with
+ * programming information regarding the products. This software is supplied "AS IS" without any
+ * warranties. NXP Semiconductors assumes no responsibility or liability for the use of the
+ * software, conveys no license or title under any patent, copyright, or mask work right to the
+ * product. NXP Semiconductors reserves the right to make changes in the software without
+ * notification. NXP Semiconductors also make no representation or warranty that such application
+ * will be suitable for the specified use without further testing or modification.
+ *
+ * @par Refactor:
+ * Last update: 20/02/2026, Author: David Trujillo Medina
+ */
 
-/* Peripheral group ----------------------------------------------------------- */
+/* ---------------------------- Peripheral group ---------------------------- */
 /** @addtogroup GPIO
  * @{
  */
 
-/* Includes ------------------------------------------------------------------- */
+/* -------------------------------- Includes -------------------------------- */
 #include "lpc17xx_gpio.h"
 
 /* If this source file built with example, the LPC17xx FW library configuration
@@ -35,705 +35,468 @@
 #include "lpc17xx_libcfg_default.h"
 #endif /* __BUILD_WITH_EXAMPLE__ */
 
-
 #ifdef _GPIO
 
-/* Private Functions ---------------------------------------------------------- */
+/* ---------------------- Private Function Prototypes ----------------------- */
+/**
+ * @brief       Returns a pointer to the GPIO peripheral structure for the given port number.
+ * @param[in]   port    GPIO_PORT_x, where x is in the range [0,4].
+ * @return      Pointer to GPIO peripheral, or NULL if port is invalid.
+ */
+static LPC_GPIO_TypeDef* GPIO_GetPointer(uint8_t port);
 
-static LPC_GPIO_TypeDef *GPIO_GetPointer(uint8_t portNum);
-static GPIO_HalfWord_TypeDef *FIO_HalfWordGetPointer(uint8_t portNum);
-static GPIO_Byte_TypeDef *FIO_ByteGetPointer(uint8_t portNum);
+/**
+ * @brief       Returns a pointer to the FIO peripheral structure halfword
+ *              accessible for the given port number.
+ * @param[in]   port    GPIO_PORT_x, where x is in the range [0,4].
+ * @return      Pointer to FIO peripheral, or NULL if port is invalid.
+ */
+static GPIO_HalfWord_TypeDef* FIO_HalfWordGetPointer(uint8_t port);
 
-/*********************************************************************//**
- * @brief        Get pointer to GPIO peripheral due to GPIO port
- * @param[in]    portNum        Port Number value, should be in range from 0 to 4.
- * @return        Pointer to GPIO peripheral
- **********************************************************************/
-static LPC_GPIO_TypeDef *GPIO_GetPointer(uint8_t portNum)
-{
-    LPC_GPIO_TypeDef *pGPIO = 0;// = NULL;
+/**
+ * @brief       Returns a pointer to the FIO peripheral structure byte
+ *              accessible for the given port number.
+ * @param[in]   port    GPIO_PORT_x, where x is in the range [0,4].
+ * @return      Pointer to FIO peripheral, or NULL if port is invalid.
+ */
+static GPIO_Byte_TypeDef* FIO_ByteGetPointer(uint8_t port);
+/* ------------------- End of Private Function Prototypes ------------------- */
 
-    switch (portNum) {
-    case 0:
-        pGPIO = LPC_GPIO0;
-        break;
-    case 1:
-        pGPIO = LPC_GPIO1;
-        break;
-    case 2:
-        pGPIO = LPC_GPIO2;
-        break;
-    case 3:
-        pGPIO = LPC_GPIO3;
-        break;
-    case 4:
-        pGPIO = LPC_GPIO4;
-        break;
-    default:
-        break;
-    }
-
-    return pGPIO;
+/* --------------------------- Private Functions ---------------------------- */
+static LPC_GPIO_TypeDef* GPIO_GetPointer(uint8_t port) {
+    return &LPC_GPIO0[port];
 }
 
-/*********************************************************************//**
- * @brief        Get pointer to FIO peripheral in halfword accessible style
- *                 due to FIO port
- * @param[in]    portNum        Port Number value, should be in range from 0 to 4.
- * @return        Pointer to FIO peripheral
- **********************************************************************/
-static GPIO_HalfWord_TypeDef *FIO_HalfWordGetPointer(uint8_t portNum)
-{
-    GPIO_HalfWord_TypeDef *pFIO = 0;// = NULL;
-
-    switch (portNum) {
-    case 0:
-        pFIO = GPIO0_HalfWord;
-        break;
-    case 1:
-        pFIO = GPIO1_HalfWord;
-        break;
-    case 2:
-        pFIO = GPIO2_HalfWord;
-        break;
-    case 3:
-        pFIO = GPIO3_HalfWord;
-        break;
-    case 4:
-        pFIO = GPIO4_HalfWord;
-        break;
-    default:
-        break;
-    }
-
-    return pFIO;
+static GPIO_HalfWord_TypeDef* FIO_HalfWordGetPointer(uint8_t port) {
+    return &GPIO0_HalfWord[port];
 }
 
-/*********************************************************************//**
- * @brief        Get pointer to FIO peripheral in byte accessible style
- *                 due to FIO port
- * @param[in]    portNum        Port Number value, should be in range from 0 to 4.
- * @return        Pointer to FIO peripheral
- **********************************************************************/
-static GPIO_Byte_TypeDef *FIO_ByteGetPointer(uint8_t portNum)
-{
-    GPIO_Byte_TypeDef *pFIO = 0;// = NULL;
-
-    switch (portNum) {
-    case 0:
-        pFIO = GPIO0_Byte;
-        break;
-    case 1:
-        pFIO = GPIO1_Byte;
-        break;
-    case 2:
-        pFIO = GPIO2_Byte;
-        break;
-    case 3:
-        pFIO = GPIO3_Byte;
-        break;
-    case 4:
-        pFIO = GPIO4_Byte;
-        break;
-    default:
-        break;
-    }
-
-    return pFIO;
+static GPIO_Byte_TypeDef* FIO_ByteGetPointer(uint8_t port) {
+    return &GPIO0_Byte[port];
 }
+/* ------------------------ End of Private Functions ------------------------ */
 
-/* End of Private Functions --------------------------------------------------- */
-
-
-/* Public Functions ----------------------------------------------------------- */
+/* ---------------------------- Public Functions ---------------------------- */
 /** @addtogroup GPIO_Public_Functions
  * @{
  */
 
+/* ------------------------------- GPIO style ------------------------------- */
+void GPIO_SetDir(LPC_PORT port, uint32_t pinMask, GPIO_DIR dir) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_DIR(dir));
 
-/* GPIO ------------------------------------------------------------------------------ */
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
 
-/*********************************************************************//**
- * @brief        Set Direction for GPIO port.
- * @param[in]    portNum        Port Number value, should be in range from 0 to 4
- * @param[in]    bitValue    Value that contains all bits to set direction,
- *                             in range from 0 to 0xFFFFFFFF.
- *                             example: value 0x5 to set direction for bit 0 and bit 1.
- * @param[in]    dir            Direction value, should be:
- *                             - 0: Input.
- *                             - 1: Output.
- * @return        None
- *
- * Note: All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void GPIO_SetDir(uint8_t portNum, uint32_t bitValue, uint8_t dir)
-{
-    LPC_GPIO_TypeDef *pGPIO = GPIO_GetPointer(portNum);
+    if (dir == GPIO_OUTPUT) {
+        pGPIO->FIODIR |= pinMask;
+    } else {
+        pGPIO->FIODIR &= ~pinMask;
+    }
+}
 
-    if (pGPIO != NULL) {
-        // Enable Output
-        if (dir) {
-            pGPIO->FIODIR |= bitValue;
+void GPIO_SetPins(LPC_PORT port, uint32_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+
+    pGPIO->FIOSET = pinMask;
+}
+
+void GPIO_ClearPins(LPC_PORT port, uint32_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+
+    pGPIO->FIOCLR = pinMask;
+}
+
+void GPIO_SetPinState(LPC_PORT port, LPC_PIN pin, SetState newState) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_LPC_PIN(pin));
+    CHECK_PARAM(PARAM_SETSTATE(newState));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+    const uint32_t pinMask  = GPIO_PIN_MASK << pin;
+
+    if (newState == SET) {
+        pGPIO->FIOSET = pinMask;
+    } else {
+        pGPIO->FIOCLR = pinMask;
+    }
+}
+
+void GPIO_WriteValue(LPC_PORT port, uint32_t newValue) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+
+    pGPIO->FIOCLR = ~newValue;
+    pGPIO->FIOSET = newValue;
+}
+
+uint32_t GPIO_ReadValue(LPC_PORT port) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+
+    return pGPIO->FIOPIN;
+
+    return 0;
+}
+
+void GPIO_TogglePins(LPC_PORT port, uint32_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+
+    LPC_GPIO_TypeDef* pGPIO = GPIO_GetPointer(port);
+
+    const uint32_t current = pGPIO->FIOPIN;
+
+    pGPIO->FIOSET = ~current & pinMask;
+    pGPIO->FIOCLR = current & pinMask;
+}
+
+void GPIO_SetMask(LPC_PORT port, uint32_t pinMask, FunctionalState newState) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
+
+    LPC_GPIO_TypeDef* pFIO = GPIO_GetPointer(port);
+
+    if (newState) {
+        pFIO->FIOMASK |= pinMask;
+    } else {
+        pFIO->FIOMASK &= ~pinMask;
+    }
+}
+
+void GPIO_IntConfigPort(LPC_PORT port, uint32_t newValue, GPIO_INT_EDGE edgeState) {
+    CHECK_PARAM(PARAM_GPIO_INT_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_INT_EDGE(edgeState));
+
+    __IO uint32_t* pIntReg = NULL;
+
+    if (port == PORT_0) {
+        pIntReg = edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO0IntEnR : &LPC_GPIOINT->IO0IntEnF;
+    } else {
+        pIntReg = edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO2IntEnR : &LPC_GPIOINT->IO2IntEnF;
+    }
+
+    *pIntReg = newValue;
+}
+
+void GPIO_IntConfigPin(LPC_PORT port, LPC_PIN pin, GPIO_INT_EDGE edgeState,
+                       FunctionalState newState) {
+    CHECK_PARAM(PARAM_GPIO_INT_PORT(port));
+    CHECK_PARAM(PARAM_LPC_PIN(pin));
+    CHECK_PARAM(PARAM_GPIO_INT_EDGE(edgeState));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
+
+    __IO uint32_t* pIntReg = NULL;
+    const uint32_t pinMask = GPIO_PIN_MASK << pin;
+
+    if (port == PORT_0) {
+        pIntReg = edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO0IntEnR : &LPC_GPIOINT->IO0IntEnF;
+    } else {
+        pIntReg = edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO2IntEnR : &LPC_GPIOINT->IO2IntEnF;
+    }
+
+    if (newState == ENABLE) {
+        *pIntReg |= pinMask;
+    } else {
+        *pIntReg &= ~pinMask;
+    }
+}
+
+SetState GPIO_GetPortIntStatus(LPC_PORT port) {
+    CHECK_PARAM(PARAM_GPIO_INT_PORT(port));
+
+    const uint32_t shift = port == PORT_0 ? 0 : 2;
+
+    if ((LPC_GPIOINT->IntStatus >> shift) & 0x01UL) {
+        return SET;
+    }
+    return RESET;
+}
+
+SetState GPIO_GetPinIntStatus(LPC_PORT port, uint32_t pin, GPIO_INT_EDGE edgeState) {
+    CHECK_PARAM(PARAM_GPIO_INT_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_INT_EDGE(edgeState));
+
+    __I uint32_t* pIntStatReg = NULL;
+    const uint32_t pinMask    = GPIO_PIN_MASK << pin;
+
+    if (port == PORT_0) {
+        pIntStatReg =
+            edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO0IntStatR : &LPC_GPIOINT->IO0IntStatF;
+    } else {
+        pIntStatReg =
+            edgeState == GPIO_INT_RISING ? &LPC_GPIOINT->IO2IntStatR : &LPC_GPIOINT->IO2IntStatF;
+    }
+
+    if ((*pIntStatReg & pinMask) != 0U) {
+        return SET;
+    }
+    return RESET;
+}
+
+void GPIO_ClearInt(LPC_PORT port, uint32_t pinMask) {
+    CHECK_PARAM(PARAM_GPIO_INT_PORT(port));
+
+    if (port == 0) {
+        LPC_GPIOINT->IO0IntClr = pinMask;
+    } else {
+        LPC_GPIOINT->IO2IntClr = pinMask;
+    }
+}
+
+/* ---------------------- FIO (word-accessible) style ----------------------- */
+void FIO_SetDir(LPC_PORT port, uint32_t pinMask, GPIO_DIR dir) {
+    GPIO_SetDir(port, pinMask, dir);
+}
+
+void FIO_SetPins(LPC_PORT port, uint32_t pinMask) {
+    GPIO_SetPins(port, pinMask);
+}
+
+void FIO_ClearPins(LPC_PORT port, uint32_t pinMask) {
+    GPIO_ClearPins(port, pinMask);
+}
+
+void FIO_SetPinState(LPC_PORT port, LPC_PIN pin, SetState newState) {
+    GPIO_SetPinState(port, pin, newState);
+}
+
+void FIO_WriteValue(LPC_PORT port, uint32_t newValue) {
+    GPIO_WriteValue(port, newValue);
+}
+
+uint32_t FIO_ReadValue(LPC_PORT port) {
+    return (GPIO_ReadValue(port));
+}
+
+void FIO_TogglePins(LPC_PORT port, uint32_t pinMask) {
+    GPIO_TogglePins(port, pinMask);
+}
+
+void FIO_SetMask(LPC_PORT port, uint32_t pinMask, FunctionalState newState) {
+    GPIO_SetMask(port, pinMask, newState);
+}
+
+void FIO_IntConfigPort(LPC_PORT port, uint32_t newValue, GPIO_INT_EDGE edgeState) {
+    GPIO_IntConfigPort(port, newValue, edgeState);
+}
+
+void FIO_IntConfigPin(LPC_PORT port, LPC_PIN pin, GPIO_INT_EDGE edgeState,
+                      FunctionalState newState) {
+    GPIO_IntConfigPin(port, pin, edgeState, newState);
+}
+
+SetState FIO_GetPortIntStatus(LPC_PORT port) {
+    return GPIO_GetPortIntStatus(port);
+}
+
+SetState FIO_GetPinIntStatus(LPC_PORT port, uint32_t pin, GPIO_INT_EDGE edgeState) {
+    return GPIO_GetPinIntStatus(port, pin, edgeState);
+}
+
+void FIO_ClearInt(LPC_PORT port, uint32_t pinMask) {
+    GPIO_ClearInt(port, pinMask);
+}
+
+/* -------------------- FIO (halfword-accessible) style --------------------- */
+void FIO_HalfWordSetDir(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t pinMask, GPIO_DIR dir) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
+    CHECK_PARAM(PARAM_GPIO_DIR(dir));
+
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
+
+    if (dir == GPIO_OUTPUT) {
+        if (halfword == GPIO_HALFWORD_HIGH) {
+            pFIO->FIODIRU |= pinMask;
+        } else {
+            pFIO->FIODIRL |= pinMask;
         }
-        // Enable Input
-        else {
-            pGPIO->FIODIR &= ~bitValue;
+    } else {
+        if (halfword == GPIO_HALFWORD_HIGH) {
+            pFIO->FIODIRU &= ~pinMask;
+        } else {
+            pFIO->FIODIRL &= ~pinMask;
         }
     }
 }
 
+void FIO_HalfWordSetPins(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
 
-/*********************************************************************//**
- * @brief        Set Value for bits that have output direction on GPIO port.
- * @param[in]    portNum        Port number value, should be in range from 0 to 4
- * @param[in]    bitValue    Value that contains all bits on GPIO to set,
- *                             in range from 0 to 0xFFFFFFFF.
- *                             example: value 0x5 to set bit 0 and bit 1.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void GPIO_SetValue(uint8_t portNum, uint32_t bitValue)
-{
-    LPC_GPIO_TypeDef *pGPIO = GPIO_GetPointer(portNum);
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
 
-    if (pGPIO != NULL) {
-        pGPIO->FIOSET = bitValue;
+    if (halfword == GPIO_HALFWORD_HIGH) {
+        pFIO->FIOSETU = pinMask;
+    } else {
+        pFIO->FIOSETL = pinMask;
     }
 }
 
-/*********************************************************************//**
- * @brief        Clear Value for bits that have output direction on GPIO port.
- * @param[in]    portNum        Port number value, should be in range from 0 to 4
- * @param[in]    bitValue    Value that contains all bits on GPIO to clear,
- *                             in range from 0 to 0xFFFFFFFF.
- *                             example: value 0x5 to clear bit 0 and bit 1.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void GPIO_ClearValue(uint8_t portNum, uint32_t bitValue)
-{
-    LPC_GPIO_TypeDef *pGPIO = GPIO_GetPointer(portNum);
+void FIO_HalfWordClearPins(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
 
-    if (pGPIO != NULL) {
-        pGPIO->FIOCLR = bitValue;
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
+
+    if (halfword == GPIO_HALFWORD_HIGH) {
+        pFIO->FIOCLRU = pinMask;
+    } else {
+        pFIO->FIOCLRL = pinMask;
     }
 }
 
-/*********************************************************************//**
- * @brief        Read Current state on port pin that have input direction of GPIO
- * @param[in]    portNum        Port number to read value, in range from 0 to 4
- * @return        Current value of GPIO port.
- *
- * Note: Return value contain state of each port pin (bit) on that GPIO regardless
- * its direction is input or output.
- **********************************************************************/
-uint32_t GPIO_ReadValue(uint8_t portNum)
-{
-    LPC_GPIO_TypeDef *pGPIO = GPIO_GetPointer(portNum);
+void FIO_HalfWordWriteValue(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t newValue) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
 
-    if (pGPIO != NULL) {
-        return pGPIO->FIOPIN;
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
+
+    if (halfword == GPIO_HALFWORD_HIGH) {
+        pFIO->FIOCLRU = ~newValue;
+        pFIO->FIOSETU = newValue;
+    } else {
+        pFIO->FIOCLRL = ~newValue;
+        pFIO->FIOSETL = newValue;
+    }
+}
+
+uint16_t FIO_HalfWordReadValue(LPC_PORT port, GPIO_HALFWORD halfword) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
+
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
+
+    if (halfword == GPIO_HALFWORD_HIGH) {
+        return (pFIO->FIOPINU);
     }
 
-    return (0);
+    return (pFIO->FIOPINL);
 }
 
-/*********************************************************************//**
- * @brief        Enable GPIO interrupt (just used for P0.0-P0.30, P2.0-P2.13)
- * @param[in]    portNum        Port number to read value, should be: 0 or 2
- * @param[in]    bitValue    Value that contains all bits on GPIO to enable,
- *                             in range from 0 to 0xFFFFFFFF.
- * @param[in]    edgeState    state of edge, should be:
- *                             - 0: Rising edge
- *                             - 1: Falling edge
- * @return        None
- **********************************************************************/
-void GPIO_IntCmd(uint8_t portNum, uint32_t bitValue, uint8_t edgeState)
-{
-    if((portNum == 0)&&(edgeState == 0))
-        LPC_GPIOINT->IO0IntEnR = bitValue;
-    else if ((portNum == 2)&&(edgeState == 0))
-        LPC_GPIOINT->IO2IntEnR = bitValue;
-    else if ((portNum == 0)&&(edgeState == 1))
-        LPC_GPIOINT->IO0IntEnF = bitValue;
-    else if ((portNum == 2)&&(edgeState == 1))
-        LPC_GPIOINT->IO2IntEnF = bitValue;
-    else
-        //Error
-        while(1);
+void FIO_HalfWordTogglePins(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
+
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
+
+    if (halfword == GPIO_HALFWORD_HIGH) {
+        const uint16_t current = pFIO->FIOPINU;
+
+        pFIO->FIOSETU = (~current) & pinMask;
+        pFIO->FIOCLRU = current & pinMask;
+    } else {
+        const uint16_t current = pFIO->FIOPINL;
+
+        pFIO->FIOSETL = (~current) & pinMask;
+        pFIO->FIOCLRL = current & pinMask;
+    }
 }
 
-/*********************************************************************//**
- * @brief        Get GPIO Interrupt Status (just used for P0.0-P0.30, P2.0-P2.13)
- * @param[in]    portNum        Port number to read value, should be: 0 or 2
- * @param[in]    pinNum        Pin number, should be: 0..30(with port 0) and 0..13
- *                             (with port 2)
- * @param[in]    edgeState    state of edge, should be:
- *                             - 0: Rising edge
- *                             - 1: Falling edge
- * @return        Bool    could be:
- *                         - ENABLE: Interrupt has been generated due to a rising
- *                                 edge on P0.0
- *                         - DISABLE: A rising edge has not been detected on P0.0
- **********************************************************************/
-FunctionalState GPIO_GetIntStatus(uint8_t portNum, uint32_t pinNum, uint8_t edgeState)
-{
-    if((portNum == 0) && (edgeState == 0))//Rising Edge
-        return (FunctionalState)(((LPC_GPIOINT->IO0IntStatR)>>pinNum)& 0x1);
-    else if ((portNum == 2) && (edgeState == 0))
-        return (FunctionalState)(((LPC_GPIOINT->IO2IntStatR)>>pinNum)& 0x1);
-    else if ((portNum == 0) && (edgeState == 1))//Falling Edge
-        return (FunctionalState)(((LPC_GPIOINT->IO0IntStatF)>>pinNum)& 0x1);
-    else if ((portNum == 2) && (edgeState == 1))
-        return (FunctionalState)(((LPC_GPIOINT->IO2IntStatF)>>pinNum)& 0x1);
-    else
-        //Error
-        while(1);
-}
-/*********************************************************************//**
- * @brief        Clear GPIO interrupt (just used for P0.0-P0.30, P2.0-P2.13)
- * @param[in]    portNum        Port number to read value, should be: 0 or 2
- * @param[in]    bitValue    Value that contains all bits on GPIO to enable,
- *                             in range from 0 to 0xFFFFFFFF.
- * @return        None
- **********************************************************************/
-void GPIO_ClearInt(uint8_t portNum, uint32_t bitValue)
-{
-    if(portNum == 0)
-        LPC_GPIOINT->IO0IntClr = bitValue;
-    else if (portNum == 2)
-        LPC_GPIOINT->IO2IntClr = bitValue;
-    else
-        //Invalid portNum
-        while(1);
-}
+void FIO_HalfWordSetMask(LPC_PORT port, GPIO_HALFWORD halfword, uint16_t pinMask,
+                         FunctionalState newState) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_HALFWORD(halfword));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
 
-/* FIO word accessible ----------------------------------------------------------------- */
-/* Stub function for FIO (word-accessible) style */
+    GPIO_HalfWord_TypeDef* pFIO = FIO_HalfWordGetPointer(port);
 
-/**
- * @brief The same with GPIO_SetDir()
- */
-void FIO_SetDir(uint8_t portNum, uint32_t bitValue, uint8_t dir)
-{
-    GPIO_SetDir(portNum, bitValue, dir);
-}
-
-/**
- * @brief The same with GPIO_SetValue()
- */
-void FIO_SetValue(uint8_t portNum, uint32_t bitValue)
-{
-    GPIO_SetValue(portNum, bitValue);
-}
-
-/**
- * @brief The same with GPIO_ClearValue()
- */
-void FIO_ClearValue(uint8_t portNum, uint32_t bitValue)
-{
-    GPIO_ClearValue(portNum, bitValue);
-}
-
-/**
- * @brief The same with GPIO_ReadValue()
- */
-uint32_t FIO_ReadValue(uint8_t portNum)
-{
-    return (GPIO_ReadValue(portNum));
-}
-
-/**
- * @brief The same with GPIO_IntCmd()
- */
-void FIO_IntCmd(uint8_t portNum, uint32_t bitValue, uint8_t edgeState)
-{
-    GPIO_IntCmd(portNum, bitValue, edgeState);
-}
-
-/**
- * @brief The same with GPIO_GetIntStatus()
- */
-FunctionalState FIO_GetIntStatus(uint8_t portNum, uint32_t pinNum, uint8_t edgeState)
-{
-    return (GPIO_GetIntStatus(portNum, pinNum, edgeState));
-}
-
-/**
- * @brief The same with GPIO_ClearInt()
- */
-void FIO_ClearInt(uint8_t portNum, uint32_t bitValue)
-{
-    GPIO_ClearInt(portNum, bitValue);
-}
-/*********************************************************************//**
- * @brief        Set mask value for bits in FIO port
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    bitValue    Value that contains all bits in to set,
- *                             in range from 0 to 0xFFFFFFFF.
- * @param[in]    maskValue    Mask value contains state value for each bit:
- *                             - 0: not mask.
- *                             - 1: mask.
- * @return        None
- *
- * Note:
- * - All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- * - After executing this function, in mask register, value '0' on each bit
- * enables an access to the corresponding physical pin via a read or write access,
- * while value '1' on bit (masked) that corresponding pin will not be changed
- * with write access and if read, will not be reflected in the updated pin.
- **********************************************************************/
-void FIO_SetMask(uint8_t portNum, uint32_t bitValue, uint8_t maskValue)
-{
-    LPC_GPIO_TypeDef *pFIO = GPIO_GetPointer(portNum);
-    if(pFIO != NULL) {
-        // Mask
-        if (maskValue){
-            pFIO->FIOMASK |= bitValue;
+    if (newState == ENABLE) {
+        if (halfword == GPIO_HALFWORD_HIGH) {
+            pFIO->FIOMASKU |= pinMask;
+        } else {
+            pFIO->FIOMASKL |= pinMask;
         }
-        // Un-mask
-        else {
-            pFIO->FIOMASK &= ~bitValue;
+    } else {
+        if (halfword == GPIO_HALFWORD_HIGH) {
+            pFIO->FIOMASKU &= ~pinMask;
+        } else {
+            pFIO->FIOMASKL &= ~pinMask;
         }
     }
 }
 
+/* ---------------------- FIO (byte-accessible) style ----------------------- */
+void FIO_ByteSetDir(LPC_PORT port, GPIO_BYTE byte, uint8_t pinMask, GPIO_DIR dir) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
+    CHECK_PARAM(PARAM_GPIO_DIR(dir));
 
-/* FIO halfword accessible ------------------------------------------------------------- */
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
 
-/*********************************************************************//**
- * @brief        Set direction for FIO port in halfword accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    halfwordNum    HalfWord part number, should be 0 (lower) or 1(upper)
- * @param[in]    bitValue    Value that contains all bits in to set direction,
- *                             in range from 0 to 0xFFFF.
- * @param[in]    dir            Direction value, should be:
- *                             - 0: Input.
- *                             - 1: Output.
- * @return        None
- *
- * Note: All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_HalfWordSetDir(uint8_t portNum, uint8_t halfwordNum, uint16_t bitValue, uint8_t dir)
-{
-    GPIO_HalfWord_TypeDef *pFIO = FIO_HalfWordGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Output direction
-        if (dir) {
-            // Upper
-            if(halfwordNum) {
-                pFIO->FIODIRU |= bitValue;
-            }
-            // lower
-            else {
-                pFIO->FIODIRL |= bitValue;
-            }
-        }
-        // Input direction
-        else {
-            // Upper
-            if(halfwordNum) {
-                pFIO->FIODIRU &= ~bitValue;
-            }
-            // lower
-            else {
-                pFIO->FIODIRL &= ~bitValue;
-            }
-        }
+    if (dir == GPIO_OUTPUT) {
+        pFIO->FIODIR[byte] |= pinMask;
+    } else {
+        pFIO->FIODIR[byte] &= ~pinMask;
     }
 }
 
+void FIO_ByteSetPins(LPC_PORT port, GPIO_BYTE byte, uint8_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
 
-/*********************************************************************//**
- * @brief        Set mask value for bits in FIO port in halfword accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    halfwordNum    HalfWord part number, should be 0 (lower) or 1(upper)
- * @param[in]    bitValue    Value that contains all bits in to set,
- *                             in range from 0 to 0xFFFF.
- * @param[in]    maskValue    Mask value contains state value for each bit:
- *                     - 0: not mask.
- *                     - 1: mask.
- * @return        None
- *
- * Note:
- * - All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- * - After executing this function, in mask register, value '0' on each bit
- * enables an access to the corresponding physical pin via a read or write access,
- * while value '1' on bit (masked) that corresponding pin will not be changed
- * with write access and if read, will not be reflected in the updated pin.
- **********************************************************************/
-void FIO_HalfWordSetMask(uint8_t portNum, uint8_t halfwordNum, uint16_t bitValue, uint8_t maskValue)
-{
-    GPIO_HalfWord_TypeDef *pFIO = FIO_HalfWordGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Mask
-        if (maskValue){
-            // Upper
-            if(halfwordNum) {
-                pFIO->FIOMASKU |= bitValue;
-            }
-            // lower
-            else {
-                pFIO->FIOMASKL |= bitValue;
-            }
-        }
-        // Un-mask
-        else {
-            // Upper
-            if(halfwordNum) {
-                pFIO->FIOMASKU &= ~bitValue;
-            }
-            // lower
-            else {
-                pFIO->FIOMASKL &= ~bitValue;
-            }
-        }
-    }
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
+
+    pFIO->FIOSET[byte] = pinMask;
 }
 
+void FIO_ByteClearPins(LPC_PORT port, GPIO_BYTE byte, uint8_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
 
-/*********************************************************************//**
- * @brief        Set bits for FIO port in halfword accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    halfwordNum    HalfWord part number, should be 0 (lower) or 1(upper)
- * @param[in]    bitValue    Value that contains all bits in to set,
- *                             in range from 0 to 0xFFFF.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_HalfWordSetValue(uint8_t portNum, uint8_t halfwordNum, uint16_t bitValue)
-{
-    GPIO_HalfWord_TypeDef *pFIO = FIO_HalfWordGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Upper
-        if(halfwordNum) {
-            pFIO->FIOSETU = bitValue;
-        }
-        // lower
-        else {
-            pFIO->FIOSETL = bitValue;
-        }
-    }
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
+
+    pFIO->FIOCLR[byte] = pinMask;
 }
 
+void FIO_ByteWriteValue(LPC_PORT port, GPIO_BYTE byte, uint8_t newValue) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
 
-/*********************************************************************//**
- * @brief        Clear bits for FIO port in halfword accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    halfwordNum    HalfWord part number, should be 0 (lower) or 1(upper)
- * @param[in]    bitValue    Value that contains all bits in to clear,
- *                             in range from 0 to 0xFFFF.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_HalfWordClearValue(uint8_t portNum, uint8_t halfwordNum, uint16_t bitValue)
-{
-    GPIO_HalfWord_TypeDef *pFIO = FIO_HalfWordGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Upper
-        if(halfwordNum) {
-            pFIO->FIOCLRU = bitValue;
-        }
-        // lower
-        else {
-            pFIO->FIOCLRL = bitValue;
-        }
-    }
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
+
+    pFIO->FIOCLR[byte] = ~newValue;
+    pFIO->FIOSET[byte] = newValue;
 }
 
+uint8_t FIO_ByteReadValue(LPC_PORT port, GPIO_BYTE byte) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
 
-/*********************************************************************//**
- * @brief        Read Current state on port pin that have input direction of GPIO
- *                 in halfword accessible style.
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    halfwordNum    HalfWord part number, should be 0 (lower) or 1(upper)
- * @return        Current value of FIO port pin of specified halfword.
- * Note: Return value contain state of each port pin (bit) on that FIO regardless
- * its direction is input or output.
- **********************************************************************/
-uint16_t FIO_HalfWordReadValue(uint8_t portNum, uint8_t halfwordNum)
-{
-    GPIO_HalfWord_TypeDef *pFIO = FIO_HalfWordGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Upper
-        if(halfwordNum) {
-            return (pFIO->FIOPINU);
-        }
-        // lower
-        else {
-            return (pFIO->FIOPINL);
-        }
-    }
-    return (0);
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
+
+    return (pFIO->FIOPIN[byte]);
 }
 
+void FIO_ByteTogglePins(LPC_PORT port, GPIO_BYTE byte, uint8_t pinMask) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
 
-/* FIO Byte accessible ------------------------------------------------------------ */
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
 
-/*********************************************************************//**
- * @brief        Set direction for FIO port in byte accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    byteNum        Byte part number, should be in range from 0 to 3
- * @param[in]    bitValue    Value that contains all bits in to set direction,
- *                             in range from 0 to 0xFF.
- * @param[in]    dir            Direction value, should be:
- *                             - 0: Input.
- *                             - 1: Output.
- * @return        None
- *
- * Note: All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_ByteSetDir(uint8_t portNum, uint8_t byteNum, uint8_t bitValue, uint8_t dir)
-{
-    GPIO_Byte_TypeDef *pFIO = FIO_ByteGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Output direction
-        if (dir) {
-            if (byteNum <= 3) {
-                pFIO->FIODIR[byteNum] |= bitValue;
-            }
-        }
-        // Input direction
-        else {
-            if (byteNum <= 3) {
-                pFIO->FIODIR[byteNum] &= ~bitValue;
-            }
-        }
-    }
+    const uint8_t current = pFIO->FIOPIN[byte];
+    pFIO->FIOSET[byte]    = (~current) & pinMask;
+    pFIO->FIOCLR[byte]    = current & pinMask;
 }
 
-/*********************************************************************//**
- * @brief        Set mask value for bits in FIO port in byte accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    byteNum        Byte part number, should be in range from 0 to 3
- * @param[in]    bitValue    Value that contains all bits in to set mask,
- *                             in range from 0 to 0xFF.
- * @param[in]    maskValue    Mask value contains state value for each bit:
- *                             - 0: not mask.
- *                             - 1: mask.
- * @return        None
- *
- * Note:
- * - All remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- * - After executing this function, in mask register, value '0' on each bit
- * enables an access to the corresponding physical pin via a read or write access,
- * while value '1' on bit (masked) that corresponding pin will not be changed
- * with write access and if read, will not be reflected in the updated pin.
- **********************************************************************/
-void FIO_ByteSetMask(uint8_t portNum, uint8_t byteNum, uint8_t bitValue, uint8_t maskValue)
-{
-    GPIO_Byte_TypeDef *pFIO = FIO_ByteGetPointer(portNum);
-    if(pFIO != NULL) {
-        // Mask
-        if (maskValue) {
-            if (byteNum <= 3) {
-                pFIO->FIOMASK[byteNum] |= bitValue;
-            }
-        }
-        // Un-mask
-        else {
-            if (byteNum <= 3) {
-                pFIO->FIOMASK[byteNum] &= ~bitValue;
-            }
-        }
+void FIO_ByteSetMask(LPC_PORT port, GPIO_BYTE byte, uint8_t pinMask, FunctionalState newState) {
+    CHECK_PARAM(PARAM_LPC_PORT(port));
+    CHECK_PARAM(PARAM_GPIO_BYTE(byte));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(newState));
+
+    GPIO_Byte_TypeDef* pFIO = FIO_ByteGetPointer(port);
+
+    if (newState == ENABLE) {
+        pFIO->FIOMASK[byte] |= pinMask;
+    } else {
+        pFIO->FIOMASK[byte] &= ~pinMask;
     }
-}
-
-
-/*********************************************************************//**
- * @brief        Set bits for FIO port in byte accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    byteNum        Byte part number, should be in range from 0 to 3
- * @param[in]    bitValue    Value that contains all bits in to set,
- *                             in range from 0 to 0xFF.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_ByteSetValue(uint8_t portNum, uint8_t byteNum, uint8_t bitValue)
-{
-    GPIO_Byte_TypeDef *pFIO = FIO_ByteGetPointer(portNum);
-    if (pFIO != NULL) {
-        if (byteNum <= 3){
-            pFIO->FIOSET[byteNum] = bitValue;
-        }
-    }
-}
-
-
-/*********************************************************************//**
- * @brief        Clear bits for FIO port in byte accessible style
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    byteNum        Byte part number, should be in range from 0 to 3
- * @param[in]    bitValue    Value that contains all bits in to clear,
- *                             in range from 0 to 0xFF.
- * @return        None
- *
- * Note:
- * - For all bits that has been set as input direction, this function will
- * not effect.
- * - For all remaining bits that are not activated in bitValue (value '0')
- * will not be effected by this function.
- **********************************************************************/
-void FIO_ByteClearValue(uint8_t portNum, uint8_t byteNum, uint8_t bitValue)
-{
-    GPIO_Byte_TypeDef *pFIO = FIO_ByteGetPointer(portNum);
-    if (pFIO != NULL) {
-        if (byteNum <= 3){
-            pFIO->FIOCLR[byteNum] = bitValue;
-        }
-    }
-}
-
-
-/*********************************************************************//**
- * @brief        Read Current state on port pin that have input direction of GPIO
- *                 in byte accessible style.
- * @param[in]    portNum        Port number, in range from 0 to 4
- * @param[in]    byteNum        Byte part number, should be in range from 0 to 3
- * @return        Current value of FIO port pin of specified byte part.
- * Note: Return value contain state of each port pin (bit) on that FIO regardless
- * its direction is input or output.
- **********************************************************************/
-uint8_t FIO_ByteReadValue(uint8_t portNum, uint8_t byteNum)
-{
-    GPIO_Byte_TypeDef *pFIO = FIO_ByteGetPointer(portNum);
-    if (pFIO != NULL) {
-        if (byteNum <= 3){
-            return (pFIO->FIOPIN[byteNum]);
-        }
-    }
-    return (0);
 }
 
 /**
@@ -746,4 +509,4 @@ uint8_t FIO_ByteReadValue(uint8_t portNum, uint8_t byteNum)
  * @}
  */
 
-/* --------------------------------- End Of File ------------------------------ */
+/* ------------------------------ End Of File ------------------------------- */

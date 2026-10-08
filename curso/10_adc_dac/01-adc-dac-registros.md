@@ -357,7 +357,32 @@ glitches: el valor cambia **sincronizado con el tick**, no en cualquier momento.
 `DACR` real, no el pre-buffer. (El timer interno **no** es accesible para lectura/escritura; sí lo son
 `DACCTRL` y `DACCNTVAL`.)
 
-### Generar una señal (anticipo de DMA)
+> **No hay una `DAC_IRQn`.** Aunque el manual llama a este bloque *Interrupt/DMA timer* y el bit se
+> llama `INT_DMA_REQ`, la tabla de vectores del LPC1769 no ofrece una interrupción del DAC al NVIC.
+> Sin DMA, el CPU no puede usar ese contador como una ISR periódica. Para generar una señal sin DMA se
+> usa uno de los Timers generales (`TIMER0_IRQn`, por ejemplo) y se escribe `DACR` desde su handler.
+
+### Generar una señal sin DMA
+
+La secuencia más clara para empezar es:
+
+1. elegir una tasa de actualización `f_s` compatible con el settling del DAC;
+2. configurar un Timer general para producir un evento cada `1/f_s`;
+3. en cada evento, calcular o buscar la próxima muestra y escribirla en `DACR`;
+4. repetir la tabla o el algoritmo después de `N` muestras.
+
+La frecuencia de la señal queda determinada por:
+
+```
+f_onda = f_s / N_muestras_por_ciclo
+```
+
+Esto puede hacerse consultando el flag del Timer (*polling*) o desde su interrupción. La interrupción
+libera al `main` para otras tareas, pero el CPU todavía atiende **una ISR por muestra**. Los ejemplos
+[triangular por polling](../ejemplos/adc_dac/03_dac_triangular_polling/) y
+[seno por interrupción](../ejemplos/adc_dac/04_dac_seno_interrupcion/) muestran ambos pasos.
+
+### Generar una señal con DMA
 
 Para una onda (seno, triangular), se escribe el DAC repetidamente con los valores de una **tabla**, a
 intervalos fijos. Hacerlo con el CPU funciona, pero lo elegante es que el **timer del DAC dispare al
@@ -375,7 +400,8 @@ en el [módulo 11 (DMA)](../11_dma/) y hay un ejemplo en
 1. **`PCLKSEL0`**: elegir `PCLK_DAC` (módulo 3): importa para el ritmo del timer de DMA.
 2. **`PINSEL1`**: P0.26 en función 2 (AOUT). **Esto habilita el DAC** (no hay PCONP).
 3. (Opcional) `BIAS` según la velocidad que necesites.
-4. Escribir `VALUE` en `DACR` (bits 15:6). Para ondas: configurar `DACCTRL`/`DACCNTVAL` + DMA.
+4. Escribir `VALUE` en `DACR` (bits 15:6). Para ondas sin DMA: actualizarlo con un Timer general; con
+   DMA: configurar `DACCTRL`/`DACCNTVAL` y el canal del GPDMA.
 
 ---
 

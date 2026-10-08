@@ -19,6 +19,10 @@ de varios periféricos y para reconocer los errores típicos antes de que te cue
   - `punto2.c`, `punto2_mejorado.c`: ejercicio 2 y versión mejorada
   - `punto2_errores.md`: análisis detallado de errores comunes
 
+### 2026
+- [protocolo_dos_hilos](./2026/protocolo_dos_hilos/): enlace síncrono implementado manualmente con
+  GPIO, timers, interrupciones y máquinas de estados
+
 ## Cómo estudiar con estos ejercicios
 
 1. **Resolvé por tu cuenta primero.** Leé el enunciado, identificá qué periféricos necesitás e intentá

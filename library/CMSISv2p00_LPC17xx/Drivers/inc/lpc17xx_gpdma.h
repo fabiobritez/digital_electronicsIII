@@ -1,30 +1,24 @@
-/**********************************************************************
-* $Id$		lpc17xx_gpdma.h				2010-05-21
-*//**
-* @file		lpc17xx_gpdma.h
-* @brief	Contains all macro definitions and function prototypes
-* 			support for GPDMA firmware library on LPC17xx
-* @version	2.0
-* @date		21. May. 2010
-* @author	NXP MCU SW Application Team
-*
-* Copyright(C) 2010, NXP Semiconductor
-* All rights reserved.
-*
-***********************************************************************
-* Software that is described herein is for illustrative purposes only
-* which provides customers with programming information regarding the
-* products. This software is supplied "AS IS" without any warranties.
-* NXP Semiconductors assumes no responsibility or liability for the
-* use of the software, conveys no license or title under any patent,
-* copyright, or mask work right to the product. NXP Semiconductors
-* reserves the right to make changes in the software without
-* notification. NXP Semiconductors also make no representation or
-* warranty that such application will be suitable for the specified
-* use without further testing or modification.
-**********************************************************************/
+/**
+ * @file    lpc17xx_gpdma.h
+ * @brief   Contains all macro definitions and function prototypes
+ *          support for GPDMA firmware library on LPC17xx
+ * @version 2.0
+ * @date    21. May. 2010
+ * @author  NXP MCU SW Application Team
+ *
+ * Software that is described herein is for illustrative purposes only which provides customers with
+ * programming information regarding the products. This software is supplied "AS IS" without any
+ * warranties. NXP Semiconductors assumes no responsibility or liability for the use of the
+ * software, conveys no license or title under any patent, copyright, or mask work right to the
+ * product. NXP Semiconductors reserves the right to make changes in the software without
+ * notification. NXP Semiconductors also make no representation or warranty that such application
+ * will be suitable for the specified use without further testing or modification.
+ *
+ * @par Refactor:
+ * Last update: 28/02/2026, Author: David Trujillo Medina
+ */
 
-/* Peripheral group ----------------------------------------------------------- */
+/* ---------------------------- Peripheral group ---------------------------- */
 /** @defgroup GPDMA GPDMA (General Purpose Direct Memory Access)
  * @ingroup LPC1700CMSIS_FwLib_Drivers
  * @{
@@ -33,382 +27,412 @@
 #ifndef LPC17XX_GPDMA_H_
 #define LPC17XX_GPDMA_H_
 
-/* Includes ------------------------------------------------------------------- */
+/* -------------------------------- Includes -------------------------------- */
 #include "LPC17xx.h"
 #include "lpc_types.h"
 
-
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-/* Public Macros -------------------------------------------------------------- */
-/** @defgroup GPDMA_Public_Macros GPDMA Public Macros
- * @{
- */
-
-/** DMA Connection number definitions */
-#define GPDMA_CONN_SSP0_Tx 			((0UL)) 		/**< SSP0 Tx */
-#define GPDMA_CONN_SSP0_Rx 			((1UL)) 		/**< SSP0 Rx */
-#define GPDMA_CONN_SSP1_Tx 			((2UL)) 		/**< SSP1 Tx */
-#define GPDMA_CONN_SSP1_Rx 			((3UL)) 		/**< SSP1 Rx */
-#define GPDMA_CONN_ADC 				((4UL)) 		/**< ADC */
-#define GPDMA_CONN_I2S_Channel_0 	((5UL)) 		/**< I2S channel 0 */
-#define GPDMA_CONN_I2S_Channel_1 	((6UL)) 		/**< I2S channel 1 */
-#define GPDMA_CONN_DAC 				((7UL)) 		/**< DAC */
-#define GPDMA_CONN_UART0_Tx			((8UL)) 		/**< UART0 Tx */
-#define GPDMA_CONN_UART0_Rx			((9UL)) 		/**< UART0 Rx */
-#define GPDMA_CONN_UART1_Tx			((10UL)) 		/**< UART1 Tx */
-#define GPDMA_CONN_UART1_Rx			((11UL)) 		/**< UART1 Rx */
-#define GPDMA_CONN_UART2_Tx			((12UL)) 		/**< UART2 Tx */
-#define GPDMA_CONN_UART2_Rx			((13UL)) 		/**< UART2 Rx */
-#define GPDMA_CONN_UART3_Tx			((14UL)) 		/**< UART3 Tx */
-#define GPDMA_CONN_UART3_Rx			((15UL)) 		/**< UART3 Rx */
-#define GPDMA_CONN_MAT0_0 			((16UL)) 		/**< MAT0.0 */
-#define GPDMA_CONN_MAT0_1 			((17UL)) 		/**< MAT0.1 */
-#define GPDMA_CONN_MAT1_0 			((18UL)) 		/**< MAT1.0 */
-#define GPDMA_CONN_MAT1_1   		((19UL)) 		/**< MAT1.1 */
-#define GPDMA_CONN_MAT2_0   		((20UL)) 		/**< MAT2.0 */
-#define GPDMA_CONN_MAT2_1   		((21UL)) 		/**< MAT2.1 */
-#define GPDMA_CONN_MAT3_0 			((22UL)) 		/**< MAT3.0 */
-#define GPDMA_CONN_MAT3_1   		((23UL)) 		/**< MAT3.1 */
-
-/** GPDMA Transfer type definitions */
-#define GPDMA_TRANSFERTYPE_M2M 		((0UL)) 	/**< Memory to memory - DMA control */
-#define GPDMA_TRANSFERTYPE_M2P 		((1UL)) 	/**< Memory to peripheral - DMA control */
-#define GPDMA_TRANSFERTYPE_P2M 		((2UL)) 	/**< Peripheral to memory - DMA control */
-#define GPDMA_TRANSFERTYPE_P2P 		((3UL)) 	/**< Source peripheral to destination peripheral - DMA control */
-
-/** Burst size in Source and Destination definitions */
-#define GPDMA_BSIZE_1 	((0UL)) /**< Burst size = 1 */
-#define GPDMA_BSIZE_4 	((1UL)) /**< Burst size = 4 */
-#define GPDMA_BSIZE_8 	((2UL)) /**< Burst size = 8 */
-#define GPDMA_BSIZE_16 	((3UL)) /**< Burst size = 16 */
-#define GPDMA_BSIZE_32 	((4UL)) /**< Burst size = 32 */
-#define GPDMA_BSIZE_64 	((5UL)) /**< Burst size = 64 */
-#define GPDMA_BSIZE_128 ((6UL)) /**< Burst size = 128 */
-#define GPDMA_BSIZE_256 ((7UL)) /**< Burst size = 256 */
-
-/** Width in Source transfer width and Destination transfer width definitions */
-#define GPDMA_WIDTH_BYTE 		((0UL)) /**< Width = 1 byte */
-#define GPDMA_WIDTH_HALFWORD 	((1UL)) /**< Width = 2 bytes */
-#define GPDMA_WIDTH_WORD 		((2UL)) /**< Width = 4 bytes */
-
-/** DMA Request Select Mode definitions */
-#define GPDMA_REQSEL_UART 	((0UL)) /**< UART TX/RX is selected */
-#define GPDMA_REQSEL_TIMER 	((1UL)) /**< Timer match is selected */
-
-/**
- * @}
- */
-
-
-/* Private Macros ------------------------------------------------------------- */
+/* ----------------------------- Private Macros ----------------------------- */
 /** @defgroup GPDMA_Private_Macros GPDMA Private Macros
  * @{
  */
 
-/* --------------------- BIT DEFINITIONS -------------------------------------- */
-/*********************************************************************//**
- * Macro defines for DMA Interrupt Status register
- **********************************************************************/
-#define GPDMA_DMACIntStat_Ch(n)			(((1UL<<n)&0xFF))
-#define GPDMA_DMACIntStat_BITMASK		((0xFF))
+#define GPDMA_NUM_CHANNELS ((8))
 
-/*********************************************************************//**
- * Macro defines for DMA Interrupt Terminal Count Request Status register
- **********************************************************************/
-#define GPDMA_DMACIntTCStat_Ch(n)		(((1UL<<n)&0xFF))
-#define GPDMA_DMACIntTCStat_BITMASK		((0xFF))
+/* ---------------------------- BIT DEFINITIONS ----------------------------- */
+/** Bit mask for an especific channel. */
+#define GPDMA_ChannelBit(n)       ((1UL << n))
+/** Bit mask for an especific request source. */
+#define GPDMA_DMACSoftBReq_Src(n) ((1UL << n))
 
-/*********************************************************************//**
- * Macro defines for DMA Interrupt Terminal Count Request Clear register
- **********************************************************************/
-#define GPDMA_DMACIntTCClear_Ch(n)		(((1UL<<n)&0xFF))
-#define GPDMA_DMACIntTCClear_BITMASK	((0xFF))
+/** DMACConfig register, enable bit. */
+#define GPDMA_DMACConfig_E ((0x01))
+/** DMACConfig register, endianness configuration bit. */
+#define GPDMA_DMACConfig_M ((0x02))
 
-/*********************************************************************//**
- * Macro defines for DMA Interrupt Error Status register
- **********************************************************************/
-#define GPDMA_DMACIntErrStat_Ch(n)		(((1UL<<n)&0xFF))
-#define GPDMA_DMACIntErrStat_BITMASK	((0xFF))
+/** Transfer size bits mask. */
+#define GPDMA_DMACCxControl_TransferSize(n) (((n & 0xFFF) << 0))
+/** Source burst size bits mask. */
+#define GPDMA_DMACCxControl_SBSize(n)       (((n & 0x07) << 12))
+/** Destination burst size bits mask. */
+#define GPDMA_DMACCxControl_DBSize(n)       (((n & 0x07) << 15))
+/** Source transfer width bits mask. */
+#define GPDMA_DMACCxControl_SWidth(n)       (((n & 0x07) << 18))
+/** Destination transfer width bits mask. */
+#define GPDMA_DMACCxControl_DWidth(n)       (((n & 0x07) << 21))
+/** Source increment control bit. */
+#define GPDMA_DMACCxControl_SI              ((1UL << 26))
+/** Destination increment control bit. */
+#define GPDMA_DMACCxControl_DI              ((1UL << 27))
+/** Terminal count interrupt enable bit. */
+#define GPDMA_DMACCxControl_I               ((1UL << 31))
 
-/*********************************************************************//**
- * Macro defines for DMA Interrupt Error Clear register
- **********************************************************************/
-#define GPDMA_DMACIntErrClr_Ch(n)		(((1UL<<n)&0xFF))
-#define GPDMA_DMACIntErrClr_BITMASK		((0xFF))
+/** Channel enable bit. */
+#define GPDMA_DMACCxConfig_E                 ((1UL << 0))
+/** Source peripheral bits mask. */
+#define GPDMA_DMACCxConfig_SrcPeripheral(n)  (((n) << 1))
+/** Destination peripheral bits mask. */
+#define GPDMA_DMACCxConfig_DestPeripheral(n) (((n) << 6))
+/** Transfer type bits mask. */
+#define GPDMA_DMACCxConfig_TransferType(n)   (((n) << 11))
+/** Interrupt error mask. */
+#define GPDMA_DMACCxConfig_IE                ((1UL << 14))
+/** Interrupt terminal count mask. */
+#define GPDMA_DMACCxConfig_ITC               ((1UL << 15))
+/** Active status bit. */
+#define GPDMA_DMACCxConfig_A                 ((1UL << 17))
+/** Halt status bit. */
+#define GPDMA_DMACCxConfig_H                 ((1UL << 18))
 
-/*********************************************************************//**
- * Macro defines for DMA Raw Interrupt Terminal Count Status register
- **********************************************************************/
-#define GPDMA_DMACRawIntTCStat_Ch(n)	(((1UL<<n)&0xFF))
-#define GPDMA_DMACRawIntTCStat_BITMASK	((0xFF))
+/* ---------------------------- MASK DEFINITIONS ---------------------------- */
+#define GPDMA_DMACIntStat_ALL ((0xFF))
 
-/*********************************************************************//**
- * Macro defines for DMA Raw Error Interrupt Status register
- **********************************************************************/
-#define GPDMA_DMACRawIntErrStat_Ch(n)	(((1UL<<n)&0xFF))
-#define GPDMA_DMACRawIntErrStat_BITMASK	((0xFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Enabled Channel register
- **********************************************************************/
-#define GPDMA_DMACEnbldChns_Ch(n)		(((1UL<<n)&0xFF))
-#define GPDMA_DMACEnbldChns_BITMASK		((0xFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Software Burst Request register
- **********************************************************************/
-#define	GPDMA_DMACSoftBReq_Src(n)		(((1UL<<n)&0xFFFF))
-#define GPDMA_DMACSoftBReq_BITMASK		((0xFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Software Single Request register
- **********************************************************************/
-#define GPDMA_DMACSoftSReq_Src(n) 		(((1UL<<n)&0xFFFF))
-#define GPDMA_DMACSoftSReq_BITMASK		((0xFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Software Last Burst Request register
- **********************************************************************/
-#define GPDMA_DMACSoftLBReq_Src(n)		(((1UL<<n)&0xFFFF))
-#define GPDMA_DMACSoftLBReq_BITMASK		((0xFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Software Last Single Request register
- **********************************************************************/
-#define GPDMA_DMACSoftLSReq_Src(n) 		(((1UL<<n)&0xFFFF))
-#define GPDMA_DMACSoftLSReq_BITMASK		((0xFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Configuration register
- **********************************************************************/
-#define GPDMA_DMACConfig_E				((0x01))	 /**< DMA Controller enable*/
-#define GPDMA_DMACConfig_M				((0x02))	 /**< AHB Master endianness configuration*/
-#define GPDMA_DMACConfig_BITMASK		((0x03))
-
-/*********************************************************************//**
- * Macro defines for DMA Synchronization register
- **********************************************************************/
-#define GPDMA_DMACSync_Src(n)			(((1UL<<n)&0xFFFF))
-#define GPDMA_DMACSync_BITMASK			((0xFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Request Select register
- **********************************************************************/
-#define GPDMA_DMAReqSel_Input(n)		(((1UL<<(n-8))&0xFF))
-#define GPDMA_DMAReqSel_BITMASK			((0xFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Channel Linked List Item registers
- **********************************************************************/
-/** DMA Channel Linked List Item registers bit mask*/
-#define GPDMA_DMACCxLLI_BITMASK 		((0xFFFFFFFC))
-
-/*********************************************************************//**
- * Macro defines for DMA channel control registers
- **********************************************************************/
-#define GPDMA_DMACCxControl_TransferSize(n) (((n&0xFFF)<<0)) 	/**< Transfer size*/
-#define GPDMA_DMACCxControl_SBSize(n)		(((n&0x07)<<12)) 	/**< Source burst size*/
-#define GPDMA_DMACCxControl_DBSize(n)		(((n&0x07)<<15)) 	/**< Destination burst size*/
-#define GPDMA_DMACCxControl_SWidth(n)		(((n&0x07)<<18)) 	/**< Source transfer width*/
-#define GPDMA_DMACCxControl_DWidth(n)		(((n&0x07)<<21)) 	/**< Destination transfer width*/
-#define GPDMA_DMACCxControl_SI				((1UL<<26)) 		/**< Source increment*/
-#define GPDMA_DMACCxControl_DI				((1UL<<27)) 		/**< Destination increment*/
-#define GPDMA_DMACCxControl_Prot1			((1UL<<28)) 		/**< Indicates that the access is in user mode or privileged mode*/
-#define GPDMA_DMACCxControl_Prot2			((1UL<<29)) 		/**< Indicates that the access is bufferable or not bufferable*/
-#define GPDMA_DMACCxControl_Prot3			((1UL<<30)) 		/**< Indicates that the access is cacheable or not cacheable*/
-#define GPDMA_DMACCxControl_I				((1UL<<31)) 		/**< Terminal count interrupt enable bit */
-/** DMA channel control registers bit mask */
-#define GPDMA_DMACCxControl_BITMASK			((0xFCFFFFFF))
-
-/*********************************************************************//**
- * Macro defines for DMA Channel Configuration registers
- **********************************************************************/
-#define GPDMA_DMACCxConfig_E 					((1UL<<0))			/**< DMA control enable*/
-#define GPDMA_DMACCxConfig_SrcPeripheral(n) 	(((n&0x1F)<<1)) 	/**< Source peripheral*/
-#define GPDMA_DMACCxConfig_DestPeripheral(n) 	(((n&0x1F)<<6)) 	/**< Destination peripheral*/
-#define GPDMA_DMACCxConfig_TransferType(n) 		(((n&0x7)<<11)) 	/**< This value indicates the type of transfer*/
-#define GPDMA_DMACCxConfig_IE 					((1UL<<14))			/**< Interrupt error mask*/
-#define GPDMA_DMACCxConfig_ITC 					((1UL<<15)) 		/**< Terminal count interrupt mask*/
-#define GPDMA_DMACCxConfig_L 					((1UL<<16)) 		/**< Lock*/
-#define GPDMA_DMACCxConfig_A 					((1UL<<17)) 		/**< Active*/
-#define GPDMA_DMACCxConfig_H 					((1UL<<18)) 		/**< Halt*/
-/** DMA Channel Configuration registers bit mask */
-#define GPDMA_DMACCxConfig_BITMASK				((0x7FFFF))
-
-/* ---------------- CHECK PARAMETER DEFINITIONS ---------------------------- */
-/* Macros check GPDMA channel */
-#define PARAM_GPDMA_CHANNEL(n)	((n>=0) && (n<=7))
-
-/* Macros check GPDMA connection type */
-#define PARAM_GPDMA_CONN(n)		((n==GPDMA_CONN_SSP0_Tx) || (n==GPDMA_CONN_SSP0_Rx) \
-|| (n==GPDMA_CONN_SSP1_Tx) || (n==GPDMA_CONN_SSP1_Rx) \
-|| (n==GPDMA_CONN_ADC) || (n==GPDMA_CONN_I2S_Channel_0) \
-|| (n==GPDMA_CONN_I2S_Channel_1) || (n==GPDMA_CONN_DAC) \
-|| (n==GPDMA_CONN_UART0_Tx) || (n==GPDMA_CONN_UART0_Rx) \
-|| (n==GPDMA_CONN_UART1_Tx) || (n==GPDMA_CONN_UART1_Rx) \
-|| (n==GPDMA_CONN_UART2_Tx) || (n==GPDMA_CONN_UART2_Rx) \
-|| (n==GPDMA_CONN_UART3_Tx) || (n==GPDMA_CONN_UART3_Rx) \
-|| (n==GPDMA_CONN_MAT0_0) || (n==GPDMA_CONN_MAT0_1) \
-|| (n==GPDMA_CONN_MAT1_0) || (n==GPDMA_CONN_MAT1_1) \
-|| (n==GPDMA_CONN_MAT2_0) || (n==GPDMA_CONN_MAT2_1) \
-|| (n==GPDMA_CONN_MAT3_0) || (n==GPDMA_CONN_MAT3_1))
-
-/* Macros check GPDMA burst size type */
-#define PARAM_GPDMA_BSIZE(n)	((n==GPDMA_BSIZE_1) || (n==GPDMA_BSIZE_4) \
-|| (n==GPDMA_BSIZE_8) || (n==GPDMA_BSIZE_16) \
-|| (n==GPDMA_BSIZE_32) || (n==GPDMA_BSIZE_64) \
-|| (n==GPDMA_BSIZE_128) || (n==GPDMA_BSIZE_256))
-
-/* Macros check GPDMA width type */
-#define PARAM_GPDMA_WIDTH(n) ((n==GPDMA_WIDTH_BYTE) || (n==GPDMA_WIDTH_HALFWORD) \
-|| (n==GPDMA_WIDTH_WORD))
-
-/* Macros check GPDMA status type */
-#define PARAM_GPDMA_STAT(n)	((n==GPDMA_STAT_INT) || (n==GPDMA_STAT_INTTC) \
-|| (n==GPDMA_STAT_INTERR) || (n==GPDMA_STAT_RAWINTTC) \
-|| (n==GPDMA_STAT_RAWINTERR) || (n==GPDMA_STAT_ENABLED_CH))
-
-/* Macros check GPDMA transfer type */
-#define PARAM_GPDMA_TRANSFERTYPE(n) ((n==GPDMA_TRANSFERTYPE_M2M)||(n==GPDMA_TRANSFERTYPE_M2P) \
-||(n==GPDMA_TRANSFERTYPE_P2M)||(n==GPDMA_TRANSFERTYPE_P2P))
-
-/* Macros check GPDMA state clear type */
-#define PARAM_GPDMA_STATCLR(n)	((n==GPDMA_STATCLR_INTTC) || (n==GPDMA_STATCLR_INTERR))
-
-/* Macros check GPDMA request select type */
-#define PARAM_GPDMA_REQSEL(n)	((n==GPDMA_REQSEL_UART) || (n==GPDMA_REQSEL_TIMER))
 /**
  * @}
  */
 
-
-/* Public Types --------------------------------------------------------------- */
+/* ------------------------------ Public Types ------------------------------ */
 /** @defgroup GPDMA_Public_Types GPDMA Public Types
  * @{
  */
 
 /**
- * @brief GPDMA Status enumeration
+ * @brief GPDMA Channel enumeration.
  */
 typedef enum {
-	GPDMA_STAT_INT,			/**< GPDMA Interrupt Status */
-	GPDMA_STAT_INTTC,		/**< GPDMA Interrupt Terminal Count Request Status */
-	GPDMA_STAT_INTERR,		/**< GPDMA Interrupt Error Status */
-	GPDMA_STAT_RAWINTTC,	/**< GPDMA Raw Interrupt Terminal Count Status */
-	GPDMA_STAT_RAWINTERR,	/**< GPDMA Raw Error Interrupt Status */
-	GPDMA_STAT_ENABLED_CH	/**< GPDMA Enabled Channel Status */
-} GPDMA_Status_Type;
+    GPDMA_CH_0 = 0,
+    GPDMA_CH_1,
+    GPDMA_CH_2,
+    GPDMA_CH_3,
+    GPDMA_CH_4,
+    GPDMA_CH_5,
+    GPDMA_CH_6,
+    GPDMA_CH_7
+} GPDMA_CH;
+/** Check GPDMA channel option parameter. */
+#define PARAM_GPDMA_CHANNEL(CH) ((CH >= GPDMA_CH_0) && (CH <= GPDMA_CH_7))
+
+/**
+ * @brief GPDMA Connection type enumeration.
+ */
+typedef enum {
+    GPDMA_SSP0_Tx = 0,
+    GPDMA_SSP0_Rx,
+    GPDMA_SSP1_Tx,
+    GPDMA_SSP1_Rx,
+    GPDMA_ADC,
+    GPDMA_I2S_C0,
+    GPDMA_I2S_C1,
+    GPDMA_DAC,
+    GPDMA_UART0_Tx,
+    GPDMA_UART0_Rx,
+    GPDMA_UART1_Tx,
+    GPDMA_UART1_Rx,
+    GPDMA_UART2_Tx,
+    GPDMA_UART2_Rx,
+    GPDMA_UART3_Tx,
+    GPDMA_UART3_Rx,
+    GPDMA_MAT0_0,
+    GPDMA_MAT0_1,
+    GPDMA_MAT1_0,
+    GPDMA_MAT1_1,
+    GPDMA_MAT2_0,
+    GPDMA_MAT2_1,
+    GPDMA_MAT3_0,
+    GPDMA_MAT3_1
+} GPDMA_CONNECTION;
+/** Check GPDMA connection option parameter. */
+#define PARAM_GPDMA_CONNECTION(CONN) ((CONN >= GPDMA_SSP0_Tx) && (CONN <= GPDMA_MAT3_1))
+
+/**
+ * @brief GPDMA Transfer type enumeration.
+ */
+typedef enum {
+    GPDMA_M2M = 0,
+    GPDMA_M2P,
+    GPDMA_P2M,
+    GPDMA_P2P
+} GPDMA_TRANSFER_TYPE;
+/** Check GPDMA transfer type option parameter. */
+#define PARAM_GPDMA_TRANSFER_TYPE(TYPE) ((TYPE >= GPDMA_M2M) && (TYPE <= GPDMA_P2P))
+
+/**
+ * @brief Burst size in Source and Destination enumeration.
+ */
+typedef enum {
+    GPDMA_BSIZE_1 = 0,
+    GPDMA_BSIZE_4,
+    GPDMA_BSIZE_8,
+    GPDMA_BSIZE_16,
+    GPDMA_BSIZE_32,
+    GPDMA_BSIZE_64,
+    GPDMA_BSIZE_128,
+    GPDMA_BSIZE_256,
+    GPDMA_BURST_AUTO
+} GPDMA_BURST_SIZE;
+/** Check GPDMA burst size option parameter. */
+#define PARAM_GPDMA_BURST_SIZE(SIZE) ((SIZE >= GPDMA_BSIZE_1) && (SIZE <= GPDMA_BURST_AUTO))
+
+/**
+ * @brief Transfer width in Source and Destination enumeration.
+ */
+typedef enum {
+    GPDMA_BYTE = 0,
+    GPDMA_HALFWORD,
+    GPDMA_WORD,
+    GPDMA_WIDTH_AUTO
+} GPDMA_TRANSFER_WIDTH;
+/** Check GPDMA transfer width option parameter. */
+#define PARAM_GPDMA_TRANSFER_WIDTH(WIDTH) ((WIDTH >= GPDMA_BYTE) && (WIDTH <= GPDMA_WIDTH_AUTO))
+
+/**
+ * @brief GPDMA Request select enumeration.
+ */
+typedef enum {
+    GPDMA_UART = 0,
+    GPDMA_TIMER
+} GPDMA_REQUEST_SELECT;
+/** Check GPDMA request select option parameter. */
+#define PARAM_GPDMA_REQUEST_SELECT(SEL) ((SEL == GPDMA_UART) || (SEL == GPDMA_TIMER))
+
+/**
+ * @brief GPDMA Status type enumeration
+ */
+typedef enum {
+    GPDMA_INT,        /**< GPDMA Interrupt Status */
+    GPDMA_INTTC,      /**< GPDMA Interrupt Terminal Count Request Status */
+    GPDMA_INTERR,     /**< GPDMA Interrupt Error Status */
+    GPDMA_RAW_INTTC,  /**< GPDMA Raw Interrupt Terminal Count Status */
+    GPDMA_RAW_INTERR, /**< GPDMA Raw Error Interrupt Status */
+    GPDMA_ENABLED_CH  /**< GPDMA Enabled Channel Status */
+} GPDMA_STATUS_TYPE;
+/** Check GPDMA status type option parameter. */
+#define PARAM_GPDMA_STAT(TYPE) ((TYPE >= GPDMA_INT) && (TYPE <= GPDMA_ENABLED_CH))
 
 /**
  * @brief GPDMA Interrupt clear status enumeration
  */
-typedef enum{
-	GPDMA_STATCLR_INTTC,	/**< GPDMA Interrupt Terminal Count Request Clear */
-	GPDMA_STATCLR_INTERR	/**< GPDMA Interrupt Error Clear */
-}GPDMA_StateClear_Type;
+typedef enum {
+    GPDMA_CLR_INTTC, /**< GPDMA Interrupt Terminal Count Request Clear */
+    GPDMA_CLR_INTERR /**< GPDMA Interrupt Error Clear */
+} GPDMA_CLEAR_INT;
+/** Check GPDMA clear interrupt option parameter. */
+#define PARAM_GPDMA_CLEAR_INT(TYPE) ((TYPE == GPDMA_CLR_INTTC) || (TYPE == GPDMA_CLR_INTERR))
 
 /**
- * @brief GPDMA Channel configuration structure type definition
+ * @brief GPDMA Endpoint configuration structure.
  */
 typedef struct {
-	uint32_t ChannelNum; 	/**< DMA channel number, should be in
-								range from 0 to 7.
-								Note: DMA channel 0 has the highest priority
-								and DMA channel 7 the lowest priority.
-								*/
-	uint32_t TransferSize;	/**< Length/Size of transfer */
-	uint32_t TransferWidth;	/**< Transfer width - used for TransferType is GPDMA_TRANSFERTYPE_M2M only */
-	uint32_t SrcMemAddr;	/**< Physical Source Address, used in case TransferType is chosen as
-								 GPDMA_TRANSFERTYPE_M2M or GPDMA_TRANSFERTYPE_M2P */
-	uint32_t DstMemAddr;	/**< Physical Destination Address, used in case TransferType is chosen as
-								 GPDMA_TRANSFERTYPE_M2M or GPDMA_TRANSFERTYPE_P2M */
-	uint32_t TransferType;	/**< Transfer Type, should be one of the following:
-							- GPDMA_TRANSFERTYPE_M2M: Memory to memory - DMA control
-							- GPDMA_TRANSFERTYPE_M2P: Memory to peripheral - DMA control
-							- GPDMA_TRANSFERTYPE_P2M: Peripheral to memory - DMA control
-							- GPDMA_TRANSFERTYPE_P2P: Source peripheral to destination peripheral - DMA control
-							*/
-	uint32_t SrcConn;		/**< Peripheral Source Connection type, used in case TransferType is chosen as
-							GPDMA_TRANSFERTYPE_P2M or GPDMA_TRANSFERTYPE_P2P, should be one of
-							following:
-							 - GPDMA_CONN_SSP0_Tx: SSP0, Tx
-							 - GPDMA_CONN_SSP0_Rx: SSP0, Rx
-							 - GPDMA_CONN_SSP1_Tx: SSP1, Tx
-							 - GPDMA_CONN_SSP1_Rx: SSP1, Rx
-							 - GPDMA_CONN_ADC: ADC
-							 - GPDMA_CONN_I2S_Channel_0: I2S Channel 0
-							 - GPDMA_CONN_I2S_Channel_1: I2S Channel 1
-							 - GPDMA_CONN_DAC: DAC
-							 - GPDMA_CONN_UART0_Tx_MAT0_0: UART0 Tx / MAT0.0
-							 - GPDMA_CONN_UART0_Rx_MAT0_1: UART0 Rx / MAT0.1
-							 - GPDMA_CONN_UART1_Tx_MAT1_0: UART1 Tx / MAT1.0
-							 - GPDMA_CONN_UART1_Rx_MAT1_1: UART1 Rx / MAT1.1
-							 - GPDMA_CONN_UART2_Tx_MAT2_0: UART2 Tx / MAT2.0
-							 - GPDMA_CONN_UART2_Rx_MAT2_1: UART2 Rx / MAT2.1
-							 - GPDMA_CONN_UART3_Tx_MAT3_0: UART3 Tx / MAT3.0
-							 - GPDMA_CONN_UART3_Rx_MAT3_1: UART3 Rx / MAT3.1
-							 */
-	uint32_t DstConn;		/**< Peripheral Destination Connection type, used in case TransferType is chosen as
-							GPDMA_TRANSFERTYPE_M2P or GPDMA_TRANSFERTYPE_P2P, should be one of
-							following:
-							 - GPDMA_CONN_SSP0_Tx: SSP0, Tx
-							 - GPDMA_CONN_SSP0_Rx: SSP0, Rx
-							 - GPDMA_CONN_SSP1_Tx: SSP1, Tx
-							 - GPDMA_CONN_SSP1_Rx: SSP1, Rx
-							 - GPDMA_CONN_ADC: ADC
-							 - GPDMA_CONN_I2S_Channel_0: I2S Channel 0
-							 - GPDMA_CONN_I2S_Channel_1: I2S Channel 1
-							 - GPDMA_CONN_DAC: DAC
-							 - GPDMA_CONN_UART0_Tx_MAT0_0: UART0 Tx / MAT0.0
-							 - GPDMA_CONN_UART0_Rx_MAT0_1: UART0 Rx / MAT0.1
-							 - GPDMA_CONN_UART1_Tx_MAT1_0: UART1 Tx / MAT1.0
-							 - GPDMA_CONN_UART1_Rx_MAT1_1: UART1 Rx / MAT1.1
-							 - GPDMA_CONN_UART2_Tx_MAT2_0: UART2 Tx / MAT2.0
-							 - GPDMA_CONN_UART2_Rx_MAT2_1: UART2 Rx / MAT2.1
-							 - GPDMA_CONN_UART3_Tx_MAT3_0: UART3 Tx / MAT3.0
-							 - GPDMA_CONN_UART3_Rx_MAT3_1: UART3 Rx / MAT3.1
-							 */
-	uint32_t DMALLI;		/**< Linker List Item structure data address
-							if there's no Linker List, set as '0'
-							*/
-} GPDMA_Channel_CFG_Type;
+    GPDMA_TRANSFER_WIDTH width; /**< GPDMA_BYTE, GPDMA_HALFWORD, GPDMA_WORD, GPDMA_WIDTH_AUTO. */
+    GPDMA_BURST_SIZE
+    burst; /**< PDMA_BSIZE_x [1, 4, 8, 16, 32, 64, 128, 256] or GPDMA_BURST_AUTO. */
+    FunctionalState increment; /**< ENABLE or DISABLE. */
+} GPDMA_Endpoint_T;
 
 /**
- * @brief GPDMA Linker List Item structure type definition
+ * @brief GPDMA Channel configuration structure.
  */
 typedef struct {
-	uint32_t SrcAddr;	/**< Source Address */
-	uint32_t DstAddr;	/**< Destination address */
-	uint32_t NextLLI;	/**< Next LLI address, otherwise set to '0' */
-	uint32_t Control;	/**< GPDMA Control of this LLI */
-} GPDMA_LLI_Type;
+    GPDMA_CH channelNum;      /**< GPDMA_CH_x [0...7]. */
+    uint32_t transferSize;    /**< Number of destination-bus transfers. Max 4095. */
+    GPDMA_TRANSFER_TYPE type; /**< GPDMA_M2M, GPDMA_M2P, GPDMA_P2M, GPDMA_P2P. */
 
+    uint32_t srcMemAddr;      /**< Memory address. Ignored if source is a peripheral. */
+    uint32_t dstMemAddr;      /**< Memory address. Ignored if destination is a peripheral. */
+    GPDMA_CONNECTION srcConn; /**< Source hardware request. Triggers the DMA to READ from source. */
+    GPDMA_CONNECTION
+    dstConn; /**< Destination hardware request. Triggers the DMA to WRITE to destination. */
+
+    GPDMA_Endpoint_T src; /**< Source transfer configuration (width, burst size, increment). */
+    GPDMA_Endpoint_T dst; /**< Destination transfer configuration (width, burst size, increment). */
+
+    FunctionalState intTC;  /**< Terminal Count Interrupt. ENABLE or DISABLE. */
+    FunctionalState intErr; /**< Error Interrupt. ENABLE or DISABLE. */
+
+    uint32_t linkedList; /**< Address of next LLI for scatter/gather; set to 0 if not used. */
+} GPDMA_Channel_CFG_T;
+
+/**
+ * @brief GPDMA Linker List Item structure.
+ */
+typedef struct {
+    uint32_t srcAddr; /**< Source Address */
+    uint32_t dstAddr; /**< Destination address */
+    uint32_t nextLLI; /**< Next LLI address, otherwise set to '0' */
+    uint32_t control; /**< GPDMA Control of this LLI */
+} GPDMA_LLI_T;
 
 /**
  * @}
  */
 
-/* Public Functions ----------------------------------------------------------- */
+/* ---------------------------- Public Functions ---------------------------- */
 /** @defgroup GPDMA_Public_Functions GPDMA Public Functions
  * @{
  */
 
+/**
+ * @brief Initializes the GPDMA controller and resets all channels.
+ *
+ * Enables the GPDMA clock in the PCONP register and proceeds to clear the configuration and control
+ * registers of all 8 DMA channels. It also clears any pending terminal count or error interrupts
+ * and enables the controller in the DMACConfig register.
+ */
 void GPDMA_Init(void);
-//Status GPDMA_Setup(GPDMA_Channel_CFG_Type *GPDMAChannelConfig, fnGPDMACbs_Type *pfnGPDMACbs);
-Status GPDMA_Setup(GPDMA_Channel_CFG_Type *GPDMAChannelConfig);
-IntStatus GPDMA_IntGetStatus(GPDMA_Status_Type type, uint8_t channel);
-void GPDMA_ClearIntPending(GPDMA_StateClear_Type type, uint8_t channel);
-void GPDMA_ChannelCmd(uint8_t channelNum, FunctionalState NewState);
-//void GPDMA_IntHandler(void);
+
+/**
+ * @brief De-initializes the GPDMA peripheral.
+ *
+ * Disables the GPDMA controller and waits for the hardware to acknowledge the disabled state before
+ * cutting the peripheral clock via PCONP to save power.
+ */
+void GPDMA_DeInit(void);
+
+/**
+ * @brief Configures a specific GPDMA channel for a data transfer.
+ *
+ * Validates the transfer parameters and initializes the source and destination addresses, transfer
+ * width, burst size, and flow control. It also manages peripheral connection mapping (DMA Request
+ * Selection) and sets up interrupts for Terminal Count (TC) and Error conditions.
+ *
+ * @param dmaCfg Pointer to a GPDMA_Channel_CFG_T structure containing all transfer parameters.
+ * @return SUCCESS if the configuration was applied, ERROR if the channel is busy or parameters are
+ * invalid.
+ */
+Status GPDMA_SetupChannel(const GPDMA_Channel_CFG_T* dmaCfg);
+
+/**
+ * @brief Starts the DMA transfer on the specified channel.
+ *
+ * Sets the Enable bit in the DMACCConfig register to initiate the programmed transfer. The hardware
+ * will begin moving data as soon as the source/destination requirements or peripheral requests are
+ * met.
+ *
+ * @param channel The GPDMA channel to start (GPDMA_CHANNEL_x [0...7]).
+ */
+void GPDMA_ChannelStart(GPDMA_CH channel);
+
+/**
+ * @brief Forces an immediate stop of the DMA transfer.
+ *
+ * Clears the Enable bit in the DMACCConfig register. This action completes the current transaction
+ * if one is in progress, but any data in the FIFO that has not been transferred will be lost. The
+ * channel will be disabled and must be reconfigured before it can be started again.
+ *
+ * @param channel The GPDMA channel to stop (GPDMA_CHANNEL_x [0...7]).
+ */
+void GPDMA_ChannelStop(GPDMA_CH channel);
+
+/**
+ * @brief Stops the DMA transfer after finishing the current transaction.
+ *
+ * Sets the Halt bit to prevent new transactions and waits until the Active bit in the DMACCConfig
+ * register is cleared by hardware. This ensures that no data is lost or corrupted during the stop
+ * process.
+ *
+ * @param channel The GPDMA channel to stop gracefully (GPDMA_CHANNEL_x [0...7]).
+ *
+ * @note:
+ * - The channel can't be restarted without reconfiguration after being stopped.
+ */
+void GPDMA_ChannelGracefulStop(GPDMA_CH channel);
+
+/**
+ * @brief Suspends the DMA transfer on the specified channel.
+ *
+ * Sets the Halt bit in the DMACCConfig register. The DMA controller will complete the current FIFO
+ * transaction and then pause, maintaining the current transfer state.
+ *
+ * @param channel The GPDMA channel to pause (GPDMA_CHANNEL_x [0...7]).
+ */
+void GPDMA_ChannelPause(GPDMA_CH channel);
+
+/**
+ * @brief Resumes a previously paused DMA transfer.
+ *
+ * Clears the Halt bit in the DMACCConfig register, allowing the DMA controller to continue the
+ * transfer from the point where it was suspended.
+ *
+ * @param channel The GPDMA channel to resume (GPDMA_CHANNEL_x [0...7]).
+ */
+void GPDMA_ChannelResume(GPDMA_CH channel);
+
+/**
+ * @brief Retrieves the current status of a specific GPDMA interrupt or channel state.
+ *
+ * Checks various hardware status registers to determine if an interrupt is pending, if a terminal
+ * count has been reached, or if a channel is currently enabled. This includes support for reading
+ * raw interrupt statuses, which are independent of the interrupt mask settings.
+ *
+ * @param type    The type of status to retrieve:
+ *                - GPDMA_INT        : General interrupt status
+ *                - GPDMA_INTTC      : Terminal count interrupt status
+ *                - GPDMA_INTERR     : Error interrupt status
+ *                - GPDMA_RAW_INTTC  : Raw terminal count status
+ *                - GPDMA_RAW_INTERR : Raw error status
+ *                - GPDMA_ENABLED_CH : Channel enabled status
+ * @param channel The GPDMA channel to check (GPDMA_CH_x [0...7]).
+ * @return SET if the specific status bit is active, RESET otherwise.
+ */
+IntStatus GPDMA_IntGetStatus(GPDMA_STATUS_TYPE type, GPDMA_CH channel);
+
+/**
+ * @brief Clears the pending interrupt flags for a specific GPDMA channel.
+ *
+ * Clears the terminal count or error interrupt flags for the specified channel by writing to the
+ * corresponding clear register.
+ *
+ * @param type    The interrupt flag to clear (GPDMA_CLR_INTTC or GPDMA_CLR_INTERR).
+ * @param channel The GPDMA channel affected (GPDMA_CH_x [0...7]).
+ */
+void GPDMA_ClearIntPending(GPDMA_CLEAR_INT type, GPDMA_CH channel);
+
+/**
+ * @brief      Generates a software DMA request for the specified peripheral connection.
+ *
+ * This function writes to the DMACSoftSReq register to initiate a DMA transfer on the given
+ * peripheral connection line, without requiring a hardware event.
+ *
+ * @param[in]  line  Peripheral connection line (GPDMA_CONNECTION).
+ *
+ * @note
+ * - Useful for starting DMA transfers from software.
+ * - The `line` parameter must be a valid GPDMA_CONNECTION value.
+ */
+static __INLINE void DMA_SoftRequest(GPDMA_CONNECTION line) {
+    if (line > 15) {
+        LPC_GPDMA->DMACSoftSReq = GPDMA_DMACSoftBReq_Src((line - 8));
+    } else {
+        LPC_GPDMA->DMACSoftSReq = GPDMA_DMACSoftBReq_Src(line);
+    }
+}
+
+/**
+ * @brief      Generates a software burst DMA request for the specified peripheral connection.
+ *
+ * This function writes to the DMACSoftBReq register to initiate a DMA burst transfer
+ * on the given peripheral connection line, without requiring a hardware event.
+ *
+ * @param[in]  line  Peripheral connection line (GPDMA_CONNECTION).
+ *
+ * @note
+ * - Useful for starting DMA bursts from software.
+ * - The `line` parameter must be a valid GPDMA_CONNECTION value.
+ */
+static __INLINE void DMA_SoftBurstRequest(GPDMA_CONNECTION line) {
+    if (line > 15) {
+        LPC_GPDMA->DMACSoftBReq = GPDMA_DMACSoftBReq_Src((line - 8));
+    } else {
+        LPC_GPDMA->DMACSoftBReq = GPDMA_DMACSoftBReq_Src(line);
+    }
+}
 
 /**
  * @}
  */
-
 
 #ifdef __cplusplus
 }
@@ -420,4 +444,4 @@ void GPDMA_ChannelCmd(uint8_t channelNum, FunctionalState NewState);
  * @}
  */
 
-/* --------------------------------- End Of File ------------------------------ */
+/* ------------------------------ End Of File ------------------------------- */

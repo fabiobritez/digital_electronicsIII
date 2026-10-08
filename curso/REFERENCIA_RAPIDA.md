@@ -152,8 +152,8 @@ Detalle: [módulo 10](./10_adc_dac/).
 - Flags: `DMACIntTCStat` / `DMACIntTCClear` (fin), `DMACIntErrStat` / `DMACIntErrClr` (error).
   Un bit por canal; en el handler limpiá con `(1 << canal)`.
 
-Driver: `GPDMA_Init()` → armar `GPDMA_Channel_CFG_Type` → `GPDMA_Setup(&cfg)` →
-`GPDMA_ChannelCmd(ch, ENABLE)`. Si el canal ya estaba habilitado, `GPDMA_Setup` devuelve
+Driver: `GPDMA_Init()` → armar `GPDMA_Channel_CFG_T` → `GPDMA_SetupChannel(&cfg)` →
+`GPDMA_ChannelStart(ch)`. Si el canal ya estaba habilitado, `GPDMA_SetupChannel` devuelve
 `ERROR`: frenalo primero. Detalle: [módulo 11](./11_dma/).
 
 ---

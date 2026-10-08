@@ -1,7 +1,8 @@
 # ADC y DAC con el driver CMSIS
 
-Los drivers `lpc17xx_adc` y `lpc17xx_dac` esconden el cálculo del `CLKDIV` y el manejo de los bits de
-`ADCR`/`DACR`. Vos pedís "muestreá a tal frecuencia, canal tal" y leés el resultado.
+El driver `lpc17xx_adc` esconde el cálculo del `CLKDIV` y el manejo de `ADCR`; el driver
+`lpc17xx_dac` empaqueta el valor en `DACR` y ofrece las opciones del contador/DMA. Vos trabajás con
+cuentas de 12 o 10 bits en vez de desplazar cada campo a mano.
 
 ## ADC con driver
 
@@ -16,7 +17,7 @@ void adc_init(void) {
     pin.Pinmode = PINSEL_PINMODE_TRISTATE; pin.OpenDrain = 0;
     PINSEL_ConfigPin(&pin);
 
-    ADC_Init(LPC_ADC, 200000);                 // enciende PCONP, fija CLKDIV para 200 kHz
+    ADC_Init(LPC_ADC, 190000);                 // enciende PCONP y fija un CLKDIV valido
     ADC_ChannelCmd(LPC_ADC, 0, ENABLE);        // habilitar canal 0
 }
 
@@ -48,7 +49,7 @@ En burst, el ADC recorre los canales habilitados **solo, sin que arranques cada 
 para leer varios canales todo el tiempo:
 
 ```c
-ADC_Init(LPC_ADC, 200000);
+ADC_Init(LPC_ADC, 190000);
 ADC_ChannelCmd(LPC_ADC, 0, ENABLE);
 ADC_ChannelCmd(LPC_ADC, 1, ENABLE);
 ADC_BurstCmd(LPC_ADC, ENABLE);     // arranca a convertir 0 y 1 sin parar
@@ -84,6 +85,14 @@ DAC_UpdateValue(LPC_DAC, 512);   // ~1.65 V
 > `CNT_ENA` y `DMA_ENA` de `DACCTRL`).
 
 ## Combo potente: DAC + Timer + DMA para generar un seno
+
+Antes de sumar DMA conviene generar la señal con el CPU: Timer0 marca el período y cada evento escribe
+una muestra en `DACR`. Hay una progresión lista para probar en
+[triangular por polling](../ejemplos/adc_dac/03_dac_triangular_polling/) y
+[seno por interrupción](../ejemplos/adc_dac/04_dac_seno_interrupcion/).
+
+El contador interno del DAC no tiene un vector `DAC_IRQn`; su request está destinado al GPDMA. Por eso
+los ejemplos sin DMA usan la interrupción de un Timer general.
 
 La forma profesional de generar una onda continua: una **tabla** de valores en memoria, un **timer**
 que marca el ritmo de muestreo, y el **DMA** copiando cada valor de la tabla al `DACR`, todo sin CPU.

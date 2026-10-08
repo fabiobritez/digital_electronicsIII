@@ -1,28 +1,28 @@
 /**
- * @file		lpc17xx_exti.c
- * @brief		Contains all functions support for External interrupt firmware library on LPC17xx
- * @version		3.0
- * @date		18. June. 2010
- * @author		NXP MCU SW Application Team
- **************************************************************************
- * Software that is described herein is for illustrative purposes only
- * which provides customers with programming information regarding the
- * products. This software is supplied "AS IS" without any warranties.
- * NXP Semiconductors assumes no responsibility or liability for the
- * use of the software, conveys no license or title under any patent,
- * copyright, or mask work right to the product. NXP Semiconductors
- * reserves the right to make changes in the software without
- * notification. NXP Semiconductors also make no representation or
- * warranty that such application will be suitable for the specified
- * use without further testing or modification.
- **********************************************************************/
+ * @file        lpc17xx_exti.c
+ * @brief       Contains all functions support for External interrupt firmware library on LPC17xx
+ * @version     3.0
+ * @date        18. June. 2010
+ * @author      NXP MCU SW Application Team
+ *
+ * Software that is described herein is for illustrative purposes only which provides customers with
+ * programming information regarding the products. This software is supplied "AS IS" without any
+ * warranties. NXP Semiconductors assumes no responsibility or liability for the use of the
+ * software, conveys no license or title under any patent, copyright, or mask work right to the
+ * product. NXP Semiconductors reserves the right to make changes in the software without
+ * notification. NXP Semiconductors also make no representation or warranty that such application
+ * will be suitable for the specified use without further testing or modification.
+ *
+ * @par Refactor:
+ * Last update: 20/02/2026, Author: David Trujillo Medina
+ */
 
-/* Peripheral group ----------------------------------------------------------- */
+/* ---------------------------- Peripheral group ---------------------------- */
 /** @addtogroup EXTI
  * @{
  */
 
-/* Includes ------------------------------------------------------------------- */
+/* -------------------------------- Includes -------------------------------- */
 #include "lpc17xx_exti.h"
 
 /* If this source file built with example, the LPC17xx FW library configuration
@@ -35,113 +35,121 @@
 #include "lpc17xx_libcfg_default.h"
 #endif /* __BUILD_WITH_EXAMPLE__ */
 
-
 #ifdef _EXTI
 
-/* Public Functions ----------------------------------------------------------- */
+/* ---------------------- Private Function Prototypes ----------------------- */
+/**
+ * @brief       Sets the mode (level or edge sensitivity) for a specific EXTI line.
+ *
+ * @param[in]   line    EXTI_EINTx [0...3].
+ * @param[in]   mode    Mode selection, must be:
+ *                      - EXTI_LEVEL_SENSITIVE
+ *                      - EXTI_EDGE_SENSITIVE
+ * @note        If the mode value is invalid, the function does nothing.
+ */
+static void EXTI_SetMode(EXTI_LINE line, EXTI_MODE mode);
+
+/**
+ * @brief       Sets the polarity (active level or edge) for a specific EXTI line.
+ *
+ * @param[in]   line        EXTI_EINTx [0...3].
+ * @param[in]   polarity    Polarity selection, should be:
+ *                          - EXTI_LOW_ACTIVE or EXTI_FALLING_EDGE (equivalent)
+ *                          - EXTI_HIGH_ACTIVE or EXTI_RISING_EDGE (equivalent)
+ * @note        If the polarity value is invalid, the function does nothing.
+ */
+static void EXTI_SetPolarity(EXTI_LINE line, EXTI_POLARITY polarity);
+/* ------------------- End of Private Function Prototypes ------------------- */
+
+/* --------------------------- Private Functions ---------------------------- */
+static void EXTI_SetMode(EXTI_LINE line, EXTI_MODE mode) {
+    if (mode == EXTI_EDGE_SENSITIVE) {
+        LPC_SC->EXTMODE |= (1UL << line);
+    } else {
+        LPC_SC->EXTMODE &= ~(1UL << line);
+    }
+}
+
+static void EXTI_SetPolarity(EXTI_LINE line, EXTI_POLARITY polarity) {
+    if (polarity == EXTI_HIGH_ACTIVE) {
+        LPC_SC->EXTPOLAR |= (1UL << line);
+    } else {
+        LPC_SC->EXTPOLAR &= ~(1UL << line);
+    }
+}
+/* ------------------------ End of Private Functions ------------------------ */
+
+/* ---------------------------- Public Functions ---------------------------- */
 /** @addtogroup EXTI_Public_Functions
  * @{
  */
 
-/*********************************************************************//**
- * @brief 		Initial for EXT
- * 				- Set EXTINT, EXTMODE, EXTPOLAR registers to default value
- * @param[in]	None
- * @return 		None
- **********************************************************************/
-void EXTI_Init(void)
-{
-	LPC_SC->EXTINT = 0xF;
-	LPC_SC->EXTMODE = 0x0;
-	LPC_SC->EXTPOLAR = 0x0;
+void EXTI_Init(void) {
+    NVIC_DisableIRQ(EINT0_IRQn);
+    NVIC_DisableIRQ(EINT1_IRQn);
+    NVIC_DisableIRQ(EINT2_IRQn);
+    NVIC_DisableIRQ(EINT3_IRQn);
+
+    LPC_SC->EXTMODE  = 0x0;
+    LPC_SC->EXTPOLAR = 0x0;
 }
 
+void EXTI_PinConfig(EXTI_LINE line, EXTI_RESISTOR resMode) {
+    CHECK_PARAM(PARAM_EXTI_LINE(line));
+    CHECK_PARAM(PARAM_EXTI_RESISTOR(resMode));
 
-/*********************************************************************//**
-* @brief 		Close EXT
-* @param[in]	None
-* @return 		None
-**********************************************************************/
-void	EXTI_DeInit(void)
-{
-	;
+    const uint8_t bitPos = (uint8_t)(EINT_PIN_BASE_OFFSET + (line * 2));
+
+    LPC_PINCON->PINSEL4 &= ~(0x03UL << bitPos);
+    LPC_PINCON->PINSEL4 |= (0x01UL << bitPos);
+
+    LPC_PINCON->PINMODE4 &= ~(0x03UL << bitPos);
+
+    if (resMode == EXTI_PULLDOWN) {
+        LPC_PINCON->PINMODE4 |= (0x3UL << bitPos);
+    } else if (resMode == EXTI_NOPULL) {
+        LPC_PINCON->PINMODE4 |= (0x2UL << bitPos);
+    }
 }
 
-/*********************************************************************//**
- * @brief 		Configuration for EXT
- * 				- Set EXTINT, EXTMODE, EXTPOLAR register
- * @param[in]	EXTICfg	Pointer to a EXTI_InitTypeDef structure
- *              that contains the configuration information for the
- *              specified external interrupt
- * @return 		None
- **********************************************************************/
-void EXTI_Config(EXTI_InitTypeDef *EXTICfg)
-{
-	LPC_SC->EXTINT = 0x0;
-	EXTI_SetMode(EXTICfg->EXTI_Line, EXTICfg->EXTI_Mode);
-	EXTI_SetPolarity(EXTICfg->EXTI_Line, EXTICfg->EXTI_polarity);
+void EXTI_Config(const EXTI_CFG_T* extiCfg) {
+    CHECK_PARAM(PARAM_EXTI_LINE(extiCfg->line));
+    CHECK_PARAM(PARAM_EXTI_MODE(extiCfg->mode));
+    CHECK_PARAM(PARAM_EXTI_POLARITY(extiCfg->polarity));
+
+    NVIC_DisableIRQ((IRQn_Type)(EINT0_IRQn + extiCfg->line));
+
+    EXTI_SetMode(extiCfg->line, extiCfg->mode);
+    EXTI_SetPolarity(extiCfg->line, extiCfg->polarity);
 }
 
-/*********************************************************************//**
-* @brief 		Set mode for EXTI pin
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @param[in]	mode 	external mode, should be:
-* 				- EXTI_MODE_LEVEL_SENSITIVE
-* 				- EXTI_MODE_EDGE_SENSITIVE
-* @return 		None
-*********************************************************************/
-void EXTI_SetMode(EXTI_LINE_ENUM EXTILine, EXTI_MODE_ENUM mode)
-{
-	if(mode == EXTI_MODE_EDGE_SENSITIVE)
-	{
-		LPC_SC->EXTMODE |= (1 << EXTILine);
-	}
-	else if(mode == EXTI_MODE_LEVEL_SENSITIVE)
-	{
-		LPC_SC->EXTMODE &= ~(1 << EXTILine);
-	}
+void EXTI_ConfigEnable(const EXTI_CFG_T* extiCfg) {
+    CHECK_PARAM(PARAM_EXTI_LINE(extiCfg->line));
+    CHECK_PARAM(PARAM_EXTI_MODE(extiCfg->mode));
+    CHECK_PARAM(PARAM_EXTI_POLARITY(extiCfg->polarity));
+
+    EXTI_Config(extiCfg);
+    EXTI_EnableIRQ(extiCfg->line);
 }
 
-/*********************************************************************//**
-* @brief 		Set polarity for EXTI pin
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @param[in]	polarity	 external polarity value, should be:
-* 				- EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
-* 				- EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE
-* @return 		None
-*********************************************************************/
-void EXTI_SetPolarity(EXTI_LINE_ENUM EXTILine, EXTI_POLARITY_ENUM polarity)
-{
-	if(polarity == EXTI_POLARITY_HIGH_ACTIVE_OR_RISING_EDGE)
-	{
-		LPC_SC->EXTPOLAR |= (1 << EXTILine);
-	}
-	else if(polarity == EXTI_POLARITY_LOW_ACTIVE_OR_FALLING_EDGE)
-	{
-		LPC_SC->EXTPOLAR &= ~(1 << EXTILine);
-	}
+void EXTI_ClearFlag(EXTI_LINE line) {
+    CHECK_PARAM(PARAM_EXTI_LINE(line));
+
+    LPC_SC->EXTINT = (1 << line);
 }
 
-/*********************************************************************//**
-* @brief 		Clear External interrupt flag
-* @param[in]	EXTILine	 external interrupt line, should be:
-* 				- EXTI_EINT0: external interrupt line 0
-* 				- EXTI_EINT1: external interrupt line 1
-* 				- EXTI_EINT2: external interrupt line 2
-* 				- EXTI_EINT3: external interrupt line 3
-* @return 		None
-*********************************************************************/
-void EXTI_ClearEXTIFlag(EXTI_LINE_ENUM EXTILine)
-{
-		LPC_SC->EXTINT |= (1 << EXTILine);
+FlagStatus EXTI_GetFlag(EXTI_LINE line) {
+    CHECK_PARAM(PARAM_EXTI_LINE(line));
+
+    return (LPC_SC->EXTINT & (1 << line)) ? SET : RESET;
+}
+
+void EXTI_EnableIRQ(EXTI_LINE line) {
+    CHECK_PARAM(PARAM_EXTI_LINE(line));
+
+    EXTI_ClearFlag(line);
+    NVIC_ClearPendingIRQ((IRQn_Type)(EINT0_IRQn + line));
+    NVIC_EnableIRQ((IRQn_Type)(EINT0_IRQn + line));
 }
 
 /**
@@ -154,5 +162,4 @@ void EXTI_ClearEXTIFlag(EXTI_LINE_ENUM EXTILine)
  * @}
  */
 
-/* --------------------------------- End Of File ------------------------------ */
-
+/* ------------------------------ End Of File ------------------------------- */

@@ -16,17 +16,17 @@ avisame cuando termines".
    `DMACEnbldChns`, `DMACSoftBReq/SReq`, `DMACSync`) y por canal (`DMACCSrcAddr`, `DMACCDestAddr`,
    `DMACCControl`, `DMACCConfig`, `DMACCLLI`) campo por campo.
 2. [02 - DMA con el driver CMSIS](./02-dma-con-driver.md)
-   `GPDMA_Init`/`GPDMA_Setup`, la struct `GPDMA_Channel_CFG_Type`, las request lines (`GPDMA_CONN_*`) y
+   `GPDMA_Init`/`GPDMA_SetupChannel`, la struct `GPDMA_Channel_CFG_T`, las conexiones `GPDMA_*` y
    el multiplexado `DMAREQSEL`. Ejemplos M2M y P2M (ADC→buffer), combos reales y errores comunes.
 3. [03 - Linked lists y transferencias circulares](./03-linked-lists.md)
-   La struct `GPDMA_LLI_Type`, scatter-gather, partir transferencias > 4095, el anillo (seno continuo
+   La struct `GPDMA_LLI_T`, scatter-gather, partir transferencias > 4095, el anillo (seno continuo
    por DAC) y el doble buffer ping-pong de ADC.
 
 ## Para qué se usa
 - **ADC → memoria:** muestrear a alta velocidad sin leer cada muestra con el CPU.
 - **Memoria → DAC:** reproducir una forma de onda continua (tabla de seno).
 - **Memoria → memoria:** copiar bloques grandes rápido.
-- **UART/SPI/I2S ↔ memoria:** streaming sin saturar el CPU.
+- **UART ↔ memoria:** transmisión y recepción por bloques sin saturar el CPU.
 
 ## Antes de esto
 Es el último periférico: conviene tener vistos los módulos 7 (interrupciones), 8 (timers) y
@@ -34,7 +34,8 @@ Es el último periférico: conviene tener vistos los módulos 7 (interrupciones)
 
 ## Manual
 Capítulo 31: [`manual/ch31_general-purpose-dma.pdf`](../../manual/ch31_general-purpose-dma.pdf).
-Material original en [`_origen/`](./_origen/), ejemplos en [`../ejemplos/dma/`](../ejemplos/dma/).
+Material original en [`_origen/`](./_origen/), y catálogo de configuraciones cortas en
+[`../ejemplos/dma/configs/`](../ejemplos/dma/configs/).
 
 ---
 

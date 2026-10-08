@@ -246,20 +246,20 @@ void UARTPutHex32 (LPC_UART_TypeDef *UARTx, uint32_t hexnum)
  **********************************************************************/
 void debug_frmwrk_init(void)
 {
-    UART_CFG_Type UARTConfigStruct;
-    PINSEL_CFG_Type PinCfg;
+    UART_CFG_T UARTConfigStruct = {9600, UART_PARITY_NONE, UART_DBITS_8, UART_STOPBIT_1};
+    PINSEL_CFG_T PinCfg;
 
 #if (USED_UART_DEBUG_PORT==0)
     /*
      * Initialize UART0 pin connect
      */
-    PinCfg.Funcnum = 1;
-    PinCfg.OpenDrain = 0;
-    PinCfg.Pinmode = 0;
-    PinCfg.Pinnum = 2;
-    PinCfg.Portnum = 0;
+    PinCfg.func = 1;
+    PinCfg.openDrain = 0;
+    PinCfg.mode = 0;
+    PinCfg.pin = 2;
+    PinCfg.port = 0;
     PINSEL_ConfigPin(&PinCfg);
-    PinCfg.Pinnum = 3;
+    PinCfg.pin = 3;
     PINSEL_ConfigPin(&PinCfg);
 #elif (USED_UART_DEBUG_PORT==1)
     /*
@@ -275,21 +275,15 @@ void debug_frmwrk_init(void)
     PINSEL_ConfigPin(&PinCfg);
 #endif
 
-    /* Initialize UART Configuration parameter structure to default state:
-     * Baudrate = 9600bps
-     * 8 data bit
-     * 1 Stop bit
-     * None parity
-     */
-    UART_ConfigStructInit(&UARTConfigStruct);
+
     // Re-configure baudrate to 115200bps
-    UARTConfigStruct.Baud_rate = 115200;
+    UARTConfigStruct.baudRate = 115200;
 
     // Initialize DEBUG_UART_PORT peripheral with given to corresponding parameter
     UART_Init((LPC_UART_TypeDef*)DEBUG_UART_PORT, &UARTConfigStruct);
 
     // Enable UART Transmit
-    UART_TxCmd((LPC_UART_TypeDef*)DEBUG_UART_PORT, ENABLE);
+    UART_TxEnable((LPC_UART_TypeDef*)DEBUG_UART_PORT);
 
     _db_msg    = UARTPuts;
     _db_msg_ = UARTPuts_;

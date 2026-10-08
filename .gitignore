@@ -68,3 +68,6 @@ __pycache__/
 
 # Staging temporal de tools/pack_toolchain.sh (el .tar.xz final si se versiona)
 tools/toolchain-pkg/stage/
+
+# Repositorios externos usados como referencia local. No forman parte del curso.
+.vendor/

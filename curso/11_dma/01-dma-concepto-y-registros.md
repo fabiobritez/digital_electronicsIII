@@ -48,10 +48,10 @@ Hay cuatro tipos según de dónde a dónde van los datos:
 
 | Tipo (macro CMSIS) | De → a | Ejemplo típico |
 |--------------------|--------|----------------|
-| **M2M** `GPDMA_TRANSFERTYPE_M2M` | memoria → memoria | copiar un bloque grande de RAM, o de Flash a RAM |
-| **M2P** `GPDMA_TRANSFERTYPE_M2P` | memoria → periférico | una tabla de seno al DAC, un buffer a la UART/SSP |
-| **P2M** `GPDMA_TRANSFERTYPE_P2M` | periférico → memoria | llenar un buffer con muestras del ADC o de la SSP |
-| **P2P** `GPDMA_TRANSFERTYPE_P2P` | periférico → periférico | poco común (p. ej. ADC → DAC directo) |
+| **M2M** `GPDMA_M2M` | memoria → memoria | copiar un bloque grande de RAM, o de Flash a RAM |
+| **M2P** `GPDMA_M2P` | memoria → periférico | una tabla de seno al DAC o un buffer a la UART |
+| **P2M** `GPDMA_P2M` | periférico → memoria | llenar un buffer con muestras del ADC o de una UART |
+| **P2P** `GPDMA_P2P` | periférico → periférico | poco común (p. ej. UART Rx → otra UART Tx) |
 
 En M2M la copia es **continua**: el DMA mueve los N datos lo más rápido que puede, porque la memoria
 siempre "está lista". Pero cuando hay un periférico de por medio (M2P, P2M, P2P) no podés ir a full: el
@@ -146,22 +146,23 @@ Define qué se mueve y de a cuánto. Campos (con la macro CMSIS que los arma):
 
 | Bits | Campo | Macro | Significado |
 |------|-------|-------|-------------|
-| 11:0 | TransferSize | `GPDMA_DMACCxControl_TransferSize(n)` | cuántos **elementos** copiar. **Máximo 0xFFF = 4095** (campo de 12 bits) |
+| 11:0 | TransferSize | `GPDMA_DMACCxControl_TransferSize(n)` | cuántas transferencias hará el bus de destino. **Máximo 0xFFF = 4095** |
 | 14:12 | SBSize | `GPDMA_DMACCxControl_SBSize(n)` | tamaño de la **ráfaga de origen** (1,4,8,…,256) |
 | 17:15 | DBSize | `GPDMA_DMACCxControl_DBSize(n)` | tamaño de la ráfaga de destino |
 | 20:18 | SWidth | `GPDMA_DMACCxControl_SWidth(n)` | ancho del dato de origen: byte / half-word / word |
 | 23:21 | DWidth | `GPDMA_DMACCxControl_DWidth(n)` | ancho del dato de destino |
 | 26 | SI | `GPDMA_DMACCxControl_SI` | **Source Increment**: la dirección de origen avanza tras cada dato |
 | 27 | DI | `GPDMA_DMACCxControl_DI` | **Dest Increment**: la dirección de destino avanza tras cada dato |
-| 28-30 | Prot1/2/3 | `GPDMA_DMACCxControl_Prot1..3` | flags de protección AHB (user/priv, bufferable, cacheable). Casi siempre 0 |
+| 28-30 | Prot1/2/3 | — | flags de protección AHB (user/priv, bufferable, cacheable). Casi siempre 0 |
 | 31 | I | `GPDMA_DMACCxControl_I` | habilita la **interrupción de terminal count** de este descriptor |
 
 Los puntos finos:
 
-- **TransferSize cuenta elementos, no bytes.** Si copiás 256 words con `SWidth = WORD`, ponés
-  `TransferSize = 256`, no 1024. El "elemento" tiene el tamaño de `SWidth`.
-- **El límite de 4095 es real y muerde.** Si necesitás copiar más de 4095 elementos en una sola tirada,
-  no entra: hay que partirlo en varios descriptores encadenados con LLI (lo vemos en la página 3).
+- **TransferSize cuenta transferencias del bus de destino, no bytes.** Con anchos iguales, si copiás
+  256 words ponés `TransferSize = 256`, no 1024. Si los anchos difieren, el DMA hace
+  packing/unpacking: para empaquetar 1024 bytes en 256 words destino, ponés `TransferSize = 256`.
+- **El límite de 4095 es real y muerde.** Si necesitás más de 4095 transferencias de destino en una
+  sola tirada, no entra: hay que partirlo en descriptores encadenados con LLI (página 3).
 - **SI / DI: el detalle más importante.** Indican si la dirección avanza después de cada dato:
   - Copiar un buffer a otro (M2M): **ambas** incrementan.
   - Volcar una tabla al `DACR` (M2P): el origen incrementa (recorre la tabla), el **destino NO** (siempre
@@ -173,7 +174,7 @@ Los puntos finos:
   por elemento; el burst dice cuántos elementos mueve el DMA de un tirón antes de soltar el bus. Burst
   más grande = menos arbitraje = más throughput, pero el burst tiene que tener sentido para el
   periférico: un FIFO de 16 entradas no tolera un burst de 256. Para periféricos, el driver CMSIS elige
-  el burst y el ancho "óptimos" de una tabla interna (p. ej. SSP usa burst 4, el DAC burst 1). Para M2M
+  el burst y el ancho "óptimos" de una tabla interna (p. ej. el DAC usa burst 1). Para M2M
   el driver usa burst 32. Regla: si el periférico tiene FIFO, un burst ≈ medio FIFO va bien; si entrega
   de a un dato (DAC, UART), burst 1.
 - **Alineación.** Las direcciones de origen y destino **deben** estar alineadas a su ancho (lo exige
@@ -268,9 +269,9 @@ la [próxima página](./02-dma-con-driver.md).
 
 ## Caso de borde clave: el límite de 4095
 
-`TransferSize` es de 12 bits. Si tu transferencia es de más de 4095 elementos, **no entra en un solo
-descriptor**. La salida no es un `for`: es **encadenar descriptores con LLI** (cada uno mueve hasta 4095
-y apunta al siguiente). Y para señales que no terminan nunca (un seno continuo al DAC), el truco también
+`TransferSize` es de 12 bits. Si necesitás más de 4095 transferencias sobre el bus de destino, **no
+entra en un solo descriptor**. La salida es **encadenar descriptores con LLI** (cada uno mueve hasta
+4095 y apunta al siguiente). Y para señales que no terminan nunca (un seno continuo al DAC), el truco también
 son los LLI, pero en **anillo**. Eso tiene su propia página:
 [03 - Linked lists y transferencias circulares](./03-linked-lists.md).
 

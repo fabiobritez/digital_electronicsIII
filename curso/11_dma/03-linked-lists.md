@@ -1,256 +1,178 @@
-# Linked lists y transferencias circulares
+# Linked Lists: cadenas, anillos y ping-pong
 
-Una transferencia DMA simple tiene un final: copia sus `TransferSize` elementos y se frena. Eso sirve
-para un bloque puntual, pero deja afuera dos necesidades muy comunes:
+Una transferencia simple termina al completar `transferSize` transferencias del bus de destino. Una
+Linked List Item (LLI) resuelve tres casos distintos:
 
-1. **Transferencias más largas que 4095 elementos** (el límite del campo `TransferSize`).
-2. **Transferencias que no terminan nunca** (un seno que sale por el DAC para siempre, un doble buffer de
-   ADC que se rellena en loop).
+1. más de 4095 transferencias de destino;
+2. buffers no contiguos (*scatter/gather*);
+3. transferencias continuas mediante un anillo.
 
-La solución para las dos es la misma: las **Linked Lists** (listas enlazadas de descriptores), también
-llamadas *scatter-gather*.
-
-## La idea: descriptores encadenados
-
-Cada canal tiene un registro `DMACCLLI`. Cuando una transferencia termina, **antes de frenar** el DMA
-mira ese registro:
-
-- Si vale 0 → no hay más, frena y dispara la IRQ de terminal count.
-- Si apunta a una dirección de RAM → el DMA **lee de ahí un nuevo descriptor** (origen, destino, próximo
-  LLI, control), lo carga en sus registros de canal y sigue copiando, **sin intervención del CPU**.
-
-Un descriptor es exactamente esta struct del header (`GPDMA_LLI_Type`), cuatro words en RAM:
+## El descriptor
 
 ```c
 typedef struct {
-    uint32_t SrcAddr;   // dirección de origen de ESTE tramo
-    uint32_t DstAddr;   // dirección de destino de ESTE tramo
-    uint32_t NextLLI;   // dirección del SIGUIENTE descriptor (0 = fin)
-    uint32_t Control;   // el mismo formato que DMACCControl: size, width, burst, SI/DI, I
-} GPDMA_LLI_Type;
+    uint32_t srcAddr;
+    uint32_t dstAddr;
+    uint32_t nextLLI;
+    uint32_t control;
+} GPDMA_LLI_T;
 ```
 
-El orden y el tamaño importan: el hardware espera **exactamente** {Src, Dst, Next, Control} en ese orden.
-La struct CMSIS ya está en ese layout.
+El layout son exactamente cuatro words en ese orden. La LLI debe permanecer en RAM, alineada a 4
+bytes y viva mientras el canal pueda leerla. Una variable automática de una función no sirve si la
+función retorna antes de terminar el DMA; se usan descriptores `static` o globales.
 
-Detalle fino: el `Control` de cada descriptor es **independiente**. Cada tramo puede tener su propio
-tamaño, ancho, incrementos y su propio bit `I`. Eso es lo que permite, por ejemplo, juntar tres buffers
-dispersos en uno solo (scatter-gather de verdad) o disparar una IRQ solo cada cierto bloque.
+`control` tiene el mismo formato que `DMACCControl`: tamaño, burst de ambos extremos, anchos,
+incrementos y bit `I`. Cada descriptor puede decidir por separado si genera terminal count.
 
-## Cómo arranca la cadena con el driver
+## El “descriptor cero” vive en los registros
 
-El detalle clave: **los registros del canal son el "descriptor cero"**. Lo que `GPDMA_Setup` carga
-desde la `GPDMA_Channel_CFG_Type` (`SrcMemAddr`/`DstMemAddr`/`TransferSize`) describe el **primer
-tramo**, y el registro `DMACCLLI` (que `Setup` copia del campo `DMALLI`) apunta al descriptor que se
-carga **después** de ese primer tramo. Cuando el tramo de los registros termina, el DMA carga *entero*
-el descriptor apuntado (origen, destino, próximo LLI, control) y lo ejecuta. Así que el patrón es:
+`GPDMA_SetupChannel()` carga el primer tramo directamente en los registros del canal. El campo
+`linkedList` **no apunta al primer tramo**: apunta al descriptor que se cargará después.
 
-1. armás en RAM los descriptores de los tramos **1 en adelante** (el tramo 0 no necesita descriptor en
-   RAM: vive en los registros del canal);
-2. en la `GPDMA_Channel_CFG_Type` describís el **tramo 0** y ponés `DMALLI` apuntando al descriptor del
-   **tramo 1**;
-3. de ahí en más manda la cadena.
+```text
+registros del canal (tramo A) -> linkedList -> LLI B -> LLI C -> 0
+```
 
-Error clásico: apuntar `DMALLI` a un descriptor que describe el *mismo* primer tramo. No "arranca ahí":
-el DMA ya ejecutó el tramo de los registros y, al terminar, carga ese descriptor y **repite el primer
-tramo**. (La excepción es el anillo de un solo descriptor, donde repetir es exactamente lo que querés;
-lo vemos abajo.)
+Si `linkedList` apunta otra vez a A, A se ejecuta dos veces al comienzo. En un anillo esto puede ser
+intencional, pero en una cadena finita casi siempre es un error.
 
-## Caso 1: scatter-gather (juntar dos buffers en uno)
-
-Esto es lo que hace el ejemplo de link list del repo: copiar `DMASrc_Buffer1` y `DMASrc_Buffer2`
-(16 words cada uno) a un único `DMADest_Buffer` de 32, en un solo arranque de DMA. El tramo 0
-(Buffer1) va en los registros vía `cfg`; el tramo 1 (Buffer2) es un descriptor en RAM.
+## Cadena finita: juntar tres buffers
 
 ```c
-#include "lpc17xx_gpdma.h"
-#define DMA_SIZE 32
+static GPDMA_LLI_T lli[2];
 
-uint32_t DMASrc_Buffer1[DMA_SIZE/2] = { /* ... 16 words ... */ };
-uint32_t DMASrc_Buffer2[DMA_SIZE/2] = { /* ... 16 words ... */ };
-uint32_t DMADest_Buffer[DMA_SIZE];
+uint32_t control_sin_irq =
+    N
+    | GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_32)
+    | GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_32)
+    | GPDMA_DMACCxControl_SWidth(GPDMA_WORD)
+    | GPDMA_DMACCxControl_DWidth(GPDMA_WORD)
+    | GPDMA_DMACCxControl_SI
+    | GPDMA_DMACCxControl_DI;
 
-GPDMA_LLI_Type lli_tramo1;   // descriptor del SEGUNDO tramo (el primero vive en los registros)
+lli[0] = (GPDMA_LLI_T){
+    .srcAddr = (uint32_t)(uintptr_t)buffer_b,
+    .dstAddr = (uint32_t)(uintptr_t)&destino[N],
+    .nextLLI = (uint32_t)(uintptr_t)&lli[1],
+    .control = control_sin_irq,
+};
+lli[1] = (GPDMA_LLI_T){
+    .srcAddr = (uint32_t)(uintptr_t)buffer_c,
+    .dstAddr = (uint32_t)(uintptr_t)&destino[2*N],
+    .nextLLI = 0,
+    .control = control_sin_irq | GPDMA_DMACCxControl_I,
+};
 
-void armar(void) {
-    // Tramo 1: Buffer2 -> segunda mitad del destino
-    lli_tramo1.SrcAddr = (uint32_t)DMASrc_Buffer2;
-    lli_tramo1.DstAddr = (uint32_t)DMADest_Buffer + (DMA_SIZE/2)*4;  // +16 words en bytes
-    lli_tramo1.NextLLI = 0;                              // fin de la cadena
-    lli_tramo1.Control = (DMA_SIZE/2)                    // 16 elementos
-                       | (2u << 18) | (2u << 21)         // SWidth/DWidth = word
-                       | (1u << 26) | (1u << 27)         // SI y DI (ambos memoria)
-                       | (1u << 31);                     // I: IRQ al terminar este tramo
-
-    // Tramo 0: lo describe cfg; GPDMA_Setup lo carga directo en los registros del canal
-    GPDMA_Channel_CFG_Type cfg;
-    cfg.ChannelNum   = 0;
-    cfg.SrcMemAddr   = (uint32_t)DMASrc_Buffer1;   // Buffer1 -> primera mitad
-    cfg.DstMemAddr   = (uint32_t)DMADest_Buffer;
-    cfg.TransferSize = DMA_SIZE/2;                 // 16 elementos: SOLO el tramo 0
-    cfg.TransferWidth= GPDMA_WIDTH_WORD;
-    cfg.TransferType = GPDMA_TRANSFERTYPE_M2M;
-    cfg.SrcConn = 0; cfg.DstConn = 0;
-    cfg.DMALLI  = (uint32_t)&lli_tramo1;           // al terminar el tramo 0 sigue acá
-    GPDMA_Setup(&cfg);
-    GPDMA_ChannelCmd(0, ENABLE);
-}
+GPDMA_Channel_CFG_T cfg = {
+    .channelNum = GPDMA_CH_7,
+    .transferSize = N,                 // tramo A
+    .type = GPDMA_M2M,
+    .srcMemAddr = (uint32_t)(uintptr_t)buffer_a,
+    .dstMemAddr = (uint32_t)(uintptr_t)destino,
+    .src = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_32, .increment = ENABLE},
+    .dst = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_32, .increment = ENABLE},
+    .intTC = DISABLE,                  // A no interrumpe
+    .intErr = ENABLE,
+    .linkedList = (uint32_t)(uintptr_t)&lli[0], // después viene B
+};
 ```
 
-El bit `I` de cada descriptor elige qué tramos disparan la IRQ de terminal count. Un detalle del
-driver: `GPDMA_Setup` pone **siempre** el bit `I` en el Control del tramo 0 (está fijo en
-`lpc17xx_gpdma.c`), así que acá vas a recibir **dos** IRQs: una al terminar el tramo 0 y otra al
-terminar el tramo 1. La copia completa termina con la segunda: contalas en el handler, o consultá
-`GPDMA_IntGetStatus(GPDMA_STAT_ENABLED_CH, 0)` (el canal se deshabilita solo al agotar la cadena). Si
-armás los registros a mano (sin driver), ahí sí elegís libremente en qué tramos va `I`. Ejemplo en el
-repo: [`../ejemplos/dma/lli_example.c`](../ejemplos/dma/).
+Solo C tiene `I=1`, así que hay una IRQ cuando termina la cadena completa. Para copiar 10000 words se
+usa el mismo patrón con tramos 4095 + 4095 + 1810.
 
-### Partir transferencias > 4095
+Ejemplo compilable: [`01_m2m/main.c`](../ejemplos/dma/configs/01_m2m/main.c).
 
-Mismo patrón: si necesitás copiar 10000 words, el tramo 0 (4095, el máximo) va en `cfg` y armás dos
-descriptores más (4095 + 1810), cada uno apuntando al siguiente, el último con `NextLLI = 0`. El DMA
-los recorre solo.
+## Anillo de una LLI: DAC continuo
 
-## Caso 2: anillo, transferencias que no terminan nunca
-
-Acá está el truco más lindo del DMA. Si el **último** descriptor, en vez de `NextLLI = 0`, apunta **al
-primero** (o un único descriptor que se apunta **a sí mismo**), la cadena no termina: el DMA recarga el
-mismo tramo una y otra vez, **para siempre, sin CPU**.
-
-```
-[tramo A] --NextLLI--> [tramo B] --NextLLI--> [tramo A] --> ...   (anillo)
-```
-
-o, con un solo descriptor:
-
-```
-        +-----------+
-        v           |
-    [ descriptor ]--+   (NextLLI se apunta a sí mismo)
-```
-
-Esto es lo que permite reproducir una forma de onda continua por el DAC sin un solo corte.
-
-### Generar un seno continuo por el DAC (M2P + LLI en anillo)
-
-La receta, juntando todo:
-
-1. **Tabla de seno en RAM**, en el formato de `DACR`: el valor de 10 bits va en los bits 15:6
-   (por eso `<< 6` en la tabla).
-2. **Configurar el DAC** para que pida por DMA a un ritmo fijo: activar el contador/timeout
-   (`DACCTRL`, `DACCNTVAL`) y el bit `DMA_ENA`. El periférico es quien marca el pulso (una request por
-   muestra); el timeout fija la frecuencia de muestreo, y con N muestras por período sale la frecuencia
-   de la onda.
-3. **Un descriptor que se apunta a sí mismo**, M2P, origen = tabla (incrementa), destino = `&DACR`
-   (no incrementa).
+El último descriptor puede apuntar al primero. Un descriptor que se apunta a sí mismo repite siempre
+la misma tabla:
 
 ```c
-#include "lpc17xx_gpdma.h"
+static GPDMA_LLI_T anillo;
 
-#define N_MUESTRAS 60
-uint32_t tabla_seno[N_MUESTRAS];      // ya cargada en formato DACR (valor << 6)
+anillo = (GPDMA_LLI_T){
+    .srcAddr = (uint32_t)(uintptr_t)tabla_dacr,
+    .dstAddr = (uint32_t)(uintptr_t)&LPC_DAC->DACR,
+    .nextLLI = (uint32_t)(uintptr_t)&anillo,
+    .control = N
+             | GPDMA_DMACCxControl_SWidth(GPDMA_WORD)
+             | GPDMA_DMACCxControl_DWidth(GPDMA_WORD)
+             | GPDMA_DMACCxControl_SI,
+};
 
-GPDMA_LLI_Type lli_anillo;
-
-void salida_seno_continua(void) {
-    // El DAC ya debe estar configurado con DMA_ENA y su timeout (ver módulo 10).
-
-    // Descriptor que se apunta a sí mismo -> repite para siempre
-    lli_anillo.SrcAddr = (uint32_t)tabla_seno;
-    lli_anillo.DstAddr = (uint32_t)&(LPC_DAC->DACR);
-    lli_anillo.NextLLI = (uint32_t)&lli_anillo;          // <-- el anillo
-    lli_anillo.Control = N_MUESTRAS
-                       | (2u << 18) | (2u << 21)         // width word
-                       | (1u << 26);                     // SI: origen incrementa; DI NO (DAC fijo)
-    // sin bit I: no queremos una IRQ por vuelta (no haría falta, y satura)
-
-    GPDMA_Init();
-
-    GPDMA_Channel_CFG_Type cfg;
-    cfg.ChannelNum   = 0;
-    cfg.SrcMemAddr   = (uint32_t)tabla_seno;
-    cfg.DstMemAddr   = 0;                                // destino lo pone el driver (DAC)
-    cfg.TransferSize = N_MUESTRAS;
-    cfg.TransferWidth= 0;                                // ignorado en M2P
-    cfg.TransferType = GPDMA_TRANSFERTYPE_M2P;
-    cfg.SrcConn      = 0;
-    cfg.DstConn      = GPDMA_CONN_DAC;                   // el DAC dispara cada transferencia
-    cfg.DMALLI       = (uint32_t)&lli_anillo;            // arranca el anillo
-    GPDMA_Setup(&cfg);
-    // El driver programó el tramo 0 con el ancho de su tabla interna (byte para el DAC).
-    // Lo pisamos con el mismo Control del descriptor: así TODAS las vueltas son word.
-    LPC_GPDMACH0->DMACCControl = lli_anillo.Control;
-    GPDMA_ChannelCmd(0, ENABLE);
-    // A partir de acá el DAC saca el seno solo, indefinidamente. El CPU queda libre.
-}
+GPDMA_Channel_CFG_T cfg = {
+    .channelNum = GPDMA_CH_1,
+    .transferSize = N,
+    .type = GPDMA_M2P,
+    .srcMemAddr = (uint32_t)(uintptr_t)tabla_dacr,
+    .dstConn = GPDMA_DAC,
+    .src = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_1, .increment = ENABLE},
+    .dst = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_1, .increment = DISABLE},
+    .intTC = DISABLE, .intErr = ENABLE,
+    .linkedList = (uint32_t)(uintptr_t)&anillo,
+};
 ```
 
-Ejemplo en el repo: [`../ejemplos/dma/dac_dma_sin.c`](../ejemplos/dma/).
+Las muestras ya deben tener el formato de `DACR`: `DAC_VALUE(valor)` coloca los 10 bits en 15:6. El
+DMA no llama funciones ni convierte formatos. El timeout interno del DAC produce una request por
+muestra y la frecuencia de la forma de onda es `f_request/N`.
 
-Por qué funciona el anillo sin IRQ ni CPU: el DAC pide una muestra a su ritmo (timeout); el DMA copia un
-elemento de la tabla a `DACR`; al agotar los 60 elementos, `DMACCLLI` lo manda al mismo descriptor, que
-**resetea origen y tamaño**, y vuelve a empezar desde la muestra 0. La frecuencia de la onda es
-`f_request / N_MUESTRAS`.
+El orden evita perder la primera request: configurar el DAC con request deshabilitada, configurar y
+arrancar GPDMA, y recién entonces habilitar `DACCTRL.DMA_ENA`.
 
-> **Por qué pisamos el `Control` después de `Setup`:** para M2P el driver ignora `TransferWidth` y usa
-> el ancho de su tabla interna (`GPDMA_LUTPerWid[]`), que para el DAC es **byte**. Con ese ancho la
-> primera vuelta saldría rota dos veces: el origen avanzaría de a 1 byte (recorrería solo el primer
-> cuarto de la tabla de `uint32_t`) y a `DACR` llegarían escrituras de un byte, que solo alcanzan los
-> bits 7:0, y el valor del DAC vive en los bits **15:6**. Como `cfg` no tiene campo para forzar el
-> ancho en M2P, la salida es escribir a mano el `DMACCControl` del canal después de `Setup` (y antes de
-> habilitar) con el mismo `Control` del descriptor. De la segunda vuelta en adelante ya no importa: el
-> anillo recarga siempre el descriptor.
+Ejemplo compilable: [`04_dac_m2p/main.c`](../ejemplos/dma/configs/04_dac_m2p/main.c).
 
-## Caso 3: doble buffer (ping-pong) para el ADC
+## Anillo de dos LLI: ADC ping-pong
 
-Para muestrear sin parar y a la vez procesar lo ya capturado, se usa el patrón **ping-pong**: dos
-descriptores en anillo (A → B → A → …), cada uno con su `I` activado. Mientras el DMA llena el buffer B,
-vos procesás el A; cuando salta a A, procesás el B. La IRQ de cada tramo te avisa "este buffer ya está
-lleno, procesalo".
+Dos buffers permiten procesar uno mientras el DMA llena el otro:
+
+```text
+registros llenan A -> LLI B -> LLI A -> LLI B -> ...
+```
+
+Ambos controles llevan `I=1`. Cada IRQ indica que terminó un bloque; el software alterna qué buffer
+procesa. El primer `linkedList` debe apuntar a B porque A ya está cargado en los registros.
 
 ```c
-GPDMA_LLI_Type lli[2];
-
-// A -> B -> A -> ...   (anillo de dos)
-lli[0].SrcAddr = (uint32_t)&LPC_ADC->ADGDR;   // origen fijo (ADC)
-lli[0].DstAddr = (uint32_t)bufferA;
-lli[0].NextLLI = (uint32_t)&lli[1];
-lli[0].Control = N | (2u<<18) | (2u<<21) | (1u<<27) | (1u<<31);  // DI (memoria), I
-
-lli[1].SrcAddr = (uint32_t)&LPC_ADC->ADGDR;
-lli[1].DstAddr = (uint32_t)bufferB;
-lli[1].NextLLI = (uint32_t)&lli[0];           // vuelve a A -> anillo
-lli[1].Control = N | (2u<<18) | (2u<<21) | (1u<<27) | (1u<<31);  // DI, I
+lli_a.nextLLI = (uint32_t)(uintptr_t)&lli_b;
+lli_b.nextLLI = (uint32_t)(uintptr_t)&lli_a;
+cfg.dstMemAddr = (uint32_t)(uintptr_t)buffer_a;
+cfg.linkedList = (uint32_t)(uintptr_t)&lli_b;
 ```
 
-En la `cfg` describís el tramo A (`DstMemAddr = bufferA`, `TransferSize = N`) y ponés
-`DMALLI = (uint32_t)&lli[1]` (el descriptor de **B**), porque los registros del canal ya hacen A una
-vez. Si apuntaras a `lli[0]`, A se llenaría dos veces al arranque y se te desfasa la alternancia.
+Ejemplos compilables:
 
-En el handler distinguís cuál se llenó (podés alternar una bandera, ya que la IRQ no te dice el tramo).
-Así no perdés ni una muestra: siempre hay un buffer recibiendo mientras el otro se procesa.
+- ADC word a word: [`03_adc_p2m/main.c`](../ejemplos/dma/configs/03_adc_p2m/main.c).
+- UART byte a byte: [`06_uart_rx_ping_pong/main.c`](../ejemplos/dma/configs/06_uart_rx_ping_pong/main.c).
 
-## Errores típicos con LLI
+## Parar o pausar un anillo
 
-| Error | Qué pasa | Corrección |
-|-------|----------|-----------|
-| LLI en una región de RAM que el DMA no alcanza | IRQ de error o cuelgue | poné los descriptores en RAM accesible por el master AHB |
-| Olvidar `NextLLI` (queda basura) | el DMA salta a una dirección random | inicializá los 4 campos; el último a 0 o al primero |
-| Apuntar `NextLLI` a memoria no alineada a 4 | los bits 1:0 del LLI son reservados y deben ir en 0 | mantené los descriptores alineados a word |
-| `DMALLI` apuntando al descriptor del tramo 0 | el primer tramo se ejecuta dos veces | `DMALLI` apunta al descriptor **siguiente** al que describe `cfg` |
-| Tramo 0 con otro ancho que el resto (M2P/P2M) | la primera pasada usa el ancho de la LUT del driver | pisá `DMACCControl` tras `Setup` con el `Control` del descriptor |
-| Esperar que un anillo "termine" | nunca dispara fin | para frenarlo: Halt el canal, esperar Active=0, deshabilitar |
-| Modificar la tabla mientras el anillo corre | glitch en la onda | actualizá en un buffer libre y recién ahí cambiá el puntero |
+Un anillo nunca llega por sí solo a `nextLLI = 0`:
 
-## Resumen mental
+```c
+GPDMA_ChannelPause(canal);          // Halt=1; conserva el estado
+GPDMA_ChannelResume(canal);         // Halt=0; continúa
+GPDMA_ChannelGracefulStop(canal);   // Halt, drena FIFO y limpia Enable
+```
 
-- **Los registros del canal son el descriptor cero** (lo carga `Setup` desde `cfg`); `DMALLI` apunta
-  al que sigue.
-- **LLI simple (cadena que termina en 0):** scatter-gather, o partir transferencias largas (>4095).
-- **LLI en anillo (último apunta al primero, o uno a sí mismo):** transferencias infinitas: onda
-  continua al DAC, doble buffer de ADC.
-- El `Control` por descriptor te deja variar tamaño/ancho/incrementos/IRQ tramo a tramo.
-- El bit `I` controla en qué tramos te interrumpe: ponelo donde necesites procesar; sacalo donde no.
+Después de `GracefulStop` hay que ejecutar de nuevo `GPDMA_SetupChannel()` antes de reutilizar el
+canal. Una parada inmediata con `GPDMA_ChannelStop()` puede descartar hasta cuatro words pendientes.
+
+## Errores frecuentes
+
+| Error | Resultado |
+|---|---|
+| descriptor en el stack que deja de existir | el DMA lee datos basura |
+| `nextLLI` sin inicializar | salto a una dirección impredecible |
+| puntero LLI no alineado a 4 | bits reservados no nulos/error |
+| `linkedList` apunta al tramo ya cargado | se repite el primer bloque |
+| anillo con `I=1` sin necesidad | tormenta periódica de IRQ |
+| modificar un descriptor que el DMA está por leer | carrera y transferencia corrupta |
+| asumir que LLI cambia el tipo de flujo | imposible: `DMACCConfig` no forma parte de la LLI |
+
+Ese último punto es central: una cadena puede cambiar direcciones, tamaño, ancho, burst, incrementos e
+IRQ, pero todo el canal conserva M2M/M2P/P2M/P2P y las mismas conexiones periféricas.
 
 ---
 

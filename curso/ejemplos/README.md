@@ -13,10 +13,10 @@ importar en MCUXpresso, compilar y cargar.
 | [gpio/](./gpio/) | Handler de GPIO, control de LEDs, lectura de botones | [05 - GPIO](../05_gpio/) |
 | [systick/](./systick/) | Interrupción periódica, base de tiempo | [06 - SysTick](../06_systick/) |
 | [interrupciones/](./interrupciones/) | Interrupción por GPIO, NVIC, prioridades | [07 - Interrupciones](../07_interrupciones/) |
-| [timers/](./timers/) | `patterns/` (patrones), `lineas/` (control de líneas), match/capture | [08 - Timers](../08_timers/) |
+| [timers/](./timers/) | Ejemplos a registro (`01_semaforo_registros`, `02_juego_reflejos_registros`) y proyectos con driver (`patterns`, `lineas`) | [08 - Timers](../08_timers/) |
 | [uart/](./uart/) | Eco serial a registro y con driver; `printf` por UART, por DMA y por el debugger (RTT), con [las mediciones reproducibles](./uart/MEDICIONES.md) | [09 - UART](../09_uart/) · [Herramientas 06.05](../../herramientas/06_depurar_en_serio/05-redirigir-printf-a-uart.md) |
-| [adc_dac/](./adc_dac/) | Passthrough analógico a registro; voltímetro serial con drivers | [10 - ADC/DAC](../10_adc_dac/) |
-| [dma/](./dma/) | `m2m.c`, `adc_dma_simple.c`, `dac_dma_sin.c`, `lli_example.c` | [11 - DMA](../11_dma/) |
+| [adc_dac/](./adc_dac/) | Dos prácticas de ADC y dos de generación por DAC sin DMA, más proyectos con UART y DMA | [10 - ADC/DAC](../10_adc_dac/) |
+| [dma/](./dma/) | Cuatro aplicaciones completas y el catálogo corto [`configs/`](./dma/configs/) con M2M, M2P, P2M, P2P, LLI y periféricos | [11 - DMA](../11_dma/) |
 
 > **Nota:** para I2C, SPI, USB y el resto de los periféricos, ver los más de 100 ejemplos
 > oficiales de NXP en [`../../library/examples/`](../../library/examples/) (organizados por

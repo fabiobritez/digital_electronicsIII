@@ -1,5 +1,4 @@
 #include "lpc17xx_adc.h"
-#include "lpc17xx_pinsel.h"
 #include "lpc17xx_nvic.h"
 #include "lpc17xx_gpdma.h"
 
@@ -26,23 +25,23 @@ volatile uint32_t Channel0_Err;
 volatile uint32_t adc_value;
 
 // Configuración del canal GPDMA (se reutiliza en cada vuelta del bucle)
-GPDMA_Channel_CFG_Type GPDMACfg;
+GPDMA_Channel_CFG_T GPDMACfg;
 
 
 void DMA_IRQHandler (void)
 {
 	// Verificar interrupción GPDMA en canal 0
-	if (GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)){
+	if (GPDMA_IntGetStatus(GPDMA_INT, GPDMA_CH_0)){
 		// Verificar estado de contador terminal
-		if(GPDMA_IntGetStatus(GPDMA_STAT_INTTC, 0)){
+		if(GPDMA_IntGetStatus(GPDMA_INTTC, GPDMA_CH_0)){
 			// Limpiar interrupción pendiente de contador terminal
-			GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTTC, GPDMA_CH_0);
 			Channel0_TC++;
 		}
 		// Verificar estado de error terminal
-		if (GPDMA_IntGetStatus(GPDMA_STAT_INTERR, 0)){
+		if (GPDMA_IntGetStatus(GPDMA_INTERR, GPDMA_CH_0)){
 			// Limpiar interrupción pendiente de error
-			GPDMA_ClearIntPending (GPDMA_STATCLR_INTERR, 0);
+			GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_0);
 			Channel0_Err++;
 		}
 	}
@@ -51,21 +50,13 @@ void DMA_IRQHandler (void)
 /*-------------------------FUNCIÓN PRINCIPAL------------------------------*/
 
 void configADC(){
-	PINSEL_CFG_Type PinCfg;
-	// Configurar P0.25 como AD0.2
-	PinCfg.Funcnum = 1;
-	PinCfg.OpenDrain = 0;
-	PinCfg.Pinmode = 0;
-	PinCfg.Pinnum = 25;
-	PinCfg.Portnum = 0;
-	PINSEL_ConfigPin(&PinCfg);
-
 	// Configuración de ADC:
 	// - Canal ADC 2
 	// - Tasa de conversión = 200KHz
-	ADC_Init(LPC_ADC, 200000);
-	ADC_IntConfig(LPC_ADC, ADC_ADINTEN2, SET);
-	ADC_ChannelCmd(LPC_ADC, ADC_CHANNEL_2, SET);
+	ADC_Init(200000);
+	ADC_PinConfig(ADC_CHANNEL_2);
+	ADC_IntEnable(ADC_INT_CH2); /* DONE genera la request DMA, no ADC_IRQn. */
+	ADC_ChannelEnable(ADC_CHANNEL_2);
 
 }
 
@@ -81,16 +72,19 @@ void configDMA()
 		GPDMA_Init();
 
 		// Configurar canal GPDMA --------------------------------
-		GPDMACfg.ChannelNum = 0;              // Canal 0
-		GPDMACfg.SrcMemAddr = 0;              // Memoria fuente - sin usar
-		GPDMACfg.DstMemAddr = (uint32_t) &adc_value;  // Memoria destino
-		GPDMACfg.TransferSize = DMA_SIZE;     // Tamaño de transferencia
-		GPDMACfg.TransferWidth = 0;           // Ancho de transferencia - sin usar
-		GPDMACfg.TransferType = GPDMA_TRANSFERTYPE_P2M;  // Tipo: Periférico a Memoria
-		GPDMACfg.SrcConn = GPDMA_CONN_ADC;    // Conexión fuente: ADC
-		GPDMACfg.DstConn = 0;                 // Conexión destino - sin usar
-		GPDMACfg.DMALLI = 0;                  // Lista enlazada - sin usar
-		GPDMA_Setup(&GPDMACfg);
+		GPDMACfg.channelNum = GPDMA_CH_0;
+		GPDMACfg.srcMemAddr = 0;                 // Ignorado en P2M
+		GPDMACfg.dstMemAddr = (uint32_t)&adc_value;
+		GPDMACfg.transferSize = DMA_SIZE;        // Una transferencia de 32 bits
+		GPDMACfg.type = GPDMA_P2M;
+		GPDMACfg.srcConn = GPDMA_ADC;
+		GPDMACfg.dstConn = GPDMA_ADC;            // Ignorado en P2M
+		GPDMACfg.src = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_1, DISABLE};
+		GPDMACfg.dst = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_1, ENABLE};
+		GPDMACfg.intTC = ENABLE;
+		GPDMACfg.intErr = ENABLE;
+		GPDMACfg.linkedList = 0;
+		GPDMA_SetupChannel(&GPDMACfg);
 
 
 		// Habilitar interrupción GPDMA
@@ -119,19 +113,19 @@ int main (void)
 			 * deshabilita solo y sus registros (direcciones, tamaño) quedaron
 			 * avanzados; re-habilitarlo sin reconfigurar tiene efectos
 			 * impredecibles (manual, bit E de DMACCxConfig). */
-			GPDMA_Setup(&GPDMACfg);
+			GPDMA_SetupChannel(&GPDMACfg);
 
 			// Habilitar canal GPDMA 0
-			GPDMA_ChannelCmd(0, ENABLE);
+			GPDMA_ChannelStart(GPDMA_CH_0);
 
 			// Iniciar conversión ADC
-			ADC_StartCmd(LPC_ADC, ADC_START_NOW);
+			ADC_StartCmd(ADC_START_NOW);
 
 			// Esperar que se complete el procesamiento GPDMA
 			while ((Channel0_TC == 0));
 
 			// Deshabilitar canal GPDMA 0
-			GPDMA_ChannelCmd(0, DISABLE);
+			GPDMA_ChannelStop(GPDMA_CH_0);
 
 			// Acá podés usar el valor ADC almacenado en adc_value
 			// Extraer resultado: ADC_DR_RESULT(adc_value)
@@ -145,7 +139,6 @@ int main (void)
 			Channel0_Err = 0;
 		}
 
-		ADC_DeInit(LPC_ADC);
+		ADC_DeInit();
 		return 1;
 }
-

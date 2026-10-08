@@ -3,7 +3,6 @@
 * 			senoidal usando DMA para transferir datos
 **********************************************************************/
 #include "lpc17xx_dac.h"
-#include "lpc17xx_pinsel.h"
 #include "lpc17xx_gpdma.h"
 
 /** Tamaño de transferencia DMA */
@@ -16,41 +15,30 @@
 
 void configDAC(void)
 {
-	PINSEL_CFG_Type configPin;
-	DAC_CONVERTER_CFG_Type cfgConvertidor;
+	DAC_CONVERTER_CFG_T cfgConvertidor;
 	uint32_t tmp;
 
-		/*
-		 * Inicializar conexión del pin DAC
-		 * AOUT en P0.26
-		 */
-		configPin.Funcnum = 2;
-		configPin.OpenDrain = 0;
-		configPin.Pinmode = 0;
-		configPin.Pinnum = 26;
-		configPin.Portnum = 0;
-		PINSEL_ConfigPin(&configPin);
-
 		// Configurar el convertidor DAC
-			cfgConvertidor.DBLBUF_ENA = RESET;
-			cfgConvertidor.CNT_ENA = SET;
-			cfgConvertidor.DMA_ENA = SET;
-			DAC_Init(LPC_DAC);
+			cfgConvertidor.doubleBuffer = DISABLE;
+			cfgConvertidor.dmaCounter = ENABLE;
+			/* Se habilita recién después de arrancar DMA. */
+			cfgConvertidor.dmaRequest = DISABLE;
+			DAC_Init();
 
 			// Establecer tiempo de espera para el DAC
 			tmp = (PCLK_DAC_EN_MHZ * 1000000) / (FREQ_SENO_EN_HZ * NUM_MUESTRAS_SENO);
-			DAC_SetDMATimeOut(LPC_DAC, tmp);
-			DAC_ConfigDAConverterControl(LPC_DAC, &cfgConvertidor);
+			DAC_SetDMATimeOut((uint16_t)tmp);
+			DAC_ConfigDAConverterControl(&cfgConvertidor);
 }
 
 /* El descriptor del anillo y la tabla de seno los lee el DMA para siempre:
  * tienen que sobrevivir a la función (static, no en el stack). */
-static GPDMA_LLI_Type structLLI;
+static GPDMA_LLI_T structLLI;
 static uint32_t tabla_seno_dac[NUM_MUESTRAS_SENO];
 
 void configDMA(void){
 
-	GPDMA_Channel_CFG_Type cfgDMA;
+	GPDMA_Channel_CFG_T cfgDMA = {0};
 
 	uint32_t i;
 
@@ -90,10 +78,10 @@ void configDMA(void){
 		}
 
 		// Preparar estructura de lista enlazada DMA
-		structLLI.SrcAddr = (uint32_t)tabla_seno_dac;
-		structLLI.DstAddr = (uint32_t)&(LPC_DAC->DACR);
-		structLLI.NextLLI = (uint32_t)&structLLI;
-		structLLI.Control = DMA_SIZE
+		structLLI.srcAddr = (uint32_t)tabla_seno_dac;
+		structLLI.dstAddr = (uint32_t)&(LPC_DAC->DACR);
+		structLLI.nextLLI = (uint32_t)&structLLI;
+		structLLI.control = DMA_SIZE
 								| (2 << 18) // ancho de origen 32 bits
 								| (2 << 21) // ancho de destino 32 bits
 								| (1 << 26) // incremento de origen
@@ -104,34 +92,38 @@ void configDMA(void){
 		GPDMA_Init();
 
 		// Configurar canal GPDMA - canal 0
-		cfgDMA.ChannelNum = 0;
+		cfgDMA.channelNum = GPDMA_CH_0;
 		// Dirección de memoria origen
-		cfgDMA.SrcMemAddr = (uint32_t)(tabla_seno_dac);
+		cfgDMA.srcMemAddr = (uint32_t)(tabla_seno_dac);
 		// Dirección de memoria destino - no usada
-		cfgDMA.DstMemAddr = 0;
+		cfgDMA.dstMemAddr = 0;
 		// Tamaño de transferencia
-		cfgDMA.TransferSize = DMA_SIZE;
-		// Ancho de transferencia - no usado
-		cfgDMA.TransferWidth = 0;
+		cfgDMA.transferSize = DMA_SIZE;
 		// Tipo de transferencia: memoria a periférico
-		cfgDMA.TransferType = GPDMA_TRANSFERTYPE_M2P;
+		cfgDMA.type = GPDMA_M2P;
 		// Conexión origen - no usada
-		cfgDMA.SrcConn = 0;
+		cfgDMA.srcConn = GPDMA_ADC; // ignorado
 		// Conexión destino: DAC
-		cfgDMA.DstConn = GPDMA_CONN_DAC;
+		cfgDMA.dstConn = GPDMA_DAC;
+		cfgDMA.src = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_1, ENABLE};
+		cfgDMA.dst = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_1, DISABLE};
+		cfgDMA.intTC = DISABLE; // anillo continuo: no interrumpir por vuelta
+		cfgDMA.intErr = ENABLE;
 		// Lista enlazada
-		cfgDMA.DMALLI = (uint32_t)&structLLI;
+		cfgDMA.linkedList = (uint32_t)&structLLI;
 		// Configurar canal con los parámetros dados
-		GPDMA_Setup(&cfgDMA);
-
-		/* El driver programó el primer tramo con el ancho de su tabla interna
-		 * (byte para el DAC): con eso la primera vuelta saldría rota (DACR
-		 * guarda el valor en los bits 15:6). Pisamos el Control del canal con
-		 * el mismo del descriptor: todas las vueltas salen con ancho word. */
-		LPC_GPDMACH0->DMACCControl = structLLI.Control;
+		GPDMA_SetupChannel(&cfgDMA);
 
 		// Habilitar canal GPDMA 0
-		GPDMA_ChannelCmd(0, ENABLE);
+		GPDMA_ChannelStart(GPDMA_CH_0);
+
+		/* Ahora que DMA escucha, permitir que el DAC genere requests. */
+		DAC_CONVERTER_CFG_T cfgConvertidor = {
+			.doubleBuffer = DISABLE,
+			.dmaCounter = ENABLE,
+			.dmaRequest = ENABLE,
+		};
+		DAC_ConfigDAConverterControl(&cfgConvertidor);
 }
 
 int main()
@@ -146,5 +138,3 @@ int main()
 
 		return 1;
 	}
-
-

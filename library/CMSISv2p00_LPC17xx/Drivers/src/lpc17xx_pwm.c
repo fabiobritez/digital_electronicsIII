@@ -1,30 +1,31 @@
-/***********************************************************************//**
+/**
  * @file        lpc17xx_pwm.c
- * @brief        Contains all functions support for PWM firmware library on LPC17xx
- * @version        2.0
+ * @brief       Contains all functions support for PWM firmware library on LPC17xx
+ * @version     2.0
  * @date        21. May. 2010
- * @author        NXP MCU SW Application Team
- **************************************************************************
- * Software that is described herein is for illustrative purposes only
- * which provides customers with programming information regarding the
- * products. This software is supplied "AS IS" without any warranties.
- * NXP Semiconductors assumes no responsibility or liability for the
- * use of the software, conveys no license or title under any patent,
- * copyright, or mask work right to the product. NXP Semiconductors
- * reserves the right to make changes in the software without
- * notification. NXP Semiconductors also make no representation or
- * warranty that such application will be suitable for the specified
- * use without further testing or modification.
- **********************************************************************/
+ * @author      NXP MCU SW Application Team
+ *
+ * Software that is described herein is for illustrative purposes only which provides customers with
+ * programming information regarding the products. This software is supplied "AS IS" without any
+ * warranties. NXP Semiconductors assumes no responsibility or liability for the use of the
+ * software, conveys no license or title under any patent, copyright, or mask work right to the
+ * product. NXP Semiconductors reserves the right to make changes in the software without
+ * notification. NXP Semiconductors also make no representation or warranty that such application
+ * will be suitable for the specified use without further testing or modification.
+ *
+ * @par Refactor:
+ * Last update: 21/02/2026, Author: David Trujillo Medina
+ */
 
-/* Peripheral group ----------------------------------------------------------- */
+/* ---------------------------- Peripheral group ---------------------------- */
 /** @addtogroup PWM
  * @{
  */
 
-/* Includes ------------------------------------------------------------------- */
+/* -------------------------------- Includes -------------------------------- */
 #include "lpc17xx_pwm.h"
 #include "lpc17xx_clkpwr.h"
+#include "lpc17xx_pinsel.h"
 
 /* If this source file built with example, the LPC17xx FW library configuration
  * file in each example directory ("lpc17xx_libcfg.h") must be included,
@@ -36,487 +37,216 @@
 #include "lpc17xx_libcfg_default.h"
 #endif /* __BUILD_WITH_EXAMPLE__ */
 
-
 #ifdef _PWM
 
+static uint32_t converUSecToVal(uint32_t uSec);
 
-/* Public Functions ----------------------------------------------------------- */
+/**
+ * @brief Converts a time in microseconds to timer ticks for the specified timer.
+ *
+ * @param[in] uSec Time duration in microseconds.
+ * @return Number of timer ticks required for the given time, or 0 if input is invalid.
+ */
+static uint32_t converUSecToVal(uint32_t uSec) {
+    const uint64_t pclk = CLKPWR_GetPCLK(CLKPWR_PCLKSEL_PWM1);
+    if (uSec == 0)
+        return 0;
+    return (uint32_t)(pclk * uSec / 1000000);
+}
+
+static void PWM_Init(void) {
+    CLKPWR_ConfigPPWR(CLKPWR_PCONP_PCPWM1, ENABLE);
+    CLKPWR_SetPCLKDiv(CLKPWR_PCLKSEL_PWM1, CLKPWR_PCLKSEL_CCLK_DIV_4);
+
+    LPC_PWM1->TCR = 0x00;
+    PWM_ResetCounter();
+    LPC_PWM1->MCR  = 0x00;
+    LPC_PWM1->CCR  = 0x00;
+    LPC_PWM1->PCR  = 0x00;
+    LPC_PWM1->LER  = 0x00;
+    LPC_PWM1->CTCR = 0x00;
+    LPC_PWM1->IR   = PWM_IR_BITMASK;
+}
+
+/* ---------------------------- Public Functions ---------------------------- */
 /** @addtogroup PWM_Public_Functions
  * @{
  */
 
+void PWM_InitTimer(const PWM_TIMERCFG_T* timerCfg) {
+    CHECK_PARAM(PARAM_PWM_PRESCALE(timerCfg->prescaleOpt));
 
-/*********************************************************************//**
- * @brief         Check whether specified interrupt flag in PWM is set or not
- * @param[in]    PWMx: PWM peripheral, should be LPC_PWM1
- * @param[in]    IntFlag: PWM interrupt flag, should be:
- *                 - PWM_INTSTAT_MR0: Interrupt flag for PWM match channel 0
- *                 - PWM_INTSTAT_MR1: Interrupt flag for PWM match channel 1
- *                 - PWM_INTSTAT_MR2: Interrupt flag for PWM match channel 2
- *                 - PWM_INTSTAT_MR3: Interrupt flag for PWM match channel 3
- *                 - PWM_INTSTAT_MR4: Interrupt flag for PWM match channel 4
- *                 - PWM_INTSTAT_MR5: Interrupt flag for PWM match channel 5
- *                 - PWM_INTSTAT_MR6: Interrupt flag for PWM match channel 6
- *                 - PWM_INTSTAT_CAP0: Interrupt flag for capture input 0
- *                 - PWM_INTSTAT_CAP1: Interrupt flag for capture input 1
- * @return         New State of PWM interrupt flag (SET or RESET)
- **********************************************************************/
-IntStatus PWM_GetIntStatus(LPC_PWM_TypeDef *PWMx, uint32_t IntFlag)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM_INTSTAT(IntFlag));
+    PWM_Init();
 
-    return ((PWMx->IR & IntFlag) ? SET : RESET);
-}
-
-
-
-/*********************************************************************//**
- * @brief         Clear specified PWM Interrupt pending
- * @param[in]    PWMx: PWM peripheral, should be LPC_PWM1
- * @param[in]    IntFlag: PWM interrupt flag, should be:
- *                 - PWM_INTSTAT_MR0: Interrupt flag for PWM match channel 0
- *                 - PWM_INTSTAT_MR1: Interrupt flag for PWM match channel 1
- *                 - PWM_INTSTAT_MR2: Interrupt flag for PWM match channel 2
- *                 - PWM_INTSTAT_MR3: Interrupt flag for PWM match channel 3
- *                 - PWM_INTSTAT_MR4: Interrupt flag for PWM match channel 4
- *                 - PWM_INTSTAT_MR5: Interrupt flag for PWM match channel 5
- *                 - PWM_INTSTAT_MR6: Interrupt flag for PWM match channel 6
- *                 - PWM_INTSTAT_CAP0: Interrupt flag for capture input 0
- *                 - PWM_INTSTAT_CAP1: Interrupt flag for capture input 1
- * @return         None
- **********************************************************************/
-void PWM_ClearIntPending(LPC_PWM_TypeDef *PWMx, uint32_t IntFlag)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM_INTSTAT(IntFlag));
-    PWMx->IR = IntFlag;
-}
-
-
-
-/*****************************************************************************//**
-* @brief        Fills each PWM_InitStruct member with its default value:
-*                 - If PWMCounterMode = PWM_MODE_TIMER:
-*                     + PrescaleOption = PWM_TIMER_PRESCALE_USVAL
-*                     + PrescaleValue = 1
-*                 - If PWMCounterMode = PWM_MODE_COUNTER:
-*                     + CountInputSelect = PWM_COUNTER_PCAP1_0
-*                     + CounterOption = PWM_COUNTER_RISING
-* @param[in]    PWMTimerCounterMode Timer or Counter mode, should be:
-*                 - PWM_MODE_TIMER: Counter of PWM peripheral is in Timer mode
-*                 - PWM_MODE_COUNTER: Counter of PWM peripheral is in Counter mode
-* @param[in]    PWM_InitStruct Pointer to structure (PWM_TIMERCFG_Type or
-*                  PWM_COUNTERCFG_Type) which will be initialized.
-* @return        None
-* Note: PWM_InitStruct pointer will be assigned to corresponding structure
-*         (PWM_TIMERCFG_Type or PWM_COUNTERCFG_Type) due to PWMTimerCounterMode.
-*******************************************************************************/
-void PWM_ConfigStructInit(uint8_t PWMTimerCounterMode, void *PWM_InitStruct)
-{
-    PWM_TIMERCFG_Type *pTimeCfg;
-    PWM_COUNTERCFG_Type *pCounterCfg;
-    CHECK_PARAM(PARAM_PWM_TC_MODE(PWMTimerCounterMode));
-
-    pTimeCfg = (PWM_TIMERCFG_Type *) PWM_InitStruct;
-    pCounterCfg = (PWM_COUNTERCFG_Type *) PWM_InitStruct;
-
-    if (PWMTimerCounterMode == PWM_MODE_TIMER )
-    {
-        pTimeCfg->PrescaleOption = PWM_TIMER_PRESCALE_USVAL;
-        pTimeCfg->PrescaleValue = 1;
-    }
-    else if (PWMTimerCounterMode == PWM_MODE_COUNTER)
-    {
-        pCounterCfg->CountInputSelect = PWM_COUNTER_PCAP1_0;
-        pCounterCfg->CounterOption = PWM_COUNTER_RISING;
-    }
-}
-
-
-/*********************************************************************//**
- * @brief         Initializes the PWMx peripheral corresponding to the specified
- *               parameters in the PWM_ConfigStruct.
- * @param[in]    PWMx PWM peripheral, should be LPC_PWM1
- * @param[in]    PWMTimerCounterMode Timer or Counter mode, should be:
- *                 - PWM_MODE_TIMER: Counter of PWM peripheral is in Timer mode
- *                 - PWM_MODE_COUNTER: Counter of PWM peripheral is in Counter mode
- * @param[in]    PWM_ConfigStruct Pointer to structure (PWM_TIMERCFG_Type or
- *                  PWM_COUNTERCFG_Type) which will be initialized.
- * @return         None
- * Note: PWM_ConfigStruct pointer will be assigned to corresponding structure
- *         (PWM_TIMERCFG_Type or PWM_COUNTERCFG_Type) due to PWMTimerCounterMode.
- **********************************************************************/
-void PWM_Init(LPC_PWM_TypeDef *PWMx, uint32_t PWMTimerCounterMode, void *PWM_ConfigStruct)
-{
-    PWM_TIMERCFG_Type *pTimeCfg;
-    PWM_COUNTERCFG_Type *pCounterCfg;
-    uint64_t clkdlycnt;
-
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM_TC_MODE(PWMTimerCounterMode));
-
-    pTimeCfg = (PWM_TIMERCFG_Type *)PWM_ConfigStruct;
-    pCounterCfg = (PWM_COUNTERCFG_Type *)PWM_ConfigStruct;
-
-
-    CLKPWR_ConfigPPWR (CLKPWR_PCONP_PCPWM1, ENABLE);
-    CLKPWR_SetPCLKDiv (CLKPWR_PCLKSEL_PWM1, CLKPWR_PCLKSEL_CCLK_DIV_4);
-    // Get peripheral clock of PWM1
-    clkdlycnt = (uint64_t) CLKPWR_GetPCLK (CLKPWR_PCLKSEL_PWM1);
-
-
-    // Clear all interrupts pending
-    PWMx->IR = 0xFF & PWM_IR_BITMASK;
-    PWMx->TCR = 0x00;
-    PWMx->CTCR = 0x00;
-    PWMx->MCR = 0x00;
-    PWMx->CCR = 0x00;
-    PWMx->PCR = 0x00;
-    PWMx->LER = 0x00;
-
-    if (PWMTimerCounterMode == PWM_MODE_TIMER)
-    {
-        CHECK_PARAM(PARAM_PWM_TIMER_PRESCALE(pTimeCfg->PrescaleOption));
-
-        /* Absolute prescale value */
-        if (pTimeCfg->PrescaleOption == PWM_TIMER_PRESCALE_TICKVAL)
-        {
-            PWMx->PR   = pTimeCfg->PrescaleValue - 1;
+    if (timerCfg->prescaleOpt == PWM_TICK) {
+        if (timerCfg->prescaleValue > 0) {
+            LPC_PWM1->PR = timerCfg->prescaleValue - 1;
+        } else {
+            LPC_PWM1->PR = 0;
         }
-        /* uSecond prescale value */
-        else
-        {
-            clkdlycnt = (clkdlycnt * pTimeCfg->PrescaleValue) / 1000000;
-            PWMx->PR = ((uint32_t) clkdlycnt) - 1;
-        }
+    } else {
+        const uint32_t prVal = converUSecToVal(timerCfg->prescaleValue);
 
-    }
-    else if (PWMTimerCounterMode == PWM_MODE_COUNTER)
-    {
-        CHECK_PARAM(PARAM_PWM_COUNTER_INPUTSEL(pCounterCfg->CountInputSelect));
-        CHECK_PARAM(PARAM_PWM_COUNTER_EDGE(pCounterCfg->CounterOption));
-
-        PWMx->CTCR |= (PWM_CTCR_MODE((uint32_t)pCounterCfg->CounterOption)) \
-                        | (PWM_CTCR_SELECT_INPUT((uint32_t)pCounterCfg->CountInputSelect));
+        LPC_PWM1->PR = prVal > 0 ? prVal - 1 : 0;
     }
 }
 
-/*********************************************************************//**
- * @brief        De-initializes the PWM peripheral registers to their
-*                  default reset values.
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @return         None
- **********************************************************************/
-void PWM_DeInit (LPC_PWM_TypeDef *PWMx)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
+void PWM_InitCounter(const PWM_COUNTERCFG_T* counterCfg) {
+    CHECK_PARAM(PARAM_PWM_CAPTURE(counterCfg->input));
+    CHECK_PARAM(PARAM_PWM_CTR_EDGE(counterCfg->edge));
 
-    // Disable PWM control (timer, counter and PWM)
-    PWMx->TCR = 0x00;
-    CLKPWR_ConfigPPWR (CLKPWR_PCONP_PCPWM1, DISABLE);
+    PWM_Init();
 
+    LPC_PWM1->CTCR = counterCfg->edge | (counterCfg->input << 2);
 }
 
-
-/*********************************************************************//**
- * @brief         Enable/Disable PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    NewState    New State of this function, should be:
- *                             - ENABLE: Enable PWM peripheral
- *                             - DISABLE: Disable PWM peripheral
- * @return         None
- **********************************************************************/
-void PWM_Cmd(LPC_PWM_TypeDef *PWMx, FunctionalState NewState)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(NewState));
-
-    if (NewState == ENABLE)
-    {
-        PWMx->TCR    |=  PWM_TCR_PWM_ENABLE;
-    }
-    else
-    {
-        PWMx->TCR &= (~PWM_TCR_PWM_ENABLE) & PWM_TCR_BITMASK;
-    }
+void PWM_DeInit(void) {
+    LPC_PWM1->TCR = 0x00;
+    CLKPWR_ConfigPPWR(CLKPWR_PCONP_PCPWM1, DISABLE);
 }
 
+void PWM_PinConfig(PWM_PIN_OPTION option) {
+    CHECK_PARAM(PARAM_PWM_PIN_OPTION(option));
 
-/*********************************************************************//**
- * @brief         Enable/Disable Counter in PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    NewState New State of this function, should be:
- *                             - ENABLE: Enable Counter in PWM peripheral
- *                             - DISABLE: Disable Counter in PWM peripheral
- * @return         None
- **********************************************************************/
-void PWM_CounterCmd(LPC_PWM_TypeDef *PWMx, FunctionalState NewState)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(NewState));
-    if (NewState == ENABLE)
-    {
-        PWMx->TCR    |=  PWM_TCR_COUNTER_ENABLE;
+    static const PINSEL_CFG_T PinCfg[14] = {{PORT_1, PIN_18, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_0, PINSEL_FUNC_01, PINSEL_TRISTATE},
+                                            {PORT_1, PIN_20, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_1, PINSEL_FUNC_01, PINSEL_TRISTATE},
+                                            {PORT_3, PIN_25, PINSEL_FUNC_11, PINSEL_TRISTATE},
+                                            {PORT_1, PIN_21, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_2, PINSEL_FUNC_01, PINSEL_TRISTATE},
+                                            {PORT_3, PIN_26, PINSEL_FUNC_11, PINSEL_TRISTATE},
+                                            {PORT_1, PIN_23, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_3, PINSEL_FUNC_01, PINSEL_TRISTATE},
+                                            {PORT_1, PIN_24, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_4, PINSEL_FUNC_01, PINSEL_TRISTATE},
+                                            {PORT_1, PIN_26, PINSEL_FUNC_10, PINSEL_TRISTATE},
+                                            {PORT_2, PIN_5, PINSEL_FUNC_01, PINSEL_TRISTATE}};
+
+    PINSEL_ConfigPin(&PinCfg[option]);
+}
+
+void PWM_ChannelConfig(PWM_CHANNEL channel, PWM_CHANNEL_EDGE edgeMode) {
+    CHECK_PARAM(PARAM_PWM_CHANNEL(channel));
+    CHECK_PARAM(PARAM_PWM_CHANNEL_EDGE(edgeMode));
+
+    if (channel == PWM_CHANNEL_1) {
+        return;
     }
-    else
-    {
-        PWMx->TCR &= (~PWM_TCR_COUNTER_ENABLE) & PWM_TCR_BITMASK;
+
+    if (edgeMode == PWM_SINGLE_EDGE) {
+        LPC_PWM1->PCR &= ~PWM_PCR_PWMSELn(channel);
+    } else {
+        LPC_PWM1->PCR |= PWM_PCR_PWMSELn(channel);
     }
 }
 
-
-/*********************************************************************//**
- * @brief         Reset Counter in PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @return         None
- **********************************************************************/
-void PWM_ResetCounter(LPC_PWM_TypeDef *PWMx)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    PWMx->TCR |= PWM_TCR_COUNTER_RESET;
-    PWMx->TCR &= (~PWM_TCR_COUNTER_RESET) & PWM_TCR_BITMASK;
+void PWM_Enable() {
+    LPC_PWM1->TCR |= PWM_TCR_PWM_ENABLE;
 }
 
-
-/*********************************************************************//**
- * @brief         Configures match for PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]   PWM_MatchConfigStruct    Pointer to a PWM_MATCHCFG_Type structure
-*                    that contains the configuration information for the
-*                    specified PWM match function.
- * @return         None
- **********************************************************************/
-void PWM_ConfigMatch(LPC_PWM_TypeDef *PWMx, PWM_MATCHCFG_Type *PWM_MatchConfigStruct)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_MATCH_CHANNEL(PWM_MatchConfigStruct->MatchChannel));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_MatchConfigStruct->IntOnMatch));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_MatchConfigStruct->ResetOnMatch));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_MatchConfigStruct->StopOnMatch));
-
-    //interrupt on MRn
-    if (PWM_MatchConfigStruct->IntOnMatch == ENABLE)
-    {
-        PWMx->MCR |= PWM_MCR_INT_ON_MATCH(PWM_MatchConfigStruct->MatchChannel);
-    }
-    else
-    {
-        PWMx->MCR &= (~PWM_MCR_INT_ON_MATCH(PWM_MatchConfigStruct->MatchChannel)) \
-                    & PWM_MCR_BITMASK;
-    }
-
-    //reset on MRn
-    if (PWM_MatchConfigStruct->ResetOnMatch == ENABLE)
-    {
-        PWMx->MCR |= PWM_MCR_RESET_ON_MATCH(PWM_MatchConfigStruct->MatchChannel);
-    }
-    else
-    {
-        PWMx->MCR &= (~PWM_MCR_RESET_ON_MATCH(PWM_MatchConfigStruct->MatchChannel)) \
-                    & PWM_MCR_BITMASK;
-    }
-
-    //stop on MRn
-    if (PWM_MatchConfigStruct->StopOnMatch == ENABLE)
-    {
-        PWMx->MCR |= PWM_MCR_STOP_ON_MATCH(PWM_MatchConfigStruct->MatchChannel);
-    }
-    else
-    {
-        PWMx->MCR &= (~PWM_MCR_STOP_ON_MATCH(PWM_MatchConfigStruct->MatchChannel)) \
-                    & PWM_MCR_BITMASK;
-    }
+void PWM_Disable() {
+    LPC_PWM1->TCR &= ~PWM_TCR_PWM_ENABLE;
 }
 
+void PWM_ChannelEnable(PWM_CHANNEL channel) {
+    CHECK_PARAM(PARAM_PWM_CHANNEL(channel));
 
-/*********************************************************************//**
- * @brief         Configures capture input for PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]   PWM_CaptureConfigStruct    Pointer to a PWM_CAPTURECFG_Type structure
-*                    that contains the configuration information for the
-*                    specified PWM capture input function.
- * @return         None
- **********************************************************************/
-void PWM_ConfigCapture(LPC_PWM_TypeDef *PWMx, PWM_CAPTURECFG_Type *PWM_CaptureConfigStruct)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_CAPTURE_CHANNEL(PWM_CaptureConfigStruct->CaptureChannel));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_CaptureConfigStruct->FallingEdge));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_CaptureConfigStruct->IntOnCaption));
-    CHECK_PARAM(PARAM_FUNCTIONALSTATE(PWM_CaptureConfigStruct->RisingEdge));
-
-    if (PWM_CaptureConfigStruct->RisingEdge == ENABLE)
-    {
-        PWMx->CCR |= PWM_CCR_CAP_RISING(PWM_CaptureConfigStruct->CaptureChannel);
-    }
-    else
-    {
-        PWMx->CCR &= (~PWM_CCR_CAP_RISING(PWM_CaptureConfigStruct->CaptureChannel)) \
-                    & PWM_CCR_BITMASK;
-    }
-
-    if (PWM_CaptureConfigStruct->FallingEdge == ENABLE)
-    {
-        PWMx->CCR |= PWM_CCR_CAP_FALLING(PWM_CaptureConfigStruct->CaptureChannel);
-    }
-    else
-    {
-        PWMx->CCR &= (~PWM_CCR_CAP_FALLING(PWM_CaptureConfigStruct->CaptureChannel)) \
-                    & PWM_CCR_BITMASK;
-    }
-
-    if (PWM_CaptureConfigStruct->IntOnCaption == ENABLE)
-    {
-        PWMx->CCR |= PWM_CCR_INT_ON_CAP(PWM_CaptureConfigStruct->CaptureChannel);
-    }
-    else
-    {
-        PWMx->CCR &= (~PWM_CCR_INT_ON_CAP(PWM_CaptureConfigStruct->CaptureChannel)) \
-                    & PWM_CCR_BITMASK;
-    }
+    LPC_PWM1->PCR |= PWM_PCR_PWMENAn(channel);
 }
 
+void PWM_ChannelDisable(PWM_CHANNEL channel) {
+    CHECK_PARAM(PARAM_PWM_CHANNEL(channel));
 
-/*********************************************************************//**
- * @brief         Read value of capture register PWM peripheral
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    CaptureChannel: capture channel number, should be in
- *                 range 0 to 1
- * @return         Value of capture register
- **********************************************************************/
-uint32_t PWM_GetCaptureValue(LPC_PWM_TypeDef *PWMx, uint8_t CaptureChannel)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_CAPTURE_CHANNEL(CaptureChannel));
-
-    switch (CaptureChannel)
-    {
-    case 0:
-        return PWMx->CR0;
-
-    case 1:
-        return PWMx->CR1;
-
-    default:
-        return (0);
-    }
+    LPC_PWM1->PCR &= ~PWM_PCR_PWMENAn(channel);
 }
 
-
-/********************************************************************//**
- * @brief         Update value for each PWM channel with update type option
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    MatchChannel Match channel
- * @param[in]    MatchValue Match value
- * @param[in]    UpdateType Type of Update, should be:
- *                 - PWM_MATCH_UPDATE_NOW: The update value will be updated for
- *                     this channel immediately
- *                 - PWM_MATCH_UPDATE_NEXT_RST: The update value will be updated for
- *                     this channel on next reset by a PWM Match event.
- * @return        None
- *********************************************************************/
-void PWM_MatchUpdate(LPC_PWM_TypeDef *PWMx, uint8_t MatchChannel, \
-                    uint32_t MatchValue, uint8_t UpdateType)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_MATCH_CHANNEL(MatchChannel));
-    CHECK_PARAM(PARAM_PWM_MATCH_UPDATE(UpdateType));
-
-    switch (MatchChannel)
-    {
-    case 0:
-        PWMx->MR0 = MatchValue;
-        break;
-
-    case 1:
-        PWMx->MR1 = MatchValue;
-        break;
-
-    case 2:
-        PWMx->MR2 = MatchValue;
-        break;
-
-    case 3:
-        PWMx->MR3 = MatchValue;
-        break;
-
-    case 4:
-        PWMx->MR4 = MatchValue;
-        break;
-
-    case 5:
-        PWMx->MR5 = MatchValue;
-        break;
-
-    case 6:
-        PWMx->MR6 = MatchValue;
-        break;
-    }
-
-    // Write Latch register
-    PWMx->LER |= PWM_LER_EN_MATCHn_LATCH(MatchChannel);
-
-    // In case of update now
-    if (UpdateType == PWM_MATCH_UPDATE_NOW)
-    {
-        PWMx->TCR |= PWM_TCR_COUNTER_RESET;
-        PWMx->TCR &= (~PWM_TCR_COUNTER_RESET) & PWM_TCR_BITMASK;
-    }
+void PWM_CounterEnable() {
+    LPC_PWM1->TCR |= PWM_TCR_COUNTER_ENABLE;
 }
 
-
-/********************************************************************//**
- * @brief         Configure Edge mode for each PWM channel
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    PWMChannel PWM channel, should be in range from 2 to 6
- * @param[in]    ModeOption PWM mode option, should be:
- *                 - PWM_CHANNEL_SINGLE_EDGE: Single Edge mode
- *                 - PWM_CHANNEL_DUAL_EDGE: Dual Edge mode
- * @return         None
- * Note: PWM Channel 1 can not be selected for mode option
- *********************************************************************/
-void PWM_ChannelConfig(LPC_PWM_TypeDef *PWMx, uint8_t PWMChannel, uint8_t ModeOption)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_EDGE_MODE_CHANNEL(PWMChannel));
-    CHECK_PARAM(PARAM_PWM_CHANNEL_EDGE(ModeOption));
-
-    // Single edge mode
-    if (ModeOption == PWM_CHANNEL_SINGLE_EDGE)
-    {
-        PWMx->PCR &= (~PWM_PCR_PWMSELn(PWMChannel)) & PWM_PCR_BITMASK;
-    }
-    // Double edge mode
-    else if (PWM_CHANNEL_DUAL_EDGE)
-    {
-        PWMx->PCR |= PWM_PCR_PWMSELn(PWMChannel);
-    }
+void PWM_CounterDisable() {
+    LPC_PWM1->TCR &= ~PWM_TCR_COUNTER_ENABLE;
 }
 
+void PWM_ResetCounter(void) {
+    LPC_PWM1->TCR |= PWM_TCR_COUNTER_RESET;
+    LPC_PWM1->TCR &= ~PWM_TCR_COUNTER_RESET;
+}
 
+void PWM_ConfigMatch(const PWM_MATCHCFG_T* pwmMatchCfg) {
+    CHECK_PARAM(PARAM_PWM_MATCH_OPT(pwmMatchCfg->channel));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(pwmMatchCfg->intEn));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(pwmMatchCfg->resetEn));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(pwmMatchCfg->stopEn));
 
-/********************************************************************//**
- * @brief         Enable/Disable PWM channel output
- * @param[in]    PWMx    PWM peripheral selected, should be LPC_PWM1
- * @param[in]    PWMChannel PWM channel, should be in range from 1 to 6
- * @param[in]    NewState New State of this function, should be:
- *                 - ENABLE: Enable this PWM channel output
- *                 - DISABLE: Disable this PWM channel output
- * @return        None
- *********************************************************************/
-void PWM_ChannelCmd(LPC_PWM_TypeDef *PWMx, uint8_t PWMChannel, FunctionalState NewState)
-{
-    CHECK_PARAM(PARAM_PWMx(PWMx));
-    CHECK_PARAM(PARAM_PWM1_CHANNEL(PWMChannel));
+    LPC_PWM1->MCR &= ~PWM_MCR_CHANNEL_MASKBIT(pwmMatchCfg->channel);
 
-    if (NewState == ENABLE)
-    {
-        PWMx->PCR |= PWM_PCR_PWMENAn(PWMChannel);
-    }
-    else
-    {
-        PWMx->PCR &= (~PWM_PCR_PWMENAn(PWMChannel)) & PWM_PCR_BITMASK;
+    const uint32_t mcrMask =
+        pwmMatchCfg->intEn | pwmMatchCfg->resetEn << 1 | pwmMatchCfg->stopEn << 2;
+    LPC_PWM1->MCR &= ~PWM_MCR_CHANNEL_MASKBIT(pwmMatchCfg->channel);
+    LPC_PWM1->MCR |= mcrMask << (pwmMatchCfg->channel * 3);
+
+    PWM_MatchUpdateSingle(pwmMatchCfg->channel, pwmMatchCfg->matchValue);
+}
+
+void PWM_MatchUpdateSingle(PWM_MATCH_OPT match, uint32_t matchValue) {
+    CHECK_PARAM(PARAM_PWM_MATCH_OPT(match));
+
+    volatile uint32_t* MR[] = {&LPC_PWM1->MR0, &LPC_PWM1->MR1, &LPC_PWM1->MR2, &LPC_PWM1->MR3,
+                               &LPC_PWM1->MR4, &LPC_PWM1->MR5, &LPC_PWM1->MR6};
+
+    *MR[match] = matchValue;
+    LPC_PWM1->LER |= _BIT(match);
+}
+
+void PWM_MatchUpdateDouble(PWM_MATCH_OPT matchA, uint32_t newValueA, PWM_MATCH_OPT matchB,
+                           uint32_t newValueB) {
+    CHECK_PARAM(PARAM_PWM_MATCH_OPT(matchA));
+    CHECK_PARAM(PARAM_PWM_MATCH_OPT(matchB));
+
+    volatile uint32_t* MR[] = {&LPC_PWM1->MR0, &LPC_PWM1->MR1, &LPC_PWM1->MR2, &LPC_PWM1->MR3,
+                               &LPC_PWM1->MR4, &LPC_PWM1->MR5, &LPC_PWM1->MR6};
+
+    *MR[matchA] = newValueA;
+    *MR[matchB] = newValueB;
+    LPC_PWM1->LER |= _BIT(matchA) | _BIT(matchB);
+}
+
+void PWM_ClearIntPending(PWM_INT_TYPE intFlag) {
+    CHECK_PARAM(PARAM_PWM_INT_TYPE(intFlag));
+
+    LPC_PWM1->IR = _BIT(intFlag);
+}
+
+FlagStatus PWM_GetIntStatus(PWM_INT_TYPE intFlag) {
+    CHECK_PARAM(PARAM_PWM_INT_TYPE(intFlag));
+
+    return LPC_PWM1->IR & _BIT(intFlag) ? SET : RESET;
+}
+
+void PWM_ConfigCapture(const PWM_CAPTURECFG_T* capCfg) {
+    CHECK_PARAM(PARAM_PWM_CAPTURE(capCfg->channel));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(capCfg->risingEn));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(capCfg->fallingEn));
+    CHECK_PARAM(PARAM_FUNCTIONALSTATE(capCfg->intEn));
+
+    LPC_PWM1->CCR &= ~PWM_CCR_CHANNEL_MASKBIT(capCfg->channel);
+
+    const uint32_t capMask = capCfg->risingEn | capCfg->fallingEn << 1 | capCfg->intEn << 2;
+    LPC_PWM1->CCR &= ~PWM_CCR_CHANNEL_MASKBIT(capCfg->channel);
+    LPC_PWM1->CCR |= capMask << (capCfg->channel * 3);
+}
+
+uint32_t PWM_GetCaptureValue(PWM_CAPTURE capChannel) {
+    CHECK_PARAM(PARAM_PWM_CAPTURE(capChannel));
+
+    switch (capChannel) {
+        case PWM_CAPTURE_0: return LPC_PWM1->CR0;
+
+        case PWM_CAPTURE_1: return LPC_PWM1->CR1;
+
+        default: return 0;
     }
 }
 
@@ -530,4 +260,4 @@ void PWM_ChannelCmd(LPC_PWM_TypeDef *PWMx, uint8_t PWMChannel, FunctionalState N
  * @}
  */
 
-/* --------------------------------- End Of File ------------------------------ */
+/* ------------------------------ End Of File ------------------------------- */
