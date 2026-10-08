@@ -4,7 +4,6 @@
 
 #include "lpc17xx_gpdma.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define CANTIDAD 64u
 
 static uint32_t origen_demo[CANTIDAD];
@@ -50,11 +49,11 @@ void detener_dma_sin_perder_datos(GPDMA_CH canal)
     GPDMA_ChannelGracefulStop(canal); // Para reutilizar, configurar de nuevo.
 }
 
-Status config_dma_m2m_anillo(const uint32_t *origen, uint32_t *destino, size_t cantidad)
+Status config_dma_m2m_anillo(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    const uint32_t *origen = origen_demo;
+    uint32_t *destino = destino_demo;
+    const size_t cantidad = CANTIDAD;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Words por vuelta.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_32); // Lee hasta 32 words por burst.
@@ -97,7 +96,7 @@ int main(void)
     }
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura una LLI circular para mantener el canal activo.
-    if (config_dma_m2m_anillo(origen_demo, destino_demo, CANTIDAD) != SUCCESS) {
+    if (config_dma_m2m_anillo() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     NVIC_EnableIRQ(DMA_IRQn); // Atiende cada vuelta y cualquier error.

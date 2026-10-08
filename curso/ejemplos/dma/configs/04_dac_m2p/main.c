@@ -5,13 +5,13 @@
 #include "lpc17xx_dac.h"
 #include "lpc17xx_gpdma.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define CANTIDAD_MUESTRAS 32u
 
 static uint32_t tabla_dac[CANTIDAD_MUESTRAS];
 
-static uint32_t control_lli_dac(size_t cantidad)
+static uint32_t control_lli_dac(void)
 {
+    const size_t cantidad = CANTIDAD_MUESTRAS;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Muestras por vuelta.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee una muestra por request.
@@ -22,8 +22,9 @@ static uint32_t control_lli_dac(size_t cantidad)
     return control;
 }
 
-static void config_dac_sin_request(uint16_t ticks_por_muestra)
+static void config_dac_sin_request(void)
 {
+    const uint16_t ticks_por_muestra = 781u;
     DAC_CONVERTER_CFG_T ctrl;
     ctrl.doubleBuffer = ENABLE; // Actualiza la salida sin transitorios.
     ctrl.dmaCounter = ENABLE; // Usa el timeout como período.
@@ -42,12 +43,11 @@ static void habilitar_request_dac(void)
     DAC_ConfigDAConverterControl(&ctrl);
 }
 
-Status config_dma_dac_bloque(const uint32_t *muestras_dacr, size_t cantidad, uint16_t ticks_por_muestra)
+Status config_dma_dac_bloque(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
-    config_dac_sin_request(ticks_por_muestra);
+    const uint32_t *muestras_dacr = tabla_dac;
+    const size_t cantidad = CANTIDAD_MUESTRAS;
+    config_dac_sin_request();
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_1; // Prioridad alta para sostener la salida.
@@ -71,14 +71,13 @@ Status config_dma_dac_bloque(const uint32_t *muestras_dacr, size_t cantidad, uin
 
 static GPDMA_LLI_T dac_anillo;
 
-Status config_dma_dac_anillo(const uint32_t *tabla_dacr, size_t cantidad, uint16_t ticks_por_muestra)
+Status config_dma_dac_anillo(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
-    config_dac_sin_request(ticks_por_muestra);
+    const uint32_t *tabla_dacr = tabla_dac;
+    const size_t cantidad = CANTIDAD_MUESTRAS;
+    config_dac_sin_request();
 
-    const uint32_t control = control_lli_dac(cantidad);
+    const uint32_t control = control_lli_dac();
     dac_anillo.srcAddr = (uint32_t)(uintptr_t)tabla_dacr; // Reinicia la tabla.
     dac_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_DAC->DACR; // Registro de salida fijo.
     dac_anillo.nextLLI = (uint32_t)(uintptr_t)&dac_anillo; // Repite indefinidamente.
@@ -120,7 +119,7 @@ int main(void)
 
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura una LLI circular que repite la tabla cada 32 muestras.
-    if (config_dma_dac_anillo(tabla_dac, CANTIDAD_MUESTRAS, 781u) != SUCCESS) {
+    if (config_dma_dac_anillo() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     iniciar_dma_dac(); // Inicia el canal antes de habilitar requests del DAC.

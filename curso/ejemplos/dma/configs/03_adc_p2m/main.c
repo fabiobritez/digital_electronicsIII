@@ -5,7 +5,6 @@
 #include "lpc17xx_adc.h"
 #include "lpc17xx_gpdma.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define MUESTRAS_POR_BUFFER 32u
 
 static uint32_t buffer_a_demo[MUESTRAS_POR_BUFFER];
@@ -13,8 +12,9 @@ static uint32_t buffer_b_demo[MUESTRAS_POR_BUFFER];
 static volatile uint32_t bloques_completos;
 static volatile bool dma_error;
 
-static uint32_t control_lli_adc(size_t cantidad)
+static uint32_t control_lli_adc(void)
 {
+    const size_t cantidad = MUESTRAS_POR_BUFFER;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Muestras por buffer.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee una muestra por request.
@@ -26,8 +26,9 @@ static uint32_t control_lli_adc(size_t cantidad)
     return control;
 }
 
-static void config_adc0(uint32_t muestras_por_segundo)
+static void config_adc0(void)
 {
+    const uint32_t muestras_por_segundo = 10000u;
     ADC_Init(muestras_por_segundo); // Define la frecuencia de muestreo.
     ADC_PinConfig(ADC_CHANNEL_0); // P0.23 como entrada AD0.0.
     ADC_ChannelEnable(ADC_CHANNEL_0); // Convierte solamente el canal 0.
@@ -35,12 +36,11 @@ static void config_adc0(uint32_t muestras_por_segundo)
     ADC_IntEnable(ADC_INT_CH0);
 }
 
-Status config_dma_adc_bloque(uint32_t *muestras, size_t cantidad, uint32_t muestras_por_segundo)
+Status config_dma_adc_bloque(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
-    config_adc0(muestras_por_segundo);
+    uint32_t *muestras = buffer_a_demo;
+    const size_t cantidad = MUESTRAS_POR_BUFFER;
+    config_adc0();
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_0; // Máxima prioridad para evitar overrun.
@@ -65,14 +65,14 @@ Status config_dma_adc_bloque(uint32_t *muestras, size_t cantidad, uint32_t muest
 static GPDMA_LLI_T adc_ping_pong[2];
 
 // A -> B -> A: IRQ por cada buffer completo.
-Status config_dma_adc_ping_pong(uint32_t *buffer_a, uint32_t *buffer_b, size_t cantidad_por_buffer, uint32_t muestras_por_segundo)
+Status config_dma_adc_ping_pong(void)
 {
-    if (cantidad_por_buffer == 0u || cantidad_por_buffer > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
-    config_adc0(muestras_por_segundo);
+    uint32_t *buffer_a = buffer_a_demo;
+    uint32_t *buffer_b = buffer_b_demo;
+    const size_t cantidad_por_buffer = MUESTRAS_POR_BUFFER;
+    config_adc0();
 
-    const uint32_t control = control_lli_adc(cantidad_por_buffer);
+    const uint32_t control = control_lli_adc();
 
     adc_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_ADC->ADGDR; // Registro de resultado fijo.
     adc_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)buffer_a; // Primer buffer.
@@ -120,7 +120,7 @@ int main(void)
 {
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura dos buffers que se llenan de forma alternada a 10 ksample/s.
-    if (config_dma_adc_ping_pong(buffer_a_demo, buffer_b_demo, MUESTRAS_POR_BUFFER, 10000u) != SUCCESS) {
+    if (config_dma_adc_ping_pong() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     NVIC_EnableIRQ(DMA_IRQn); // Cuenta cada buffer completo y detecta errores.

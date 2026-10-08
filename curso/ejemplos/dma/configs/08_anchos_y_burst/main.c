@@ -3,17 +3,15 @@
 
 #include "lpc17xx_gpdma.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
-
 static const uint8_t origen_demo[16] = {0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 10u, 11u, 12u, 13u, 14u, 15u};
 static uint32_t destino_demo[4];
 
 // Empaqueta cuatro bytes consecutivos en cada word destino.
-Status config_dma_m2m_bytes_a_words(const uint8_t *origen, uint32_t *destino, size_t cantidad_bytes)
+Status config_dma_m2m_bytes_a_words(void)
 {
-    if (cantidad_bytes == 0u || (cantidad_bytes % sizeof(*destino)) != 0u || (cantidad_bytes / sizeof(*destino)) > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    const uint8_t *origen = origen_demo;
+    uint32_t *destino = destino_demo;
+    const size_t cantidad_bytes = sizeof(origen_demo);
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -39,7 +37,7 @@ int main(void)
 {
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura el empaquetado de 16 bytes en cuatro words.
-    if (config_dma_m2m_bytes_a_words(origen_demo, destino_demo, sizeof(origen_demo)) != SUCCESS) {
+    if (config_dma_m2m_bytes_a_words() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     GPDMA_ChannelStart(GPDMA_CH_7); // Inicia la transferencia M2M.

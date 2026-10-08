@@ -4,18 +4,19 @@
 
 #include "lpc17xx_gpdma.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define CANTIDAD 16u
 
 static uint32_t origen_a[CANTIDAD];
 static uint32_t origen_b[CANTIDAD];
 static uint32_t origen_c[CANTIDAD];
 static uint32_t destino_demo[3u * CANTIDAD];
+static const uint32_t valor_fill = 0xA5A5A5A5u;
 static volatile bool dma_fin;
 static volatile bool dma_error;
 
-static uint32_t control_lli(size_t cantidad, bool irq)
+static uint32_t control_lli(void)
 {
+    const size_t cantidad = CANTIDAD;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Cantidad de words del bloque.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_32); // Lee hasta 32 words por burst.
@@ -24,18 +25,15 @@ static uint32_t control_lli(size_t cantidad, bool irq)
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // El destino se escribe de a 32 bits.
     control |= GPDMA_DMACCxControl_SI; // Avanza la dirección de origen.
     control |= GPDMA_DMACCxControl_DI; // Avanza la dirección de destino.
-    if (irq) {
-        control |= GPDMA_DMACCxControl_I; // Interrumpe al terminar este descriptor.
-    }
     return control;
 }
 
 // M2M arranca sin requests. Se usa canal 7, la menor prioridad.
-Status config_dma_m2m_words(const uint32_t *origen, uint32_t *destino, size_t cantidad)
+Status config_dma_m2m_words(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) { // simplemente valida que la cantidad de words este dentro de los limites
-        return ERROR;
-    }
+    const uint32_t *origen = origen_a;
+    uint32_t *destino = destino_demo;
+    const size_t cantidad = CANTIDAD;
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -58,11 +56,11 @@ Status config_dma_m2m_words(const uint32_t *origen, uint32_t *destino, size_t ca
 }
 
 // Un origen fijo permite llenar un buffer con la misma word: SI=0, DI=1.
-Status config_dma_m2m_fill(const uint32_t *valor, uint32_t *destino, size_t cantidad)
+Status config_dma_m2m_fill(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    const uint32_t *valor = &valor_fill;
+    uint32_t *destino = destino_demo;
+    const size_t cantidad = CANTIDAD;
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -87,24 +85,25 @@ Status config_dma_m2m_fill(const uint32_t *valor, uint32_t *destino, size_t cant
 // Los registros describen A; las dos LLI describen B y C.
 static GPDMA_LLI_T m2m_lli[2];
 
-Status config_dma_m2m_tres_bloques(const uint32_t *a, const uint32_t *b, const uint32_t *c, uint32_t *destino, size_t cantidad_por_bloque)
+Status config_dma_m2m_tres_bloques(void)
 {
-    if (cantidad_por_bloque == 0u || cantidad_por_bloque > DMA_MAX_TRANSFERENCIAS) { // simplemente valida que la cantidad de words sea válida
-        return ERROR;
-    }
+    const uint32_t *a = origen_a;
+    const uint32_t *b = origen_b;
+    const uint32_t *c = origen_c;
+    uint32_t *destino = destino_demo;
+    const size_t cantidad_por_bloque = CANTIDAD;
 
-    const uint32_t control_intermedio = control_lli(cantidad_por_bloque, false);
-    const uint32_t control_final = control_intermedio | GPDMA_DMACCxControl_I;
+    const uint32_t control = control_lli();
 
     m2m_lli[0].srcAddr = (uint32_t)(uintptr_t)b; // Segundo bloque de origen.
     m2m_lli[0].dstAddr = (uint32_t)(uintptr_t)&destino[cantidad_por_bloque]; // Continúa detrás de A.
     m2m_lli[0].nextLLI = (uint32_t)(uintptr_t)&m2m_lli[1]; // Luego procesa C.
-    m2m_lli[0].control = control_intermedio; // Sin IRQ intermedia.
+    m2m_lli[0].control = control; // Sin IRQ intermedia.
 
     m2m_lli[1].srcAddr = (uint32_t)(uintptr_t)c; // Tercer bloque de origen.
     m2m_lli[1].dstAddr = (uint32_t)(uintptr_t)&destino[2u * cantidad_por_bloque]; // Continúa detrás de B.
     m2m_lli[1].nextLLI = 0u; // Fin de la cadena.
-    m2m_lli[1].control = control_final; // Genera la IRQ final.
+    m2m_lli[1].control = control | GPDMA_DMACCxControl_I; // Genera la IRQ final.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -149,7 +148,7 @@ int main(void)
 
     GPDMA_Init(); // Inicializa el controlador y sus ocho canales.
     // Configura una cadena que copia A, luego B y finalmente C.
-    if (config_dma_m2m_tres_bloques(origen_a, origen_b, origen_c, destino_demo, CANTIDAD) != SUCCESS) {
+    if (config_dma_m2m_tres_bloques() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     NVIC_EnableIRQ(DMA_IRQn); // Habilita la interrupción compartida del DMA.

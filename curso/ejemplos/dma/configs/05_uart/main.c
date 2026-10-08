@@ -5,8 +5,6 @@
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_uart.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
-
 typedef struct {
     LPC_UART_TypeDef *uart;
     GPDMA_CONNECTION tx;
@@ -21,6 +19,9 @@ static const uart_dma_t uart_dma[4] = {
     {(LPC_UART_TypeDef *)LPC_UART2, GPDMA_UART2_Tx, GPDMA_UART2_Rx, UART_TX2_P0_10, UART_RX2_P0_11},
     {(LPC_UART_TypeDef *)LPC_UART3, GPDMA_UART3_Tx, GPDMA_UART3_Rx, UART_TX3_P0_0, UART_RX3_P0_1},
 };
+
+static const uint8_t mensaje_uart[] = "UART0 por DMA\r\n";
+static uint8_t recepcion_uart[sizeof(mensaje_uart) - 1u];
 
 static void config_uart_dma(unsigned numero)
 {
@@ -41,9 +42,11 @@ static void config_uart_dma(unsigned numero)
     UART_FIFOConfig(uart_dma[numero].uart, &fifo);
 }
 
-Status config_dma_uart_tx(unsigned numero, const uint8_t *datos, size_t cantidad)
+Status config_dma_uart_tx(unsigned numero)
 {
-    if (numero > 3u || cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
+    const uint8_t *datos = mensaje_uart;
+    const size_t cantidad = sizeof(mensaje_uart) - 1u;
+    if (numero > 3u) {
         return ERROR;
     }
     config_uart_dma(numero);
@@ -68,9 +71,11 @@ Status config_dma_uart_tx(unsigned numero, const uint8_t *datos, size_t cantidad
     return GPDMA_SetupChannel(&cfg);
 }
 
-Status config_dma_uart_rx(unsigned numero, uint8_t *datos, size_t cantidad)
+Status config_dma_uart_rx(unsigned numero)
 {
-    if (numero > 3u || cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
+    uint8_t *datos = recepcion_uart;
+    const size_t cantidad = sizeof(recepcion_uart);
+    if (numero > 3u) {
         return ERROR;
     }
     config_uart_dma(numero);
@@ -96,19 +101,18 @@ Status config_dma_uart_rx(unsigned numero, uint8_t *datos, size_t cantidad)
 }
 
 // Full-duplex = dos transferencias unidireccionales y dos canales.
-Status config_dma_uart_full_duplex(unsigned numero, const uint8_t *tx, uint8_t *rx, size_t cantidad)
+Status config_dma_uart_full_duplex(unsigned numero)
 {
-    const Status estado_rx = config_dma_uart_rx(numero, rx, cantidad);
-    const Status estado_tx = config_dma_uart_tx(numero, tx, cantidad);
+    const Status estado_rx = config_dma_uart_rx(numero);
+    const Status estado_tx = config_dma_uart_tx(numero);
     return (estado_rx == SUCCESS && estado_tx == SUCCESS) ? SUCCESS : ERROR;
 }
 
 int main(void)
 {
-    static const uint8_t mensaje[] = "UART0 por DMA\r\n"; // Texto que se enviará.
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura UART0 y una transferencia de memoria al FIFO Tx.
-    if (config_dma_uart_tx(0u, mensaje, sizeof(mensaje) - 1u) != SUCCESS) {
+    if (config_dma_uart_tx(0u) != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     GPDMA_ChannelStart(GPDMA_CH_3); // Inicia el envío del mensaje.

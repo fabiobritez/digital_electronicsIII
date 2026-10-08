@@ -5,13 +5,14 @@
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_uart.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
+#define BYTES_POR_BLOQUE 32u
 
 static volatile bool dma_fin;
 static volatile bool dma_error;
 
-static uint32_t control_lli_p2p(size_t cantidad)
+static uint32_t control_lli_p2p(void)
 {
+    const size_t cantidad = BYTES_POR_BLOQUE;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Bytes por bloque.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee un byte por request.
@@ -44,11 +45,9 @@ static void config_uart0_rx_uart1_tx(void)
 }
 
 // UART0 Rx -> UART1 Tx sin pasar por un buffer de aplicación.
-Status config_dma_p2p_uart0_uart1(size_t cantidad)
+Status config_dma_p2p_uart0_uart1(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    const size_t cantidad = BYTES_POR_BLOQUE;
     config_uart0_rx_uart1_tx();
 
     GPDMA_Channel_CFG_T cfg;
@@ -73,14 +72,12 @@ Status config_dma_p2p_uart0_uart1(size_t cantidad)
 
 static GPDMA_LLI_T uart_p2p_anillo;
 
-Status config_dma_p2p_uart0_uart1_continuo(size_t bloque)
+Status config_dma_p2p_uart0_uart1_continuo(void)
 {
-    if (bloque == 0u || bloque > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    const size_t bloque = BYTES_POR_BLOQUE;
     config_uart0_rx_uart1_tx();
 
-    const uint32_t control = control_lli_p2p(bloque);
+    const uint32_t control = control_lli_p2p();
     uart_p2p_anillo.srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO de entrada fijo.
     uart_p2p_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_UART1->THR; // FIFO de salida fijo.
     uart_p2p_anillo.nextLLI = (uint32_t)(uintptr_t)&uart_p2p_anillo; // Repite el bloque.
@@ -122,7 +119,7 @@ int main(void)
 {
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura el reenvío directo de 32 bytes entre ambas UART.
-    if (config_dma_p2p_uart0_uart1(32u) != SUCCESS) {
+    if (config_dma_p2p_uart0_uart1() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     NVIC_EnableIRQ(DMA_IRQn); // Detecta el final del bloque o un error.

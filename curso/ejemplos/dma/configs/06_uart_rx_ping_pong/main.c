@@ -5,7 +5,6 @@
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_uart.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define BYTES_POR_BUFFER 16u
 
 static uint8_t buffer_a[BYTES_POR_BUFFER];
@@ -15,8 +14,9 @@ static volatile bool dma_error;
 
 static GPDMA_LLI_T uart_rx_ping_pong[2];
 
-static uint32_t control_lli_uart(size_t cantidad)
+static uint32_t control_lli_uart(void)
 {
+    const size_t cantidad = BYTES_POR_BUFFER;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Bytes por buffer.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee un byte por request.
@@ -28,11 +28,11 @@ static uint32_t control_lli_uart(size_t cantidad)
     return control;
 }
 
-Status config_dma_uart0_rx_ping_pong(uint8_t *a, uint8_t *b, size_t cantidad_por_buffer)
+Status config_dma_uart0_rx_ping_pong(void)
 {
-    if (cantidad_por_buffer == 0u || cantidad_por_buffer > DMA_MAX_TRANSFERENCIAS) {
-        return ERROR;
-    }
+    uint8_t *a = buffer_a;
+    uint8_t *b = buffer_b;
+    const size_t cantidad_por_buffer = BYTES_POR_BUFFER;
 
     UART_CFG_T uart;
     uart.baudRate = 115200u; // Velocidad en bits por segundo.
@@ -50,7 +50,7 @@ Status config_dma_uart0_rx_ping_pong(uint8_t *a, uint8_t *b, size_t cantidad_por
     UART_Init((LPC_UART_TypeDef *)LPC_UART0, &uart);
     UART_FIFOConfig((LPC_UART_TypeDef *)LPC_UART0, &fifo);
 
-    const uint32_t control = control_lli_uart(cantidad_por_buffer);
+    const uint32_t control = control_lli_uart();
     uart_rx_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO Rx fijo.
     uart_rx_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)a; // Primer buffer.
     uart_rx_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&uart_rx_ping_pong[1]; // Luego llena B.
@@ -97,7 +97,7 @@ int main(void)
 {
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura UART0 Rx y dos buffers enlazados en forma circular.
-    if (config_dma_uart0_rx_ping_pong(buffer_a, buffer_b, BYTES_POR_BUFFER) != SUCCESS) {
+    if (config_dma_uart0_rx_ping_pong() != SUCCESS) {
         while (1) {} // Se detiene si la configuración no es válida.
     }
     NVIC_EnableIRQ(DMA_IRQn); // Cuenta buffers completos y detecta errores.

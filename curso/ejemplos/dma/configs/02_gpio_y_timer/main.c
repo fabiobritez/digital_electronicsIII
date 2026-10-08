@@ -7,29 +7,35 @@
 #include "lpc17xx_pinsel.h"
 #include "lpc17xx_timer.h"
 
-#define DMA_MAX_TRANSFERENCIAS 4095u
 #define LED_P022 (1u << 22)
 
 static const uint32_t patrones_led[] = {0u, LED_P022, 0u, LED_P022};
 static uint32_t muestras_gpio[32];
 
-static uint32_t control_lli(size_t cantidad, bool incrementar_origen, bool incrementar_destino, bool irq)
+static uint32_t control_gpio_salida(void)
 {
+    const size_t cantidad = sizeof(patrones_led) / sizeof(patrones_led[0]);
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Cantidad de words del bloque.
     control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee una word por request.
     control |= GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_1); // Escribe una word por request.
     control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // Origen de 32 bits.
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // Destino de 32 bits.
-    if (incrementar_origen) {
-        control |= GPDMA_DMACCxControl_SI; // Avanza la dirección de origen.
-    }
-    if (incrementar_destino) {
-        control |= GPDMA_DMACCxControl_DI; // Avanza la dirección de destino.
-    }
-    if (irq) {
-        control |= GPDMA_DMACCxControl_I; // Interrumpe al terminar el bloque.
-    }
+    control |= GPDMA_DMACCxControl_SI; // Avanza por la tabla de patrones.
+    return control;
+}
+
+static uint32_t control_gpio_entrada(void)
+{
+    const size_t cantidad = sizeof(muestras_gpio) / sizeof(muestras_gpio[0]);
+    uint32_t control = 0u;
+    control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Cantidad de muestras.
+    control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_1); // Lee una word por request.
+    control |= GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_1); // Escribe una word por request.
+    control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // Origen de 32 bits.
+    control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // Destino de 32 bits.
+    control |= GPDMA_DMACCxControl_DI; // Avanza por el buffer de muestras.
+    control |= GPDMA_DMACCxControl_I; // Interrumpe al llenar el buffer.
     return control;
 }
 
@@ -56,8 +62,9 @@ static void config_pines_gpio(void)
 
 // GPIO no genera requests. MAT0.0/MAT0.1 se usan solamente como reloj.
 // La request de MAT y la dirección FIOPIN se configuran por separado.
-static void config_timer0_match_periodico(TIM_MATCH_CH match, uint32_t periodo_us)
+static void config_timer0_match_periodico(TIM_MATCH_CH match)
 {
+    const uint32_t periodo_us = 250000u;
     TIM_TIMERCFG_T timer;
     timer.prescaleOpt = TIM_US; // Cuenta en microsegundos.
     timer.prescaleValue = 1u; // Un conteo por microsegundo.
@@ -73,29 +80,17 @@ static void config_timer0_match_periodico(TIM_MATCH_CH match, uint32_t periodo_u
     TIM_ConfigMatch(LPC_TIM0, &evento);
 }
 
-static void config_canal_dma_raw(LPC_GPDMACH_TypeDef *ch, GPDMA_CH numero, uintptr_t origen, uintptr_t destino, const GPDMA_LLI_T *siguiente, uint32_t control, GPDMA_TRANSFER_TYPE tipo, uint8_t request_origen, uint8_t request_destino)
-{
-    LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(numero);
-    LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(numero);
-    ch->DMACCSrcAddr = (uint32_t)origen; // Dirección leída por el DMA.
-    ch->DMACCDestAddr = (uint32_t)destino; // Dirección escrita por el DMA.
-    ch->DMACCLLI = (uint32_t)(uintptr_t)siguiente; // Próximo descriptor o NULL.
-    ch->DMACCControl = control; // Tamaño, anchos e incrementos.
-    ch->DMACCConfig = GPDMA_DMACCxConfig_TransferType(tipo) | GPDMA_DMACCxConfig_SrcPeripheral(request_origen) | GPDMA_DMACCxConfig_DestPeripheral(request_destino) | GPDMA_DMACCxConfig_IE | GPDMA_DMACCxConfig_ITC; // Flujo, requests e IRQ.
-}
-
 static GPDMA_LLI_T gpio_salida_anillo;
 
 // Reproduce estados completos de GPIO0, una word por MAT0.0.
-Status config_dma_gpio_salida_periodica(const uint32_t *patrones, size_t cantidad, uint32_t periodo_us)
+void config_dma_gpio_salida_periodica(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS || periodo_us == 0u) {
-        return ERROR;
-    }
-    const uint32_t control = control_lli(cantidad, true, false, false);
+    const uint32_t *patrones = patrones_led;
+    const uint32_t control = control_gpio_salida();
+    LPC_GPDMACH_TypeDef *canal = LPC_GPDMACH6;
 
     config_pines_gpio();
-    config_timer0_match_periodico(TIM_MATCH_0, periodo_us);
+    config_timer0_match_periodico(TIM_MATCH_0);
     LPC_SC->DMAREQSEL |= (1u << 0); // Línea 8: MAT0.0, no UART0 Tx.
 
     gpio_salida_anillo.srcAddr = (uint32_t)(uintptr_t)patrones; // Reinicia la tabla de estados.
@@ -103,34 +98,48 @@ Status config_dma_gpio_salida_periodica(const uint32_t *patrones, size_t cantida
     gpio_salida_anillo.nextLLI = (uint32_t)(uintptr_t)&gpio_salida_anillo; // Repite en forma circular.
     gpio_salida_anillo.control = control; // Origen avanza; GPIO queda fijo.
 
-    config_canal_dma_raw(LPC_GPDMACH6, GPDMA_CH_6, (uintptr_t)patrones, (uintptr_t)&LPC_GPIO0->FIOPIN, &gpio_salida_anillo, control, GPDMA_M2P, 0u, 8u);
-    return SUCCESS;
+    LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia TC anterior.
+    LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia error anterior.
+    canal->DMACCSrcAddr = (uint32_t)(uintptr_t)patrones; // Tabla de estados.
+    canal->DMACCDestAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO0.
+    canal->DMACCLLI = (uint32_t)(uintptr_t)&gpio_salida_anillo; // Repite la tabla.
+    canal->DMACCControl = control; // Origen incremental y destino fijo.
+    canal->DMACCConfig =
+        GPDMA_DMACCxConfig_TransferType(GPDMA_M2P) | // Memoria a periférico.
+        GPDMA_DMACCxConfig_DestPeripheral(8u) | // MAT0.0 genera la request.
+        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
+        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
 }
 
 // Toma N snapshots de GPIO0, uno por MAT0.1.
-Status config_dma_gpio_entrada_periodica(uint32_t *muestras, size_t cantidad, uint32_t periodo_us)
+void config_dma_gpio_entrada_periodica(void)
 {
-    if (cantidad == 0u || cantidad > DMA_MAX_TRANSFERENCIAS || periodo_us == 0u) {
-        return ERROR;
-    }
-    const uint32_t control = control_lli(cantidad, false, true, true);
+    uint32_t *muestras = muestras_gpio;
+    const uint32_t control = control_gpio_entrada();
+    LPC_GPDMACH_TypeDef *canal = LPC_GPDMACH0;
 
     config_pines_gpio();
-    config_timer0_match_periodico(TIM_MATCH_1, periodo_us);
+    config_timer0_match_periodico(TIM_MATCH_1);
     LPC_SC->DMAREQSEL |= (1u << 1); // Línea 9: MAT0.1, no UART0 Rx.
 
-    config_canal_dma_raw(LPC_GPDMACH0, GPDMA_CH_0, (uintptr_t)&LPC_GPIO0->FIOPIN, (uintptr_t)muestras, NULL, control, GPDMA_P2M, 9u, 0u);
-    return SUCCESS;
+    LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(GPDMA_CH_0); // Limpia TC anterior.
+    LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(GPDMA_CH_0); // Limpia error anterior.
+    canal->DMACCSrcAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO0.
+    canal->DMACCDestAddr = (uint32_t)(uintptr_t)muestras; // Buffer de muestras.
+    canal->DMACCLLI = 0u; // Transferencia finita.
+    canal->DMACCControl = control; // Origen fijo y destino incremental.
+    canal->DMACCConfig =
+        GPDMA_DMACCxConfig_TransferType(GPDMA_P2M) | // Periférico a memoria.
+        GPDMA_DMACCxConfig_SrcPeripheral(9u) | // MAT0.1 genera la request.
+        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
+        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
 }
 
 int main(void)
 {
-    (void)muestras_gpio; // Buffer reservado para probar la variante GPIO a memoria.
     GPDMA_Init(); // Inicializa el controlador DMA.
     // Configura un patrón circular con un cambio cada 250 ms.
-    if (config_dma_gpio_salida_periodica(patrones_led, sizeof(patrones_led) / sizeof(patrones_led[0]), 250000u) != SUCCESS) {
-        while (1) {} // Se detiene si la configuración no es válida.
-    }
+    config_dma_gpio_salida_periodica(); // Configura MAT0.0 y el canal 6.
     GPDMA_ChannelStart(GPDMA_CH_6); // Deja el canal listo para recibir requests.
     TIM_Enable(LPC_TIM0); // Comienza a generar requests periódicas.
     while (1) {} // El DMA alterna el LED sin intervención del CPU.
