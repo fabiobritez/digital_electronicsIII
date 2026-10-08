@@ -49,7 +49,7 @@ static Status config_canal_dma_uart_tx(unsigned numero)
     cfg.channelNum = GPDMA_CH_3; // Prioridad menor que Rx.
     cfg.transferSize = (uint32_t)cantidad; // Cantidad de bytes.
     cfg.type = GPDMA_M2P; // Memoria a UART Tx.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)datos; // Inicio del mensaje.
+    cfg.srcMemAddr = (uint32_t)datos; // Inicio del mensaje.
     cfg.dstMemAddr = 0u; // El driver obtiene THR.
     cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = uart_dma[numero].tx; // Request del FIFO Tx elegido.
@@ -75,7 +75,7 @@ static Status config_canal_dma_uart_rx(unsigned numero)
     cfg.transferSize = (uint32_t)cantidad; // Cantidad de bytes.
     cfg.type = GPDMA_P2M; // UART Rx a memoria.
     cfg.srcMemAddr = 0u; // El driver obtiene RBR.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)datos; // Inicio del buffer.
+    cfg.dstMemAddr = (uint32_t)datos; // Inicio del buffer.
     cfg.srcConn = uart_dma[numero].rx; // Request del FIFO Rx elegido.
     cfg.dstConn = 0; // Ignorado en P2M.
     cfg.src.width = GPDMA_BYTE; // Lee un byte desde RBR.

@@ -100,8 +100,8 @@ int main(void) {
 	 * en RAM: lo describe configGPDMA y GPDMA_SetupChannel lo carga en los registros del
 	 * canal. El descriptor de abajo es el SEGUNDO tramo, al que el canal salta
 	 * cuando termina el primero. */
-	struct_LLI.srcAddr = (uint32_t)(uintptr_t)&DMASrc_Buffer2;
-	struct_LLI.dstAddr = ((uint32_t)(uintptr_t)&DMADest_Buffer) + (DMA_SIZE/2)*4;
+	struct_LLI.srcAddr = (uint32_t)&DMASrc_Buffer2;
+	struct_LLI.dstAddr = ((uint32_t)&DMADest_Buffer) + (DMA_SIZE/2)*4;
 	struct_LLI.nextLLI = 0; // Último elemento
 	struct_LLI.control = (DMA_SIZE/2)
 								| (2<<18) // Ancho fuente 32 bits
@@ -113,8 +113,8 @@ int main(void) {
 
 	// Configurar canal GPDMA (esto describe el PRIMER tramo)
 	configGPDMA.channelNum = GPDMA_CH_7;                 // M2M: prioridad baja
-	configGPDMA.srcMemAddr = (uint32_t)(uintptr_t)DMASrc_Buffer1;
-	configGPDMA.dstMemAddr = (uint32_t)(uintptr_t)DMADest_Buffer;
+	configGPDMA.srcMemAddr = (uint32_t)DMASrc_Buffer1;
+	configGPDMA.dstMemAddr = (uint32_t)DMADest_Buffer;
 	configGPDMA.transferSize = DMA_SIZE/2;
 	configGPDMA.type = GPDMA_M2M;
 	configGPDMA.srcConn = GPDMA_ADC;                     // ignorado
@@ -123,7 +123,7 @@ int main(void) {
 	configGPDMA.dst = (GPDMA_Endpoint_T){GPDMA_WORD, GPDMA_BSIZE_32, ENABLE};
 	configGPDMA.intTC = DISABLE;                         // solo interrumpe la LLI final
 	configGPDMA.intErr = ENABLE;
-	configGPDMA.linkedList = (uint32_t)(uintptr_t)&struct_LLI;
+	configGPDMA.linkedList = (uint32_t)&struct_LLI;
 
 	// Configurar canal con los parámetros dados
 	GPDMA_SetupChannel(&configGPDMA);

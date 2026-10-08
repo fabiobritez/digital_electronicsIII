@@ -19,8 +19,8 @@ static uint32_t control_lli(void)
     const size_t cantidad = CANTIDAD;
     uint32_t control = 0u;
     control |= GPDMA_DMACCxControl_TransferSize(cantidad); // Cantidad de words del bloque.
-    control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_32); // Lee hasta 32 words por burst.
-    control |= GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_32); // Escribe hasta 32 words por burst.
+    control |= GPDMA_DMACCxControl_SBSize(GPDMA_BSIZE_16); // Lee hasta 32 words por burst.
+    control |= GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_16); // Escribe hasta 32 words por burst.
     control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // El origen se lee de a 32 bits.
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // El destino se escribe de a 32 bits.
     control |= GPDMA_DMACCxControl_SI; // Avanza la dirección de origen.
@@ -39,15 +39,15 @@ Status config_dma_m2m_words(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad; // Cantidad de words.
     cfg.type = GPDMA_M2M; // Memoria a memoria, sin request.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Inicio del origen.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
+    cfg.srcMemAddr = (uint32_t)origen; // Inicio del origen.
+    cfg.dstMemAddr = (uint32_t)destino; // Inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
-    cfg.src.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 lecturas.
+    cfg.src.burst = GPDMA_BSIZE_16; // Agrupa hasta 16 lecturas.
     cfg.src.increment = ENABLE; // Avanza por el origen.
     cfg.dst.width = GPDMA_WORD; // Escribe el destino de a 32 bits.
-    cfg.dst.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 escrituras.
+    cfg.dst.burst = GPDMA_BSIZE_16; // Agrupa hasta 16 escrituras.
     cfg.dst.increment = ENABLE; // Avanza por el destino.
     cfg.intTC = ENABLE; // El bloque genera TC y habilita su IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
@@ -66,8 +66,8 @@ Status config_dma_m2m_fill(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad; // Cantidad de words.
     cfg.type = GPDMA_M2M; // Memoria a memoria, sin request.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)valor; // Word que se repite.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
+    cfg.srcMemAddr = (uint32_t)valor; // Word que se repite.
+    cfg.dstMemAddr = (uint32_t)destino; // Inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
@@ -84,7 +84,6 @@ Status config_dma_m2m_fill(void)
 
 // Los registros describen A; las dos LLI describen B y C.
 static GPDMA_LLI_T lli_m2m_bloques[2];
-
 Status config_dma_m2m_tres_bloques(void)
 {
     const uint32_t *a = origen_a;
@@ -95,13 +94,13 @@ Status config_dma_m2m_tres_bloques(void)
 
     const uint32_t control = control_lli();
 
-    lli_m2m_bloques[0].srcAddr = (uint32_t)(uintptr_t)b; // Segundo bloque de origen.
-    lli_m2m_bloques[0].dstAddr = (uint32_t)(uintptr_t)&destino[cantidad_por_bloque]; // Continúa detrás de A.
-    lli_m2m_bloques[0].nextLLI = (uint32_t)(uintptr_t)&lli_m2m_bloques[1]; // Luego procesa C.
+    lli_m2m_bloques[0].srcAddr = (uint32_t)b; // Segundo bloque de origen.
+    lli_m2m_bloques[0].dstAddr = (uint32_t)&destino[16]; // Continúa detrás de A.
+    lli_m2m_bloques[0].nextLLI = (uint32_t)&lli_m2m_bloques[1]; // Luego procesa C.
     lli_m2m_bloques[0].control = control; // Sin IRQ intermedia.
 
-    lli_m2m_bloques[1].srcAddr = (uint32_t)(uintptr_t)c; // Tercer bloque de origen.
-    lli_m2m_bloques[1].dstAddr = (uint32_t)(uintptr_t)&destino[2u * cantidad_por_bloque]; // Continúa detrás de B.
+    lli_m2m_bloques[1].srcAddr = (uint32_t)c; // Tercer bloque de origen.
+    lli_m2m_bloques[1].dstAddr = (uint32_t)&destino[32]; // Continúa detrás de B.
     lli_m2m_bloques[1].nextLLI = 0u; // Fin de la cadena.
     lli_m2m_bloques[1].control = control | GPDMA_DMACCxControl_I; // Genera la IRQ final.
 
@@ -109,8 +108,8 @@ Status config_dma_m2m_tres_bloques(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad_por_bloque; // Tamaño del primer bloque.
     cfg.type = GPDMA_M2M; // Memoria a memoria.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)a; // A se carga en el canal.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Comienza al inicio del destino.
+    cfg.srcMemAddr = (uint32_t)a; // A se carga en el canal.
+    cfg.dstMemAddr = (uint32_t)&destino[0]; // Comienza al inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
@@ -121,7 +120,7 @@ Status config_dma_m2m_tres_bloques(void)
     cfg.dst.increment = ENABLE; // Recorre el destino.
     cfg.intTC = DISABLE; // A no genera TC.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&lli_m2m_bloques[0]; // Después de A procesa B.
+    cfg.linkedList = (uint32_t)&lli_m2m_bloques[0]; // Después de A procesa B.
     const Status estado = GPDMA_SetupChannel(&cfg);
     if (estado == SUCCESS) {
         LPC_GPDMACH7->DMACCConfig |=
@@ -132,11 +131,11 @@ Status config_dma_m2m_tres_bloques(void)
 
 void DMA_IRQHandler(void)
 {
-    if (GPDMA_IntGetStatus(GPDMA_INTTC, GPDMA_CH_7) == SET) {
+    if (GPDMA_IntGetStatus(GPDMA_INTTC, GPDMA_CH_7) == 1) {
         GPDMA_ClearIntPending(GPDMA_CLR_INTTC, GPDMA_CH_7);
         dma_fin = true;
     }
-    if (GPDMA_IntGetStatus(GPDMA_INTERR, GPDMA_CH_7) == SET) {
+    if (GPDMA_IntGetStatus(GPDMA_INTERR, GPDMA_CH_7) == 1) {
         GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_7);
         dma_error = true;
     }

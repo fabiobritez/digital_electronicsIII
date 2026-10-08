@@ -17,8 +17,8 @@ Status config_dma_m2m_bytes_a_words(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)(cantidad_bytes / sizeof(*destino)); // Una transferencia por word destino.
     cfg.type = GPDMA_M2M; // Conversión de ancho en memoria.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Buffer de bytes.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Buffer de words.
+    cfg.srcMemAddr = (uint32_t)origen; // Buffer de bytes.
+    cfg.dstMemAddr = (uint32_t)destino; // Buffer de words.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_BYTE; // Lee el origen de a 8 bits.

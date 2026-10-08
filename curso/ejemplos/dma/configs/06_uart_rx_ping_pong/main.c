@@ -48,14 +48,14 @@ Status config_dma_uart0_rx_ping_pong(void)
     UART_FIFOConfig((LPC_UART_TypeDef *)LPC_UART0, &fifo);
 
     const uint32_t control = control_lli_uart();
-    lli_uart_rx_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO Rx fijo.
-    lli_uart_rx_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)buffer_a; // Primer buffer.
-    lli_uart_rx_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[1]; // Luego llena B.
+    lli_uart_rx_ping_pong[0].srcAddr = (uint32_t)&LPC_UART0->RBR; // FIFO Rx fijo.
+    lli_uart_rx_ping_pong[0].dstAddr = (uint32_t)buffer_a; // Primer buffer.
+    lli_uart_rx_ping_pong[0].nextLLI = (uint32_t)&lli_uart_rx_ping_pong[1]; // Luego llena B.
     lli_uart_rx_ping_pong[0].control = control; // Una IRQ al completar A.
 
-    lli_uart_rx_ping_pong[1].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // Mismo FIFO de origen.
-    lli_uart_rx_ping_pong[1].dstAddr = (uint32_t)(uintptr_t)buffer_b; // Segundo buffer.
-    lli_uart_rx_ping_pong[1].nextLLI = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[0]; // Vuelve a llenar A.
+    lli_uart_rx_ping_pong[1].srcAddr = (uint32_t)&LPC_UART0->RBR; // Mismo FIFO de origen.
+    lli_uart_rx_ping_pong[1].dstAddr = (uint32_t)buffer_b; // Segundo buffer.
+    lli_uart_rx_ping_pong[1].nextLLI = (uint32_t)&lli_uart_rx_ping_pong[0]; // Vuelve a llenar A.
     lli_uart_rx_ping_pong[1].control = control; // Una IRQ al completar B.
 
     GPDMA_Channel_CFG_T cfg;
@@ -63,7 +63,7 @@ Status config_dma_uart0_rx_ping_pong(void)
     cfg.transferSize = (uint32_t)cantidad_por_buffer; // Bytes por buffer.
     cfg.type = GPDMA_P2M; // UART Rx a memoria.
     cfg.srcMemAddr = 0u; // El driver obtiene RBR.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)buffer_a; // El primer bloque llena A.
+    cfg.dstMemAddr = (uint32_t)buffer_a; // El primer bloque llena A.
     cfg.srcConn = GPDMA_UART0_Rx; // El FIFO Rx genera requests.
     cfg.dstConn = 0; // Ignorado en P2M.
     cfg.src.width = GPDMA_BYTE; // Lee un byte desde RBR.
@@ -74,7 +74,7 @@ Status config_dma_uart0_rx_ping_pong(void)
     cfg.dst.increment = ENABLE; // Avanza dentro del buffer.
     cfg.intTC = ENABLE; // A genera TC y habilita la IRQ del canal.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[1]; // Después de A carga B.
+    cfg.linkedList = (uint32_t)&lli_uart_rx_ping_pong[1]; // Después de A carga B.
     return GPDMA_SetupChannel(&cfg);
 }
 

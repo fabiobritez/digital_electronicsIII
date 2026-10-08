@@ -76,30 +76,30 @@ volatile const void* GPDMA_LUTPerAddr[] = {
 };
 #else
 const uint32_t GPDMA_LUTPerAddr[] = {
-    ((uint32_t)(uintptr_t)&LPC_SSP0->DR),        // SSP0 Tx
-    ((uint32_t)(uintptr_t)&LPC_SSP0->DR),        // SSP0 Rx
-    ((uint32_t)(uintptr_t)&LPC_SSP1->DR),        // SSP1 Tx
-    ((uint32_t)(uintptr_t)&LPC_SSP1->DR),        // SSP1 Rx
-    ((uint32_t)(uintptr_t)&LPC_ADC->ADGDR),      // ADC
-    ((uint32_t)(uintptr_t)&LPC_I2S->I2STXFIFO),  // I2S Tx
-    ((uint32_t)(uintptr_t)&LPC_I2S->I2SRXFIFO),  // I2S Rx
-    ((uint32_t)(uintptr_t)&LPC_DAC->DACR),       // DAC
-    ((uint32_t)(uintptr_t)&LPC_UART0->THR),      // UART0 Tx
-    ((uint32_t)(uintptr_t)&LPC_UART0->RBR),      // UART0 Rx
-    ((uint32_t)(uintptr_t)&LPC_UART1->THR),      // UART1 Tx
-    ((uint32_t)(uintptr_t)&LPC_UART1->RBR),      // UART1 Rx
-    ((uint32_t)(uintptr_t)&LPC_UART2->THR),      // UART2 Tx
-    ((uint32_t)(uintptr_t)&LPC_UART2->RBR),      // UART2 Rx
-    ((uint32_t)(uintptr_t)&LPC_UART3->THR),      // UART3 Tx
-    ((uint32_t)(uintptr_t)&LPC_UART3->RBR),      // UART3 Rx
-    ((uint32_t)(uintptr_t)&LPC_TIM0->MR0),       // MAT0.0
-    ((uint32_t)(uintptr_t)&LPC_TIM0->MR1),       // MAT0.1
-    ((uint32_t)(uintptr_t)&LPC_TIM1->MR0),       // MAT1.0
-    ((uint32_t)(uintptr_t)&LPC_TIM1->MR1),       // MAT1.1
-    ((uint32_t)(uintptr_t)&LPC_TIM2->MR0),       // MAT2.0
-    ((uint32_t)(uintptr_t)&LPC_TIM2->MR1),       // MAT2.1
-    ((uint32_t)(uintptr_t)&LPC_TIM3->MR0),       // MAT3.0
-    ((uint32_t)(uintptr_t)&LPC_TIM3->MR1)        // MAT3.1
+    ((uint32_t)&LPC_SSP0->DR),        // SSP0 Tx
+    ((uint32_t)&LPC_SSP0->DR),        // SSP0 Rx
+    ((uint32_t)&LPC_SSP1->DR),        // SSP1 Tx
+    ((uint32_t)&LPC_SSP1->DR),        // SSP1 Rx
+    ((uint32_t)&LPC_ADC->ADGDR),      // ADC
+    ((uint32_t)&LPC_I2S->I2STXFIFO),  // I2S Tx
+    ((uint32_t)&LPC_I2S->I2SRXFIFO),  // I2S Rx
+    ((uint32_t)&LPC_DAC->DACR),       // DAC
+    ((uint32_t)&LPC_UART0->THR),      // UART0 Tx
+    ((uint32_t)&LPC_UART0->RBR),      // UART0 Rx
+    ((uint32_t)&LPC_UART1->THR),      // UART1 Tx
+    ((uint32_t)&LPC_UART1->RBR),      // UART1 Rx
+    ((uint32_t)&LPC_UART2->THR),      // UART2 Tx
+    ((uint32_t)&LPC_UART2->RBR),      // UART2 Rx
+    ((uint32_t)&LPC_UART3->THR),      // UART3 Tx
+    ((uint32_t)&LPC_UART3->RBR),      // UART3 Rx
+    ((uint32_t)&LPC_TIM0->MR0),       // MAT0.0
+    ((uint32_t)&LPC_TIM0->MR1),       // MAT0.1
+    ((uint32_t)&LPC_TIM1->MR0),       // MAT1.0
+    ((uint32_t)&LPC_TIM1->MR1),       // MAT1.1
+    ((uint32_t)&LPC_TIM2->MR0),       // MAT2.0
+    ((uint32_t)&LPC_TIM2->MR1),       // MAT2.1
+    ((uint32_t)&LPC_TIM3->MR0),       // MAT3.0
+    ((uint32_t)&LPC_TIM3->MR1)        // MAT3.1
 };
 #endif
 /**

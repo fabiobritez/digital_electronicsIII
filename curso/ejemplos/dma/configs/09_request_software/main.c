@@ -58,8 +58,8 @@ void config_dma_gpio_request_software(void)
     LPC_SC->DMAREQSEL |= (1u << 0); // La línea 8 selecciona MAT0.0.
     LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia TC anterior.
     LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia error anterior.
-    LPC_GPDMACH6->DMACCSrcAddr = (uint32_t)(uintptr_t)valor; // Word que se escribirá.
-    LPC_GPDMACH6->DMACCDestAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO destino.
+    LPC_GPDMACH6->DMACCSrcAddr = (uint32_t)valor; // Word que se escribirá.
+    LPC_GPDMACH6->DMACCDestAddr = (uint32_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO destino.
     LPC_GPDMACH6->DMACCLLI = 0u; // Sin LLI.
     LPC_GPDMACH6->DMACCControl = control; // Una word y origen fijo.
     LPC_GPDMACH6->DMACCConfig =
@@ -82,8 +82,8 @@ void config_dma_gpio_burst_software(void)
     LPC_SC->DMAREQSEL |= (1u << 0); // La línea 8 selecciona MAT0.0.
     LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia TC anterior.
     LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia error anterior.
-    LPC_GPDMACH6->DMACCSrcAddr = (uint32_t)(uintptr_t)patrones; // Inicio de la tabla.
-    LPC_GPDMACH6->DMACCDestAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO destino.
+    LPC_GPDMACH6->DMACCSrcAddr = (uint32_t)patrones; // Inicio de la tabla.
+    LPC_GPDMACH6->DMACCDestAddr = (uint32_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO destino.
     LPC_GPDMACH6->DMACCLLI = 0u; // Sin LLI.
     LPC_GPDMACH6->DMACCControl = control; // Cuatro words y origen incremental.
     LPC_GPDMACH6->DMACCConfig =

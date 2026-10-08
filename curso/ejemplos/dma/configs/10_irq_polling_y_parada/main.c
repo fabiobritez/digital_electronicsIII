@@ -80,8 +80,8 @@ Status config_dma_m2m_interrupcion(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad; // Words que se copian.
     cfg.type = GPDMA_M2M; // Memoria a memoria.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Inicio del origen.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
+    cfg.srcMemAddr = (uint32_t)origen; // Inicio del origen.
+    cfg.dstMemAddr = (uint32_t)destino; // Inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee words de 32 bits.
@@ -106,8 +106,8 @@ Status config_dma_m2m_polling(void)
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad; // Words que se copian.
     cfg.type = GPDMA_M2M; // Memoria a memoria.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Inicio del origen.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
+    cfg.srcMemAddr = (uint32_t)origen; // Inicio del origen.
+    cfg.dstMemAddr = (uint32_t)destino; // Inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee words de 32 bits.
@@ -129,17 +129,17 @@ Status config_dma_m2m_anillo(void)
     const size_t cantidad = CANTIDAD;
     const uint32_t control = control_lli_m2m_anillo();
 
-    lli_m2m_anillo.srcAddr = (uint32_t)(uintptr_t)origen; // Reinicia el origen.
-    lli_m2m_anillo.dstAddr = (uint32_t)(uintptr_t)destino; // Reinicia el destino.
-    lli_m2m_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_m2m_anillo; // Se enlaza consigo misma.
+    lli_m2m_anillo.srcAddr = (uint32_t)origen; // Reinicia el origen.
+    lli_m2m_anillo.dstAddr = (uint32_t)destino; // Reinicia el destino.
+    lli_m2m_anillo.nextLLI = (uint32_t)&lli_m2m_anillo; // Se enlaza consigo misma.
     lli_m2m_anillo.control = control; // Repite sin generar TC.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
     cfg.transferSize = (uint32_t)cantidad; // Words por vuelta.
     cfg.type = GPDMA_M2M; // Memoria a memoria.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Inicio del origen.
-    cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
+    cfg.srcMemAddr = (uint32_t)origen; // Inicio del origen.
+    cfg.dstMemAddr = (uint32_t)destino; // Inicio del destino.
     cfg.srcConn = 0; // Ignorado en M2M.
     cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee words de 32 bits.
@@ -150,7 +150,7 @@ Status config_dma_m2m_anillo(void)
     cfg.dst.increment = ENABLE; // Recorre el destino.
     cfg.intTC = DISABLE; // Evita una IRQ en cada vuelta.
     cfg.intErr = ENABLE; // Los errores sí llegan a la ISR.
-    cfg.linkedList = (uint32_t)(uintptr_t)&lli_m2m_anillo; // Repite indefinidamente.
+    cfg.linkedList = (uint32_t)&lli_m2m_anillo; // Repite indefinidamente.
     return GPDMA_SetupChannel(&cfg);
 }
 

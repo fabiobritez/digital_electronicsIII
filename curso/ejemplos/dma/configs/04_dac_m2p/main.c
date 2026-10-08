@@ -53,7 +53,7 @@ Status config_dma_dac_bloque(void)
     cfg.channelNum = GPDMA_CH_1; // Prioridad alta para sostener la salida.
     cfg.transferSize = (uint32_t)cantidad; // Cantidad de muestras.
     cfg.type = GPDMA_M2P; // Memoria a periférico.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)muestras_dacr; // Inicio de la tabla.
+    cfg.srcMemAddr = (uint32_t)muestras_dacr; // Inicio de la tabla.
     cfg.dstMemAddr = 0u; // El driver obtiene DACR.
     cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = GPDMA_DAC; // El timeout del DAC genera requests.
@@ -78,16 +78,16 @@ Status config_dma_dac_anillo(void)
     config_dac_sin_request();
 
     const uint32_t control = control_lli_dac();
-    lli_dac_anillo.srcAddr = (uint32_t)(uintptr_t)tabla_dacr; // Reinicia la tabla.
-    lli_dac_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_DAC->DACR; // Registro de salida fijo.
-    lli_dac_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_dac_anillo; // Repite indefinidamente.
+    lli_dac_anillo.srcAddr = (uint32_t)tabla_dacr; // Reinicia la tabla.
+    lli_dac_anillo.dstAddr = (uint32_t)&LPC_DAC->DACR; // Registro de salida fijo.
+    lli_dac_anillo.nextLLI = (uint32_t)&lli_dac_anillo; // Repite indefinidamente.
     lli_dac_anillo.control = control; // Sin IRQ por vuelta.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_1; // Prioridad alta para sostener la salida.
     cfg.transferSize = (uint32_t)cantidad; // Muestras por vuelta.
     cfg.type = GPDMA_M2P; // Memoria a DAC.
-    cfg.srcMemAddr = (uint32_t)(uintptr_t)tabla_dacr; // Primera vuelta desde la tabla.
+    cfg.srcMemAddr = (uint32_t)tabla_dacr; // Primera vuelta desde la tabla.
     cfg.dstMemAddr = 0u; // El driver obtiene DACR.
     cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = GPDMA_DAC; // El DAC marca el ritmo.
@@ -99,7 +99,7 @@ Status config_dma_dac_anillo(void)
     cfg.dst.increment = DISABLE; // DACR queda fijo.
     cfg.intTC = DISABLE; // No interrumpe en cada vuelta.
     cfg.intErr = DISABLE; // El ejemplo no instala una ISR.
-    cfg.linkedList = (uint32_t)(uintptr_t)&lli_dac_anillo; // Cierra el anillo.
+    cfg.linkedList = (uint32_t)&lli_dac_anillo; // Cierra el anillo.
     return GPDMA_SetupChannel(&cfg);
 }
 

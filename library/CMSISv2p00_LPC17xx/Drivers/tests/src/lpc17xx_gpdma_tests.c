@@ -90,8 +90,8 @@ static uint8_t GPDMA_SetupChannelTest(void) {
         .channelNum   = GPDMA_CH_0,
         .transferSize = 4,
         .type         = GPDMA_M2M,
-        .srcMemAddr   = (uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .srcConn      = 0,
         .dstConn      = 0,
         .src          = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_4, .increment = ENABLE},
@@ -106,8 +106,8 @@ static uint8_t GPDMA_SetupChannelTest(void) {
     const LPC_GPDMACH_TypeDef* pDMAch = pGPDMACh[GPDMA_CH_0];
 
     /* Source and destination addresses must match */
-    EXPECT_EQUAL(pDMAch->DMACCSrcAddr, (uint32_t)(uintptr_t)gpdma_src_buf);
-    EXPECT_EQUAL(pDMAch->DMACCDestAddr, (uint32_t)(uintptr_t)gpdma_dst_buf);
+    EXPECT_EQUAL(pDMAch->DMACCSrcAddr, (uint32_t)gpdma_src_buf);
+    EXPECT_EQUAL(pDMAch->DMACCDestAddr, (uint32_t)gpdma_dst_buf);
 
     /* Transfer size field in DMACCControl [11:0] doesn't update until the transfer starts */
     // EXPECT_EQUAL(pDMAch->DMACCControl & 0xFFF, 4);
@@ -133,23 +133,23 @@ static uint8_t GPDMA_ChannelStartStopTest(void) {
     GPDMA_Setup();
     TEST_INIT();
 
-    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)(uintptr_t)gpdma_src_buf,
-                             .dstAddr = (uint32_t)(uintptr_t)gpdma_dst_buf,
-                             .nextLLI = (uint32_t)(uintptr_t)&gpdma_lli,
+    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)gpdma_src_buf,
+                             .dstAddr = (uint32_t)gpdma_dst_buf,
+                             .nextLLI = (uint32_t)&gpdma_lli,
                              .control = (4u | (0x1 << 12) | (0x1 << 15) | (0x2u << 18) |
                                          (0x2u << 21) | (1u << 26) | (1u << 27))};
 
     const GPDMA_Channel_CFG_T cfg = {
         .channelNum   = GPDMA_CH_0,
-        .srcMemAddr   = (uint32_t)(uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uint32_t)(uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .transferSize = 4,
         .type         = GPDMA_M2M,
         .srcConn      = 0,
         .dstConn      = 0,
         .src          = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_4, .increment = ENABLE},
         .dst          = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_4, .increment = ENABLE},
-        .linkedList   = (uint32_t)(uintptr_t)&gpdma_lli,
+        .linkedList   = (uint32_t)&gpdma_lli,
         .intTC        = DISABLE,
         .intErr       = DISABLE,
     };
@@ -171,16 +171,16 @@ static uint8_t GPDMA_ChannelPauseResumeTest(void) {
     GPDMA_Setup();
     TEST_INIT();
 
-    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)(uintptr_t)gpdma_src_buf,
-                             .dstAddr = (uint32_t)(uintptr_t)gpdma_dst_buf,
-                             .nextLLI = (uint32_t)(uintptr_t)&gpdma_lli,
+    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)gpdma_src_buf,
+                             .dstAddr = (uint32_t)gpdma_dst_buf,
+                             .nextLLI = (uint32_t)&gpdma_lli,
                              .control = (4u | (0x1 << 12) | (0x1 << 15) | (0x2u << 18) |
                                          (0x2u << 21) | (1u << 26) | (1u << 27))};
 
     GPDMA_Channel_CFG_T cfg = {
         .channelNum   = GPDMA_CH_1,
-        .srcMemAddr   = (uint32_t)(uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uint32_t)(uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .transferSize = 4,
         .type         = GPDMA_M2M,
         .srcConn      = 0,
@@ -189,7 +189,7 @@ static uint8_t GPDMA_ChannelPauseResumeTest(void) {
         .dst          = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_4, .increment = ENABLE},
         .intTC        = DISABLE,
         .intErr       = DISABLE,
-        .linkedList   = (uint32_t)(uintptr_t)&gpdma_lli,
+        .linkedList   = (uint32_t)&gpdma_lli,
     };
     GPDMA_SetupChannel(&cfg);
     GPDMA_ChannelStart(GPDMA_CH_1);
@@ -209,16 +209,16 @@ static uint8_t GPDMA_ChannelGracefulStopTest(void) {
     GPDMA_Setup();
     TEST_INIT();
 
-    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)(uintptr_t)gpdma_src_buf,
-                             .dstAddr = (uint32_t)(uintptr_t)gpdma_dst_buf,
-                             .nextLLI = (uint32_t)(uintptr_t)&gpdma_lli,
+    GPDMA_LLI_T gpdma_lli = {.srcAddr = (uint32_t)gpdma_src_buf,
+                             .dstAddr = (uint32_t)gpdma_dst_buf,
+                             .nextLLI = (uint32_t)&gpdma_lli,
                              .control = (4u | (0x1 << 12) | (0x1 << 15) | (0x2u << 18) |
                                          (0x2u << 21) | (1u << 26) | (1u << 27))};
 
     const GPDMA_Channel_CFG_T cfg = {
         .channelNum   = GPDMA_CH_0,
-        .srcMemAddr   = (uint32_t)(uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uint32_t)(uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .transferSize = 4,
         .type         = GPDMA_M2M,
         .srcConn      = 0,
@@ -227,7 +227,7 @@ static uint8_t GPDMA_ChannelGracefulStopTest(void) {
         .dst          = {.width = GPDMA_WORD, .burst = GPDMA_BSIZE_4, .increment = ENABLE},
         .intTC        = DISABLE,
         .intErr       = DISABLE,
-        .linkedList   = (uint32_t)(uintptr_t)&gpdma_lli,
+        .linkedList   = (uint32_t)&gpdma_lli,
     };
     GPDMA_SetupChannel(&cfg);
     GPDMA_ChannelStart(GPDMA_CH_0);
@@ -246,8 +246,8 @@ static uint8_t GPDMA_IntGetStatusTest(void) {
 
     GPDMA_Channel_CFG_T cfg = {
         .channelNum   = GPDMA_CH_0,
-        .srcMemAddr   = (uint32_t)(uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uint32_t)(uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .transferSize = 4,
         .type         = GPDMA_M2M,
         .srcConn      = 0,
@@ -281,8 +281,8 @@ static uint8_t GPDMA_ClearIntPendingTest(void) {
 
     GPDMA_Channel_CFG_T cfg = {
         .channelNum   = GPDMA_CH_0,
-        .srcMemAddr   = (uint32_t)(uintptr_t)gpdma_src_buf,
-        .dstMemAddr   = (uint32_t)(uintptr_t)gpdma_dst_buf,
+        .srcMemAddr   = (uint32_t)gpdma_src_buf,
+        .dstMemAddr   = (uint32_t)gpdma_dst_buf,
         .transferSize = 4,
         .type         = GPDMA_M2M,
         .srcConn      = 0,

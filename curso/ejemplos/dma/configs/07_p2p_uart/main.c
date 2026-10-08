@@ -78,9 +78,9 @@ Status config_dma_p2p_uart0_uart1_continuo(void)
     config_uart0_rx_uart1_tx();
 
     const uint32_t control = control_lli_p2p();
-    lli_uart_p2p_anillo.srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO de entrada fijo.
-    lli_uart_p2p_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_UART1->THR; // FIFO de salida fijo.
-    lli_uart_p2p_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_uart_p2p_anillo; // Repite el bloque.
+    lli_uart_p2p_anillo.srcAddr = (uint32_t)&LPC_UART0->RBR; // FIFO de entrada fijo.
+    lli_uart_p2p_anillo.dstAddr = (uint32_t)&LPC_UART1->THR; // FIFO de salida fijo.
+    lli_uart_p2p_anillo.nextLLI = (uint32_t)&lli_uart_p2p_anillo; // Repite el bloque.
     lli_uart_p2p_anillo.control = control; // Una IRQ por bloque.
 
     GPDMA_Channel_CFG_T cfg;
@@ -99,7 +99,7 @@ Status config_dma_p2p_uart0_uart1_continuo(void)
     cfg.dst.increment = DISABLE; // THR permanece fijo.
     cfg.intTC = ENABLE; // La primera vuelta genera TC y habilita la IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&lli_uart_p2p_anillo; // Cierra el anillo.
+    cfg.linkedList = (uint32_t)&lli_uart_p2p_anillo; // Cierra el anillo.
     return GPDMA_SetupChannel(&cfg);
 }
 
