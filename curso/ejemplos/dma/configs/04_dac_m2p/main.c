@@ -69,7 +69,7 @@ Status config_dma_dac_bloque(void)
     return GPDMA_SetupChannel(&cfg);
 }
 
-static GPDMA_LLI_T dac_anillo;
+static GPDMA_LLI_T lli_dac_anillo;
 
 Status config_dma_dac_anillo(void)
 {
@@ -78,10 +78,10 @@ Status config_dma_dac_anillo(void)
     config_dac_sin_request();
 
     const uint32_t control = control_lli_dac();
-    dac_anillo.srcAddr = (uint32_t)(uintptr_t)tabla_dacr; // Reinicia la tabla.
-    dac_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_DAC->DACR; // Registro de salida fijo.
-    dac_anillo.nextLLI = (uint32_t)(uintptr_t)&dac_anillo; // Repite indefinidamente.
-    dac_anillo.control = control; // Sin IRQ por vuelta.
+    lli_dac_anillo.srcAddr = (uint32_t)(uintptr_t)tabla_dacr; // Reinicia la tabla.
+    lli_dac_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_DAC->DACR; // Registro de salida fijo.
+    lli_dac_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_dac_anillo; // Repite indefinidamente.
+    lli_dac_anillo.control = control; // Sin IRQ por vuelta.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_1; // Prioridad alta para sostener la salida.
@@ -99,7 +99,7 @@ Status config_dma_dac_anillo(void)
     cfg.dst.increment = DISABLE; // DACR queda fijo.
     cfg.intTC = DISABLE; // No interrumpe en cada vuelta.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&dac_anillo; // Cierra el anillo.
+    cfg.linkedList = (uint32_t)(uintptr_t)&lli_dac_anillo; // Cierra el anillo.
     return GPDMA_SetupChannel(&cfg);
 }
 

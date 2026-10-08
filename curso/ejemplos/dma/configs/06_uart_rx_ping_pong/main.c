@@ -12,7 +12,7 @@ static uint8_t buffer_b[BYTES_POR_BUFFER];
 static volatile uint32_t bloques_recibidos;
 static volatile bool dma_error;
 
-static GPDMA_LLI_T uart_rx_ping_pong[2];
+static GPDMA_LLI_T lli_uart_rx_ping_pong[2];
 
 static uint32_t control_lli_uart(void)
 {
@@ -51,15 +51,15 @@ Status config_dma_uart0_rx_ping_pong(void)
     UART_FIFOConfig((LPC_UART_TypeDef *)LPC_UART0, &fifo);
 
     const uint32_t control = control_lli_uart();
-    uart_rx_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO Rx fijo.
-    uart_rx_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)a; // Primer buffer.
-    uart_rx_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&uart_rx_ping_pong[1]; // Luego llena B.
-    uart_rx_ping_pong[0].control = control; // Una IRQ al completar A.
+    lli_uart_rx_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // FIFO Rx fijo.
+    lli_uart_rx_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)a; // Primer buffer.
+    lli_uart_rx_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[1]; // Luego llena B.
+    lli_uart_rx_ping_pong[0].control = control; // Una IRQ al completar A.
 
-    uart_rx_ping_pong[1].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // Mismo FIFO de origen.
-    uart_rx_ping_pong[1].dstAddr = (uint32_t)(uintptr_t)b; // Segundo buffer.
-    uart_rx_ping_pong[1].nextLLI = (uint32_t)(uintptr_t)&uart_rx_ping_pong[0]; // Vuelve a llenar A.
-    uart_rx_ping_pong[1].control = control; // Una IRQ al completar B.
+    lli_uart_rx_ping_pong[1].srcAddr = (uint32_t)(uintptr_t)&LPC_UART0->RBR; // Mismo FIFO de origen.
+    lli_uart_rx_ping_pong[1].dstAddr = (uint32_t)(uintptr_t)b; // Segundo buffer.
+    lli_uart_rx_ping_pong[1].nextLLI = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[0]; // Vuelve a llenar A.
+    lli_uart_rx_ping_pong[1].control = control; // Una IRQ al completar B.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_1; // Prioridad alta para recepción.
@@ -77,7 +77,7 @@ Status config_dma_uart0_rx_ping_pong(void)
     cfg.dst.increment = ENABLE; // Avanza dentro del buffer.
     cfg.intTC = ENABLE; // Habilita TC de las LLI.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&uart_rx_ping_pong[1]; // Después de A carga B.
+    cfg.linkedList = (uint32_t)(uintptr_t)&lli_uart_rx_ping_pong[1]; // Después de A carga B.
     return GPDMA_SetupChannel(&cfg);
 }
 

@@ -80,7 +80,7 @@ static void config_timer0_match_periodico(TIM_MATCH_CH match)
     TIM_ConfigMatch(LPC_TIM0, &evento);
 }
 
-static GPDMA_LLI_T gpio_salida_anillo;
+static GPDMA_LLI_T lli_gpio_salida_anillo;
 
 // Reproduce estados completos de GPIO0, una word por MAT0.0.
 void config_dma_gpio_salida_periodica(void)
@@ -93,16 +93,16 @@ void config_dma_gpio_salida_periodica(void)
     config_timer0_match_periodico(TIM_MATCH_0);
     LPC_SC->DMAREQSEL |= (1u << 0); // Línea 8: MAT0.0, no UART0 Tx.
 
-    gpio_salida_anillo.srcAddr = (uint32_t)(uintptr_t)patrones; // Reinicia la tabla de estados.
-    gpio_salida_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Escribe el puerto completo.
-    gpio_salida_anillo.nextLLI = (uint32_t)(uintptr_t)&gpio_salida_anillo; // Repite en forma circular.
-    gpio_salida_anillo.control = control; // Origen avanza; GPIO queda fijo.
+    lli_gpio_salida_anillo.srcAddr = (uint32_t)(uintptr_t)patrones; // Reinicia la tabla de estados.
+    lli_gpio_salida_anillo.dstAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Escribe el puerto completo.
+    lli_gpio_salida_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_gpio_salida_anillo; // Repite en forma circular.
+    lli_gpio_salida_anillo.control = control; // Origen avanza; GPIO queda fijo.
 
     LPC_GPDMA->DMACIntTCClear = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia TC anterior.
     LPC_GPDMA->DMACIntErrClr = GPDMA_ChannelBit(GPDMA_CH_6); // Limpia error anterior.
     canal->DMACCSrcAddr = (uint32_t)(uintptr_t)patrones; // Tabla de estados.
     canal->DMACCDestAddr = (uint32_t)(uintptr_t)&LPC_GPIO0->FIOPIN; // Puerto GPIO0.
-    canal->DMACCLLI = (uint32_t)(uintptr_t)&gpio_salida_anillo; // Repite la tabla.
+    canal->DMACCLLI = (uint32_t)(uintptr_t)&lli_gpio_salida_anillo; // Repite la tabla.
     canal->DMACCControl = control; // Origen incremental y destino fijo.
     canal->DMACCConfig =
         GPDMA_DMACCxConfig_TransferType(GPDMA_M2P) | // Memoria a periférico.

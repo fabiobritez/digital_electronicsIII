@@ -62,7 +62,7 @@ Status config_dma_adc_bloque(void)
     return GPDMA_SetupChannel(&cfg);
 }
 
-static GPDMA_LLI_T adc_ping_pong[2];
+static GPDMA_LLI_T lli_adc_ping_pong[2];
 
 // A -> B -> A: IRQ por cada buffer completo.
 Status config_dma_adc_ping_pong(void)
@@ -74,15 +74,15 @@ Status config_dma_adc_ping_pong(void)
 
     const uint32_t control = control_lli_adc();
 
-    adc_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_ADC->ADGDR; // Registro de resultado fijo.
-    adc_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)buffer_a; // Primer buffer.
-    adc_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&adc_ping_pong[1]; // Luego llena B.
-    adc_ping_pong[0].control = control; // Una IRQ al completar A.
+    lli_adc_ping_pong[0].srcAddr = (uint32_t)(uintptr_t)&LPC_ADC->ADGDR; // Registro de resultado fijo.
+    lli_adc_ping_pong[0].dstAddr = (uint32_t)(uintptr_t)buffer_a; // Primer buffer.
+    lli_adc_ping_pong[0].nextLLI = (uint32_t)(uintptr_t)&lli_adc_ping_pong[1]; // Luego llena B.
+    lli_adc_ping_pong[0].control = control; // Una IRQ al completar A.
 
-    adc_ping_pong[1].srcAddr = (uint32_t)(uintptr_t)&LPC_ADC->ADGDR; // Mismo registro de origen.
-    adc_ping_pong[1].dstAddr = (uint32_t)(uintptr_t)buffer_b; // Segundo buffer.
-    adc_ping_pong[1].nextLLI = (uint32_t)(uintptr_t)&adc_ping_pong[0]; // Vuelve a llenar A.
-    adc_ping_pong[1].control = control; // Una IRQ al completar B.
+    lli_adc_ping_pong[1].srcAddr = (uint32_t)(uintptr_t)&LPC_ADC->ADGDR; // Mismo registro de origen.
+    lli_adc_ping_pong[1].dstAddr = (uint32_t)(uintptr_t)buffer_b; // Segundo buffer.
+    lli_adc_ping_pong[1].nextLLI = (uint32_t)(uintptr_t)&lli_adc_ping_pong[0]; // Vuelve a llenar A.
+    lli_adc_ping_pong[1].control = control; // Una IRQ al completar B.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_0; // Máxima prioridad para el ADC.
@@ -100,7 +100,7 @@ Status config_dma_adc_ping_pong(void)
     cfg.dst.increment = ENABLE; // Avanza dentro de cada buffer.
     cfg.intTC = ENABLE; // Habilita TC de las LLI.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&adc_ping_pong[1]; // Después de A carga B.
+    cfg.linkedList = (uint32_t)(uintptr_t)&lli_adc_ping_pong[1]; // Después de A carga B.
     return GPDMA_SetupChannel(&cfg);
 }
 

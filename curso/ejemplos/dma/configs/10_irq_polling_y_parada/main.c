@@ -8,7 +8,7 @@
 
 static uint32_t origen_demo[CANTIDAD];
 static uint32_t destino_demo[CANTIDAD];
-static GPDMA_LLI_T lli_anillo;
+static GPDMA_LLI_T lli_m2m_anillo;
 
 volatile bool dma_fin[8];
 volatile bool dma_error[8];
@@ -63,10 +63,10 @@ Status config_dma_m2m_anillo(void)
     control |= GPDMA_DMACCxControl_SI; // Avanza por el origen.
     control |= GPDMA_DMACCxControl_DI; // Avanza por el destino.
     control |= GPDMA_DMACCxControl_I; // Interrumpe al completar una vuelta.
-    lli_anillo.srcAddr = (uint32_t)(uintptr_t)origen; // Reinicia el origen.
-    lli_anillo.dstAddr = (uint32_t)(uintptr_t)destino; // Reinicia el destino.
-    lli_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_anillo; // Se enlaza consigo misma.
-    lli_anillo.control = control; // Conserva la misma configuración.
+    lli_m2m_anillo.srcAddr = (uint32_t)(uintptr_t)origen; // Reinicia el origen.
+    lli_m2m_anillo.dstAddr = (uint32_t)(uintptr_t)destino; // Reinicia el destino.
+    lli_m2m_anillo.nextLLI = (uint32_t)(uintptr_t)&lli_m2m_anillo; // Se enlaza consigo misma.
+    lli_m2m_anillo.control = control; // Conserva la misma configuración.
 
     GPDMA_Channel_CFG_T config;
     config.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -84,7 +84,7 @@ Status config_dma_m2m_anillo(void)
     config.dst.increment = ENABLE; // Recorre el destino.
     config.intTC = ENABLE; // Habilita TC de la LLI.
     config.intErr = ENABLE; // Interrumpe ante error.
-    config.linkedList = (uint32_t)(uintptr_t)&lli_anillo; // Repite indefinidamente.
+    config.linkedList = (uint32_t)(uintptr_t)&lli_m2m_anillo; // Repite indefinidamente.
     return GPDMA_SetupChannel(&config);
 }
 

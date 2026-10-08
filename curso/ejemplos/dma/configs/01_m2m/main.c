@@ -83,7 +83,7 @@ Status config_dma_m2m_fill(void)
 }
 
 // Los registros describen A; las dos LLI describen B y C.
-static GPDMA_LLI_T m2m_lli[2];
+static GPDMA_LLI_T lli_m2m_bloques[2];
 
 Status config_dma_m2m_tres_bloques(void)
 {
@@ -95,15 +95,15 @@ Status config_dma_m2m_tres_bloques(void)
 
     const uint32_t control = control_lli();
 
-    m2m_lli[0].srcAddr = (uint32_t)(uintptr_t)b; // Segundo bloque de origen.
-    m2m_lli[0].dstAddr = (uint32_t)(uintptr_t)&destino[cantidad_por_bloque]; // Continúa detrás de A.
-    m2m_lli[0].nextLLI = (uint32_t)(uintptr_t)&m2m_lli[1]; // Luego procesa C.
-    m2m_lli[0].control = control; // Sin IRQ intermedia.
+    lli_m2m_bloques[0].srcAddr = (uint32_t)(uintptr_t)b; // Segundo bloque de origen.
+    lli_m2m_bloques[0].dstAddr = (uint32_t)(uintptr_t)&destino[cantidad_por_bloque]; // Continúa detrás de A.
+    lli_m2m_bloques[0].nextLLI = (uint32_t)(uintptr_t)&lli_m2m_bloques[1]; // Luego procesa C.
+    lli_m2m_bloques[0].control = control; // Sin IRQ intermedia.
 
-    m2m_lli[1].srcAddr = (uint32_t)(uintptr_t)c; // Tercer bloque de origen.
-    m2m_lli[1].dstAddr = (uint32_t)(uintptr_t)&destino[2u * cantidad_por_bloque]; // Continúa detrás de B.
-    m2m_lli[1].nextLLI = 0u; // Fin de la cadena.
-    m2m_lli[1].control = control | GPDMA_DMACCxControl_I; // Genera la IRQ final.
+    lli_m2m_bloques[1].srcAddr = (uint32_t)(uintptr_t)c; // Tercer bloque de origen.
+    lli_m2m_bloques[1].dstAddr = (uint32_t)(uintptr_t)&destino[2u * cantidad_por_bloque]; // Continúa detrás de B.
+    lli_m2m_bloques[1].nextLLI = 0u; // Fin de la cadena.
+    lli_m2m_bloques[1].control = control | GPDMA_DMACCxControl_I; // Genera la IRQ final.
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_7; // Menor prioridad para M2M.
@@ -121,7 +121,7 @@ Status config_dma_m2m_tres_bloques(void)
     cfg.dst.increment = ENABLE; // Recorre el destino.
     cfg.intTC = DISABLE; // La LLI final genera TC.
     cfg.intErr = ENABLE; // Interrumpe ante error.
-    cfg.linkedList = (uint32_t)(uintptr_t)&m2m_lli[0]; // Después de A procesa B.
+    cfg.linkedList = (uint32_t)(uintptr_t)&lli_m2m_bloques[0]; // Después de A procesa B.
     return GPDMA_SetupChannel(&cfg);
 }
 
