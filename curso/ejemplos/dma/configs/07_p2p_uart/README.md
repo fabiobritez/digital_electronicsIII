@@ -21,6 +21,10 @@ permanecen fijos: los bytes pasan por el FIFO interno del DMA, no por un buffer 
 `config_dma_p2p_uart0_uart1_continuo()` usa una LLI que apunta a sí misma. Cada vuelta reenvía un
 bloque y genera una interrupción, pero el canal continúa activo.
 
+Para probarla, reemplazá la función de configuración en `main()`. En esta variante `dma_fin` indica
+que terminó un bloque, no que terminó el canal; mantenelo activo hasta decidir una parada limpia con
+`GPDMA_ChannelGracefulStop(GPDMA_CH_0)`.
+
 ## Compatibilidad
 
 Ambas UART usan 115200 baud, 8N1. P2P necesita que origen y destino tengan formatos y velocidades

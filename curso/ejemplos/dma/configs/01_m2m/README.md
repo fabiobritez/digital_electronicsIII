@@ -28,6 +28,11 @@ El bloque A se configura en los registros del canal. Una primera LLI describe B 
 de C. La última usa `nextLLI = 0`, por eso la cadena es finita; si apuntara otra vez al primer
 descriptor sería circular. Solo la última LLI solicita una interrupción.
 
+Para lograrlo sin modificar el driver, `intTC` queda deshabilitado durante la configuración para que
+A no interrumpa. La LLI de B no incluye el bit `I`, la de C sí lo incluye y, después de configurar el
+canal, se habilita únicamente la máscara `ITC` de `DMACCConfig`. Así el TC final puede llegar a la ISR
+sin agregar una interrupción al primer bloque.
+
 Este caso es *gather* porque reúne varios orígenes en un destino continuo. *Scatter* realiza la
 operación inversa: distribuye un origen entre varios destinos.
 

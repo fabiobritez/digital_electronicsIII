@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -35,11 +34,10 @@ static uint32_t control_gpio_entrada(void)
     control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // Origen de 32 bits.
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // Destino de 32 bits.
     control |= GPDMA_DMACCxControl_DI; // Avanza por el buffer de muestras.
-    control |= GPDMA_DMACCxControl_I; // Interrumpe al llenar el buffer.
     return control;
 }
 
-static void config_pines_gpio(void)
+static void config_pin_led(void)
 {
     PINSEL_CFG_T led;
     led.port = PORT_0; // Puerto 0.
@@ -48,15 +46,19 @@ static void config_pines_gpio(void)
     led.mode = PINSEL_PULLUP; // Habilita el pull-up.
     led.openDrain = DISABLE; // Salida push-pull.
 
+    PINSEL_ConfigPin(&led);
+    GPIO_SetDir(PORT_0, LED_P022, GPIO_OUTPUT);
+}
+
+static void config_pin_entrada(void)
+{
     PINSEL_CFG_T entrada;
     entrada.port = PORT_0; // Puerto 0.
     entrada.pin = PIN_10; // Pin que se muestrea.
     entrada.func = PINSEL_FUNC_00; // Función GPIO.
     entrada.mode = PINSEL_PULLUP; // Pulsador activo en bajo.
     entrada.openDrain = DISABLE; // Sin drenador abierto.
-    PINSEL_ConfigPin(&led);
     PINSEL_ConfigPin(&entrada);
-    GPIO_SetDir(PORT_0, LED_P022, GPIO_OUTPUT);
     GPIO_SetDir(PORT_0, 1u << 10, GPIO_INPUT);
 }
 
@@ -89,7 +91,7 @@ void config_dma_gpio_salida_periodica(void)
     const uint32_t control = control_gpio_salida();
     LPC_GPDMACH_TypeDef *canal = LPC_GPDMACH6;
 
-    config_pines_gpio();
+    config_pin_led();
     config_timer0_match_periodico(TIM_MATCH_0);
     LPC_SC->DMAREQSEL |= (1u << 0); // Línea 8: MAT0.0, no UART0 Tx.
 
@@ -106,9 +108,7 @@ void config_dma_gpio_salida_periodica(void)
     canal->DMACCControl = control; // Origen incremental y destino fijo.
     canal->DMACCConfig =
         GPDMA_DMACCxConfig_TransferType(GPDMA_M2P) | // Memoria a periférico.
-        GPDMA_DMACCxConfig_DestPeripheral(8u) | // MAT0.0 genera la request.
-        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
-        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
+        GPDMA_DMACCxConfig_DestPeripheral(8u); // MAT0.0 genera la request.
 }
 
 // Toma N snapshots de GPIO0, uno por MAT0.1.
@@ -118,7 +118,7 @@ void config_dma_gpio_entrada_periodica(void)
     const uint32_t control = control_gpio_entrada();
     LPC_GPDMACH_TypeDef *canal = LPC_GPDMACH0;
 
-    config_pines_gpio();
+    config_pin_entrada();
     config_timer0_match_periodico(TIM_MATCH_1);
     LPC_SC->DMAREQSEL |= (1u << 1); // Línea 9: MAT0.1, no UART0 Rx.
 
@@ -130,9 +130,7 @@ void config_dma_gpio_entrada_periodica(void)
     canal->DMACCControl = control; // Origen fijo y destino incremental.
     canal->DMACCConfig =
         GPDMA_DMACCxConfig_TransferType(GPDMA_P2M) | // Periférico a memoria.
-        GPDMA_DMACCxConfig_SrcPeripheral(9u) | // MAT0.1 genera la request.
-        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
-        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
+        GPDMA_DMACCxConfig_SrcPeripheral(9u); // MAT0.1 genera la request.
 }
 
 int main(void)

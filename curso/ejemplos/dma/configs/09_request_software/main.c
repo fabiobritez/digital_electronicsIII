@@ -19,7 +19,6 @@ static uint32_t control_single(void)
     control |= GPDMA_DMACCxControl_DBSize(GPDMA_BSIZE_1); // Escribe una word.
     control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // Lee words de 32 bits.
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // Escribe FIOPIN completo.
-    control |= GPDMA_DMACCxControl_I; // Interrumpe al completar.
     return control;
 }
 
@@ -33,7 +32,6 @@ static uint32_t control_burst(void)
     control |= GPDMA_DMACCxControl_SWidth(GPDMA_WORD); // Lee words de 32 bits.
     control |= GPDMA_DMACCxControl_DWidth(GPDMA_WORD); // Escribe FIOPIN completo.
     control |= GPDMA_DMACCxControl_SI; // Avanza por la tabla de patrones.
-    control |= GPDMA_DMACCxControl_I; // Interrumpe al completar.
     return control;
 }
 
@@ -66,9 +64,7 @@ void config_dma_gpio_request_software(void)
     LPC_GPDMACH6->DMACCControl = control; // Una word y origen fijo.
     LPC_GPDMACH6->DMACCConfig =
         GPDMA_DMACCxConfig_TransferType(GPDMA_M2P) | // Memoria a periférico.
-        GPDMA_DMACCxConfig_DestPeripheral(8u) | // Request de software sobre MAT0.0.
-        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
-        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
+        GPDMA_DMACCxConfig_DestPeripheral(8u); // Request de software sobre MAT0.0.
 }
 
 void disparar_dma_gpio_request_software(void)
@@ -92,9 +88,7 @@ void config_dma_gpio_burst_software(void)
     LPC_GPDMACH6->DMACCControl = control; // Cuatro words y origen incremental.
     LPC_GPDMACH6->DMACCConfig =
         GPDMA_DMACCxConfig_TransferType(GPDMA_M2P) | // Memoria a periférico.
-        GPDMA_DMACCxConfig_DestPeripheral(8u) | // Request de software sobre MAT0.0.
-        GPDMA_DMACCxConfig_IE | // Habilita la interrupción de error.
-        GPDMA_DMACCxConfig_ITC; // Habilita la interrupción de fin.
+        GPDMA_DMACCxConfig_DestPeripheral(8u); // Request de software sobre MAT0.0.
 }
 
 void disparar_dma_gpio_burst_software(void)
@@ -108,6 +102,10 @@ int main(void)
     config_dma_gpio_request_software(); // Configura una única escritura al GPIO.
     GPDMA_ChannelStart(GPDMA_CH_6); // Deja el canal esperando una request.
     disparar_dma_gpio_request_software(); // Genera la request desde software.
-    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_6) == SET) {} // Espera por polling.
+    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_6) == SET && GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_6) == RESET) {} // Espera por polling.
+    if (GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_6) == SET) {
+        GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_6); // Limpia el error detectado.
+        while (1) {}
+    }
     while (1) {} // El LED conserva el valor escrito por el DMA.
 }

@@ -20,7 +20,7 @@ static const uart_dma_t uart_dma[4] = {
     {(LPC_UART_TypeDef *)LPC_UART3, GPDMA_UART3_Tx, GPDMA_UART3_Rx, UART_TX3_P0_0, UART_RX3_P0_1},
 };
 
-static const uint8_t mensaje_uart[] = "UART0 por DMA\r\n";
+static const uint8_t mensaje_uart[] = "UART por DMA\r\n";
 static uint8_t recepcion_uart[sizeof(mensaje_uart) - 1u];
 
 static void config_uart_dma(unsigned numero)
@@ -36,20 +36,14 @@ static void config_uart_dma(unsigned numero)
     fifo.resetTxBuf = ENABLE; // Vacía el FIFO de transmisión.
     fifo.dmaMode = ENABLE; // Las requests se dirigen al DMA.
     fifo.level = UART_FIFO_TRGLEV0; // Request Rx desde un byte.
-    UART_PinConfig(uart_dma[numero].pin_tx);
-    UART_PinConfig(uart_dma[numero].pin_rx);
     UART_Init(uart_dma[numero].uart, &uart);
     UART_FIFOConfig(uart_dma[numero].uart, &fifo);
 }
 
-Status config_dma_uart_tx(unsigned numero)
+static Status config_canal_dma_uart_tx(unsigned numero)
 {
     const uint8_t *datos = mensaje_uart;
     const size_t cantidad = sizeof(mensaje_uart) - 1u;
-    if (numero > 3u) {
-        return ERROR;
-    }
-    config_uart_dma(numero);
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_3; // Prioridad menor que Rx.
@@ -57,7 +51,7 @@ Status config_dma_uart_tx(unsigned numero)
     cfg.type = GPDMA_M2P; // Memoria a UART Tx.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)datos; // Inicio del mensaje.
     cfg.dstMemAddr = 0u; // El driver obtiene THR.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2P.
+    cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = uart_dma[numero].tx; // Request del FIFO Tx elegido.
     cfg.src.width = GPDMA_BYTE; // Lee el mensaje de a un byte.
     cfg.src.burst = GPDMA_BSIZE_1; // Envía un byte por request.
@@ -65,20 +59,16 @@ Status config_dma_uart_tx(unsigned numero)
     cfg.dst.width = GPDMA_BYTE; // Escribe un byte en THR.
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = DISABLE; // THR queda fijo.
-    cfg.intTC = ENABLE; // Interrumpe al transmitir todo.
-    cfg.intErr = ENABLE; // Interrumpe ante error.
+    cfg.intTC = DISABLE; // No usa interrupción TC.
+    cfg.intErr = DISABLE; // No usa interrupción de error.
     cfg.linkedList = 0u; // Un único bloque.
     return GPDMA_SetupChannel(&cfg);
 }
 
-Status config_dma_uart_rx(unsigned numero)
+static Status config_canal_dma_uart_rx(unsigned numero)
 {
     uint8_t *datos = recepcion_uart;
     const size_t cantidad = sizeof(recepcion_uart);
-    if (numero > 3u) {
-        return ERROR;
-    }
-    config_uart_dma(numero);
 
     GPDMA_Channel_CFG_T cfg;
     cfg.channelNum = GPDMA_CH_1; // Rx tiene más prioridad que Tx.
@@ -87,24 +77,50 @@ Status config_dma_uart_rx(unsigned numero)
     cfg.srcMemAddr = 0u; // El driver obtiene RBR.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)datos; // Inicio del buffer.
     cfg.srcConn = uart_dma[numero].rx; // Request del FIFO Rx elegido.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en P2M.
+    cfg.dstConn = 0; // Ignorado en P2M.
     cfg.src.width = GPDMA_BYTE; // Lee un byte desde RBR.
     cfg.src.burst = GPDMA_BSIZE_1; // Recibe un byte por request.
     cfg.src.increment = DISABLE; // RBR queda fijo.
     cfg.dst.width = GPDMA_BYTE; // Guarda un byte por posición.
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = ENABLE; // Recorre el buffer.
-    cfg.intTC = ENABLE; // Interrumpe al recibir todo.
-    cfg.intErr = ENABLE; // Interrumpe ante error.
+    cfg.intTC = DISABLE; // No usa interrupción TC.
+    cfg.intErr = DISABLE; // No usa interrupción de error.
     cfg.linkedList = 0u; // Un único bloque.
     return GPDMA_SetupChannel(&cfg);
+}
+
+Status config_dma_uart_tx(unsigned numero)
+{
+    if (numero > 3u) {
+        return ERROR;
+    }
+    UART_PinConfig(uart_dma[numero].pin_tx); // Configura solamente el pin usado.
+    config_uart_dma(numero); // Prepara formato y FIFO.
+    return config_canal_dma_uart_tx(numero);
+}
+
+Status config_dma_uart_rx(unsigned numero)
+{
+    if (numero > 3u) {
+        return ERROR;
+    }
+    UART_PinConfig(uart_dma[numero].pin_rx); // Configura solamente el pin usado.
+    config_uart_dma(numero); // Prepara formato y FIFO.
+    return config_canal_dma_uart_rx(numero);
 }
 
 // Full-duplex = dos transferencias unidireccionales y dos canales.
 Status config_dma_uart_full_duplex(unsigned numero)
 {
-    const Status estado_rx = config_dma_uart_rx(numero);
-    const Status estado_tx = config_dma_uart_tx(numero);
+    if (numero > 3u) {
+        return ERROR;
+    }
+    UART_PinConfig(uart_dma[numero].pin_tx); // Habilita la salida serial.
+    UART_PinConfig(uart_dma[numero].pin_rx); // Habilita la entrada serial.
+    config_uart_dma(numero); // Inicializa una sola vez el periférico.
+    const Status estado_rx = config_canal_dma_uart_rx(numero);
+    const Status estado_tx = config_canal_dma_uart_tx(numero);
     return (estado_rx == SUCCESS && estado_tx == SUCCESS) ? SUCCESS : ERROR;
 }
 
@@ -116,6 +132,10 @@ int main(void)
         while (1) {} // Se detiene si la configuración no es válida.
     }
     GPDMA_ChannelStart(GPDMA_CH_3); // Inicia el envío del mensaje.
-    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_3) == SET) {} // Espera por polling.
+    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_3) == SET && GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_3) == RESET) {} // Espera por polling.
+    if (GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_3) == SET) {
+        GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_3); // Limpia el error detectado.
+        while (1) {}
+    }
     while (1) {} // La transmisión terminó.
 }

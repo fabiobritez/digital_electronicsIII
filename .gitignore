@@ -65,6 +65,7 @@ tools/toolchain
 tools/pdftools/
 __pycache__/
 *.pyc
+compile_commands.json
 
 # Staging temporal de tools/pack_toolchain.sh (el .tar.xz final si se versiona)
 tools/toolchain-pkg/stage/

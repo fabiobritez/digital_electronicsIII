@@ -1,6 +1,6 @@
 # UART por DMA
 
-UART0 transmite `UART0 por DMA` a 115200 baud, 8N1, usando el canal DMA 3. El FIFO solicita nuevos
+UART0 transmite `UART por DMA` a 115200 baud, 8N1, usando el canal DMA 3. El FIFO solicita nuevos
 bytes sin que el CPU tenga que escribirlos uno por uno.
 
 ## Pines usados
@@ -31,6 +31,15 @@ mayor prioridad que Tx porque un byte recibido puede perderse si no se retira a 
 inicia Rx y después Tx para no perder una respuesta que llegue apenas comienza la transmisión.
 
 El parámetro `numero` permite repetir las tres configuraciones con UART0, UART1, UART2 o UART3.
+
+## Probar las variantes
+
+- Rx: usá `config_dma_uart_rx(numero)`, iniciá el canal 1 y enviá desde el equipo externo tantos
+  bytes como mide `recepcion_uart`.
+- Full-duplex: usá `config_dma_uart_full_duplex(numero)` e iniciá primero el canal 1 de Rx y después
+  el canal 3 de Tx.
+
+Estas variantes usan polling: no habilitan el NVIC y consultan el estado raw para detectar errores.
 
 ## Compilar
 

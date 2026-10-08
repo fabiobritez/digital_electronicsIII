@@ -49,14 +49,14 @@ Status config_dma_adc_bloque(void)
     cfg.srcMemAddr = 0u; // El driver obtiene ADGDR.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)muestras; // Inicio del buffer.
     cfg.srcConn = GPDMA_ADC; // DONE del ADC genera la request.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en P2M.
+    cfg.dstConn = 0; // Ignorado en P2M.
     cfg.src.width = GPDMA_WORD; // ADGDR se lee de a 32 bits.
     cfg.src.burst = GPDMA_BSIZE_1; // Una muestra por request.
     cfg.src.increment = DISABLE; // ADGDR queda fijo.
     cfg.dst.width = GPDMA_WORD; // Guarda cada resultado completo.
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = ENABLE; // Avanza por el buffer.
-    cfg.intTC = ENABLE; // Interrumpe al llenar el buffer.
+    cfg.intTC = ENABLE; // El bloque genera TC y habilita su IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = 0u; // Transferencia única.
     return GPDMA_SetupChannel(&cfg);
@@ -91,14 +91,14 @@ Status config_dma_adc_ping_pong(void)
     cfg.srcMemAddr = 0u; // El driver obtiene ADGDR.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)buffer_a; // El primer bloque llena A.
     cfg.srcConn = GPDMA_ADC; // DONE genera cada request.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en P2M.
+    cfg.dstConn = 0; // Ignorado en P2M.
     cfg.src.width = GPDMA_WORD; // Lee ADGDR completo.
     cfg.src.burst = GPDMA_BSIZE_1; // Una muestra por request.
     cfg.src.increment = DISABLE; // El registro permanece fijo.
     cfg.dst.width = GPDMA_WORD; // Guarda resultados de 32 bits.
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = ENABLE; // Avanza dentro de cada buffer.
-    cfg.intTC = ENABLE; // Habilita TC de las LLI.
+    cfg.intTC = ENABLE; // A genera TC y habilita la IRQ del canal.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = (uint32_t)(uintptr_t)&lli_adc_ping_pong[1]; // Después de A carga B.
     return GPDMA_SetupChannel(&cfg);

@@ -41,15 +41,15 @@ Status config_dma_m2m_words(void)
     cfg.type = GPDMA_M2M; // Memoria a memoria, sin request.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Inicio del origen.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2M.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en M2M.
+    cfg.srcConn = 0; // Ignorado en M2M.
+    cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
     cfg.src.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 lecturas.
     cfg.src.increment = ENABLE; // Avanza por el origen.
     cfg.dst.width = GPDMA_WORD; // Escribe el destino de a 32 bits.
     cfg.dst.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 escrituras.
     cfg.dst.increment = ENABLE; // Avanza por el destino.
-    cfg.intTC = ENABLE; // Interrumpe al completar.
+    cfg.intTC = ENABLE; // El bloque genera TC y habilita su IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = 0u; // Sin LLI.
     return GPDMA_SetupChannel(&cfg);
@@ -68,15 +68,15 @@ Status config_dma_m2m_fill(void)
     cfg.type = GPDMA_M2M; // Memoria a memoria, sin request.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)valor; // Word que se repite.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Inicio del destino.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2M.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en M2M.
+    cfg.srcConn = 0; // Ignorado en M2M.
+    cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
     cfg.src.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 lecturas.
     cfg.src.increment = DISABLE; // Repite siempre la misma word.
     cfg.dst.width = GPDMA_WORD; // Escribe el destino de a 32 bits.
     cfg.dst.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 escrituras.
     cfg.dst.increment = ENABLE; // Avanza por el buffer.
-    cfg.intTC = ENABLE; // Interrumpe al completar.
+    cfg.intTC = ENABLE; // El bloque genera TC y habilita su IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = 0u; // Sin LLI.
     return GPDMA_SetupChannel(&cfg);
@@ -111,18 +111,23 @@ Status config_dma_m2m_tres_bloques(void)
     cfg.type = GPDMA_M2M; // Memoria a memoria.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)a; // A se carga en el canal.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Comienza al inicio del destino.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2M.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en M2M.
+    cfg.srcConn = 0; // Ignorado en M2M.
+    cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_WORD; // Lee el origen de a 32 bits.
     cfg.src.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 lecturas.
     cfg.src.increment = ENABLE; // Recorre A.
     cfg.dst.width = GPDMA_WORD; // Escribe el destino de a 32 bits.
     cfg.dst.burst = GPDMA_BSIZE_32; // Agrupa hasta 32 escrituras.
     cfg.dst.increment = ENABLE; // Recorre el destino.
-    cfg.intTC = DISABLE; // La LLI final genera TC.
+    cfg.intTC = DISABLE; // A no genera TC.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = (uint32_t)(uintptr_t)&lli_m2m_bloques[0]; // Después de A procesa B.
-    return GPDMA_SetupChannel(&cfg);
+    const Status estado = GPDMA_SetupChannel(&cfg);
+    if (estado == SUCCESS) {
+        LPC_GPDMACH7->DMACCConfig |=
+            GPDMA_DMACCxConfig_ITC; // Deja pasar el TC de la LLI final.
+    }
+    return estado;
 }
 
 void DMA_IRQHandler(void)

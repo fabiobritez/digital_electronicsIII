@@ -30,6 +30,19 @@ obliga a transferir desde o hacia el registro `MRx`.
 
 Compará ambas variantes y observá qué extremo incrementa en cada dirección.
 
+## Probar el muestreo de entrada
+
+En `main()`, reemplazá la configuración de salida por estas llamadas:
+
+```c
+config_dma_gpio_entrada_periodica();
+GPDMA_ChannelStart(GPDMA_CH_0);
+TIM_Enable(LPC_TIM0);
+```
+
+El canal 0 se deshabilita cuando completa `muestras_gpio`; podés observarlo por polling y revisar el
+buffer desde el debugger. Esta variante no habilita interrupciones.
+
 ## Compilar
 
 ```bash

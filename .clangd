@@ -1,0 +1,27 @@
+# Configuración para abrir la raíz completa del curso con clangd.
+# Los comandos reales se generan desde plantilla/Makefile.
+
+CompileFlags:
+  CompilationDatabase: plantilla
+  Remove:
+    - -mthumb
+    - -specs=*
+    - --specs=*
+    - -fno-common
+    - -ffunction-sections
+    - -fdata-sections
+    - -Wdouble-promotion
+    - -gdwarf-*
+  Add:
+    - --target=arm-none-eabi
+    - -mcpu=cortex-m3
+    - -std=gnu11
+    - -D__USE_CMSIS
+    - -DCORE_M3
+
+Diagnostics:
+  Suppress:
+    - unused-parameter
+
+Index:
+  Background: Build

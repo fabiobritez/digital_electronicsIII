@@ -55,7 +55,7 @@ Status config_dma_dac_bloque(void)
     cfg.type = GPDMA_M2P; // Memoria a periférico.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)muestras_dacr; // Inicio de la tabla.
     cfg.dstMemAddr = 0u; // El driver obtiene DACR.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2P.
+    cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = GPDMA_DAC; // El timeout del DAC genera requests.
     cfg.src.width = GPDMA_WORD; // Lee una muestra completa.
     cfg.src.burst = GPDMA_BSIZE_1; // Una muestra por request.
@@ -63,8 +63,8 @@ Status config_dma_dac_bloque(void)
     cfg.dst.width = GPDMA_WORD; // Escribe DACR completo.
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = DISABLE; // DACR queda fijo.
-    cfg.intTC = ENABLE; // Interrumpe al terminar la tabla.
-    cfg.intErr = ENABLE; // Interrumpe ante error.
+    cfg.intTC = DISABLE; // No usa interrupción TC.
+    cfg.intErr = DISABLE; // No usa interrupción de error.
     cfg.linkedList = 0u; // Reproducción única.
     return GPDMA_SetupChannel(&cfg);
 }
@@ -89,7 +89,7 @@ Status config_dma_dac_anillo(void)
     cfg.type = GPDMA_M2P; // Memoria a DAC.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)tabla_dacr; // Primera vuelta desde la tabla.
     cfg.dstMemAddr = 0u; // El driver obtiene DACR.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2P.
+    cfg.srcConn = 0; // Ignorado en M2P.
     cfg.dstConn = GPDMA_DAC; // El DAC marca el ritmo.
     cfg.src.width = GPDMA_WORD; // Lee una muestra completa.
     cfg.src.burst = GPDMA_BSIZE_1; // Una muestra por request.
@@ -98,7 +98,7 @@ Status config_dma_dac_anillo(void)
     cfg.dst.burst = GPDMA_BSIZE_1; // Una escritura por request.
     cfg.dst.increment = DISABLE; // DACR queda fijo.
     cfg.intTC = DISABLE; // No interrumpe en cada vuelta.
-    cfg.intErr = ENABLE; // Interrumpe ante error.
+    cfg.intErr = DISABLE; // El ejemplo no instala una ISR.
     cfg.linkedList = (uint32_t)(uintptr_t)&lli_dac_anillo; // Cierra el anillo.
     return GPDMA_SetupChannel(&cfg);
 }

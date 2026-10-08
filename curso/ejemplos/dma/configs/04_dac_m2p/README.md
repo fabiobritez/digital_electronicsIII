@@ -21,6 +21,10 @@ a su primera muestra y la señal se repite sin intervención del CPU.
 El canal se inicia antes de habilitar las requests del DAC. Así el DMA ya está esperando cuando el
 timeout solicita la primera muestra.
 
+Para probar una única reproducción, reemplazá `config_dma_dac_anillo()` por
+`config_dma_dac_bloque()`. Conservá `iniciar_dma_dac()` y esperá por polling hasta que el canal 1 se
+deshabilite. Ninguna de las dos variantes instala una ISR.
+
 ## Formato y frecuencia
 
 Las muestras ya están formateadas con `DAC_VALUE()`: el DMA mueve words completas y no transforma

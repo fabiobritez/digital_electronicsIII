@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Cursor: actualizar índice C/C++",
+      "type": "shell",
+      "command": "env",
+      "args": [
+        "USE_CMSIS=1",
+        "python3",
+        "tools/gen_compile_commands.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/plantilla"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

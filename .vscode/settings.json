@@ -1,0 +1,31 @@
+{
+  // clangd analiza C en Cursor. Se deshabilita solamente el motor de
+  // IntelliSense de C/C++ para evitar dos diagnósticos sobre la misma línea.
+  "C_Cpp.intelliSenseEngine": "disabled",
+
+  // La base se genera desde el Makefile de la plantilla con USE_CMSIS=1.
+  "clangd.arguments": [
+    "--compile-commands-dir=plantilla",
+    "--background-index",
+    "--header-insertion=never"
+  ],
+
+  // Respaldo para archivos que todavía no aparecen en compile_commands.json,
+  // como los ejemplos individuales dentro de curso/.
+  "clangd.fallbackFlags": [
+    "--target=arm-none-eabi",
+    "-mcpu=cortex-m3",
+    "-mthumb",
+    "-std=gnu11",
+    "-D__USE_CMSIS",
+    "-DCORE_M3",
+    "-Ilibrary/CMSISv2p00_LPC17xx/inc",
+    "-Ilibrary/CMSISv2p00_LPC17xx/Drivers/inc",
+    "-Iplantilla/inc",
+    "-Iplantilla/src"
+  ],
+
+  "files.associations": {
+    "*.h": "c"
+  }
+}

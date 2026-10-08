@@ -3,6 +3,8 @@
 UART0 recibe continuamente a 115200 baud, 8N1. El DMA alterna dos buffers de 16 bytes y genera una
 interrupción al completar cada uno.
 
+Solamente se configura P0.3 porque la transmisión de UART0 no participa en este ejemplo.
+
 ## Conexión
 
 ```text

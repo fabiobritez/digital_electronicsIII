@@ -57,6 +57,11 @@ debe poder consumirlos y ambos deben usar formatos y velocidades compatibles.
 9. Mantené buffers y LLI en memoria mientras el DMA pueda utilizarlos y definí un orden de arranque
    que no pierda la primera request.
 
+En los extremos que corresponden a memoria, `srcConn` o `dstConn` quedan ignorados. Los ejemplos
+usan `0` en esos campos porque el driver exige igualmente un valor dentro del rango válido. Ese
+cero coincide con la primera conexión del enum; no significa “sin conexión” y sólo es seguro cuando
+el tipo de transferencia garantiza que ese extremo está en memoria.
+
 
 ## Cómo compilar un ejemplo
 
@@ -71,9 +76,11 @@ resetea los ocho canales y borraría configuraciones concurrentes.
 ## Interrupciones
 
 Una ISR común debe revisar TC y error por canal, empezando por el canal de mayor prioridad, y limpiar
-los dos estados que correspondan. El bit `I` del `Control` decide si un tramo genera TC; `ITC` en
-`Config` deja pasar esa señal. En un anillo, poner `I` en cada descriptor produce una IRQ por bloque,
-no una IRQ de “fin del anillo” (el anillo nunca termina).
+los dos estados que correspondan. El driver usa `intTC` para colocar el bit `I` en el bloque inicial
+y habilitar la máscara `ITC` del canal. Cada LLI tiene su propio bit `I`; cuando sólo debe interrumpir
+una LLI posterior, se configura el bloque inicial sin TC y luego se habilita `ITC` directamente en
+`DMACCConfig`. En un anillo, poner `I` en cada descriptor produce una IRQ por bloque, no una IRQ de
+“fin del anillo” (el anillo nunca termina).
 
 ## Para consultar
 

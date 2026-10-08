@@ -64,7 +64,7 @@ Status config_dma_p2p_uart0_uart1(void)
     cfg.dst.width = GPDMA_BYTE; // Escribe un byte en THR.
     cfg.dst.burst = GPDMA_BSIZE_1; // Envía un byte por request.
     cfg.dst.increment = DISABLE; // THR queda fijo.
-    cfg.intTC = ENABLE; // Interrumpe al completar el bloque.
+    cfg.intTC = ENABLE; // El bloque genera TC y habilita su IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = 0u; // Reenvío finito.
     return GPDMA_SetupChannel(&cfg);
@@ -97,7 +97,7 @@ Status config_dma_p2p_uart0_uart1_continuo(void)
     cfg.dst.width = GPDMA_BYTE; // Escribe un byte en THR.
     cfg.dst.burst = GPDMA_BSIZE_1; // Envía un byte por request.
     cfg.dst.increment = DISABLE; // THR permanece fijo.
-    cfg.intTC = ENABLE; // Habilita la IRQ de la LLI.
+    cfg.intTC = ENABLE; // La primera vuelta genera TC y habilita la IRQ.
     cfg.intErr = ENABLE; // Interrumpe ante error.
     cfg.linkedList = (uint32_t)(uintptr_t)&lli_uart_p2p_anillo; // Cierra el anillo.
     return GPDMA_SetupChannel(&cfg);

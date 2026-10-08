@@ -31,6 +31,10 @@ Cada LLI describe un buffer y genera una interrupción al completarlo. Mientras 
 programa puede procesar el otro. Si el procesamiento demora demasiado, el DMA volverá a escribir un
 buffer antes de que sus datos hayan sido utilizados.
 
+Para probar el bloque finito, reemplazá `config_dma_adc_ping_pong()` por
+`config_dma_adc_bloque()`. El arranque no cambia: primero se habilita el canal DMA y después las
+conversiones del ADC. La primera interrupción indica que el único buffer quedó completo.
+
 ## Decisiones de configuración
 
 El bit `DONE` del ADC genera cada request. Se usa burst 1 porque llega una muestra por conversión, y

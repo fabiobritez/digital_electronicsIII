@@ -19,6 +19,16 @@ completo y no solamente el bit del LED.
 `config_dma_gpio_burst_software()` configura cuatro transferencias y un origen incremental. Una
 llamada a `disparar_dma_gpio_burst_software()` permite consumir las cuatro words del burst.
 
+Para probarla, reemplazá juntas ambas llamadas del `main()`:
+
+```c
+config_dma_gpio_burst_software();
+GPDMA_ChannelStart(GPDMA_CH_6);
+disparar_dma_gpio_burst_software();
+```
+
+Las dos variantes observan la finalización por polling y no habilitan interrupciones.
+
 ## Request sin periférico activo
 
 La línea de MAT0.0 identifica la request, pero Timer0 permanece detenido: la señal se genera por

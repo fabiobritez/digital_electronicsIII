@@ -19,16 +19,16 @@ Status config_dma_m2m_bytes_a_words(void)
     cfg.type = GPDMA_M2M; // Conversión de ancho en memoria.
     cfg.srcMemAddr = (uint32_t)(uintptr_t)origen; // Buffer de bytes.
     cfg.dstMemAddr = (uint32_t)(uintptr_t)destino; // Buffer de words.
-    cfg.srcConn = GPDMA_ADC; // Ignorado en M2M.
-    cfg.dstConn = GPDMA_ADC; // Ignorado en M2M.
+    cfg.srcConn = 0; // Ignorado en M2M.
+    cfg.dstConn = 0; // Ignorado en M2M.
     cfg.src.width = GPDMA_BYTE; // Lee el origen de a 8 bits.
     cfg.src.burst = GPDMA_BSIZE_32; // Lee 32 bytes por burst.
     cfg.src.increment = ENABLE; // Avanza por cada byte.
     cfg.dst.width = GPDMA_WORD; // Escribe el destino de a 32 bits.
     cfg.dst.burst = GPDMA_BSIZE_8; // Escribe 8 words por burst.
     cfg.dst.increment = ENABLE; // Avanza por cada word.
-    cfg.intTC = ENABLE; // Señala el fin.
-    cfg.intErr = ENABLE; // Señala errores.
+    cfg.intTC = DISABLE; // No usa interrupción TC.
+    cfg.intErr = DISABLE; // No usa interrupción de error.
     cfg.linkedList = 0u; // Sin encadenamiento.
     return GPDMA_SetupChannel(&cfg);
 }
@@ -41,6 +41,10 @@ int main(void)
         while (1) {} // Se detiene si la configuración no es válida.
     }
     GPDMA_ChannelStart(GPDMA_CH_7); // Inicia la transferencia M2M.
-    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_7) == SET) {} // Espera por polling.
+    while (GPDMA_IntGetStatus(GPDMA_ENABLED_CH, GPDMA_CH_7) == SET && GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_7) == RESET) {} // Espera por polling.
+    if (GPDMA_IntGetStatus(GPDMA_RAW_INTERR, GPDMA_CH_7) == SET) {
+        GPDMA_ClearIntPending(GPDMA_CLR_INTERR, GPDMA_CH_7); // Limpia el error detectado.
+        while (1) {}
+    }
     while (1) {} // Permite revisar destino_demo desde el debugger.
 }
